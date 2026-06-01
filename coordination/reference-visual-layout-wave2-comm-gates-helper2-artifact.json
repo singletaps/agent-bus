@@ -1,0 +1,64 @@
+{
+  "agent": "runtime-helper-2",
+  "token": "VISUAL_LAYOUT_WAVE2_COMM_GATES_READY",
+  "created_at": "2026-05-29T14:21:13+08:00",
+  "assignment": "Wave 2 Task 2B Communication/Gates/detail workspace visual layout",
+  "scope": {
+    "changed_files": [
+      "frontend/src/pages/CommunicationPage.tsx",
+      "frontend/src/pages/GatesPage.tsx",
+      "frontend/src/components/DetailRail.tsx",
+      "frontend/src/components/ActionDrawer.tsx"
+    ],
+    "forbidden_scope_respected": [
+      "frontend/src/App.tsx",
+      "backend files",
+      "CSS files"
+    ]
+  },
+  "verification": {
+    "source_scan": {
+      "command": "Select-String -Path frontend/src/pages/CommunicationPage.tsx,frontend/src/pages/GatesPage.tsx,frontend/src/components/DetailRail.tsx,frontend/src/components/ActionDrawer.tsx -Pattern '閫','鏆','浠','娑','璇','????','???' -SimpleMatch",
+      "result": "exit 0; no matches"
+    },
+    "build": {
+      "command": "npm --prefix frontend run build",
+      "result": "exit 0; Vite built 1769 modules in 4.31s; lucide use-client warnings only"
+    },
+    "browser_smoke": {
+      "origin": "http://127.0.0.1:8787/",
+      "communication": [
+        "clicked Communication nav",
+        "clicked refresh, a space/group, an agent, and a visible message",
+        "filled composer and clicked send; message count incremented from 13 to 14 and input cleared",
+        "no browser runtime errors recorded during smoke",
+        "document horizontal overflow false",
+        "visible placeholder question-mark scan false"
+      ],
+      "gates": [
+        "clicked Gates nav",
+        "clicked queue tabs, first gate card, and decision actions",
+        "decision actions opened safe ActionDrawer route/status instead of backend gate mutation",
+        "no browser runtime errors recorded during smoke",
+        "document horizontal overflow false",
+        "visible placeholder question-mark scan false"
+      ]
+    },
+    "screenshots": [
+      {
+        "path": "coordination/visual-layout-wave2-communication.png",
+        "bytes": 111241,
+        "captured_at": "2026-05-29T14:20:17+08:00"
+      },
+      {
+        "path": "coordination/visual-layout-wave2-gates.png",
+        "bytes": 100446,
+        "captured_at": "2026-05-29T14:20:19+08:00"
+      }
+    ]
+  },
+  "risks": [
+    "Gate decision controls intentionally route through Agent Bus ActionDrawer because no safe backend mutation contract was assigned.",
+    "Communication send smoke confirmed the Bus-backed composer cleared and message count incremented; the sent message may be hidden by the active space filter until the matching space is selected."
+  ]
+}

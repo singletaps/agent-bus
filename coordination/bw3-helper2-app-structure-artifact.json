@@ -1,0 +1,59 @@
+{
+  "task": "BW-3 Helper2 App structure patch",
+  "run_id": "run_d31e5d68c71d4bcea3a181dd3b839f6f",
+  "task_id": "task_d53705bbf31f432ea422bbcb0a7621af",
+  "created_by": "runtime-helper-2",
+  "scope": "frontend/src/App.tsx; no backend/API/routing changes; uiText.ts did not require edits",
+  "files_modified": [
+    "frontend/src/App.tsx"
+  ],
+  "changes": [
+    "Reworked the top area into topStatusBar plus conditional alertBanner with the required incident action.",
+    "Changed sidebar bottom card to current task flow label/meta instead of long run id.",
+    "Wired Operations to operationsGrid and five decision lanes: needsAction, active, waitingGate, review, done.",
+    "Updated Agent cards to use agentAvatar with lucide role icons and short session ids.",
+    "Updated task cards to show state/owner chips, short ids, progress, next action, and short run id.",
+    "Changed gate filtering to default open with open/high/handled/all tabs.",
+    "Added Inspector tabs and an empty state that does not render placeholder fields.",
+    "Converted Event Console to a structured eventTable.",
+    "Updated RunGraph route content to task-flow-list behavior, plus artifact empty cards and settings cards."
+  ],
+  "verification": {
+    "npm_run_build": "exit 0; only known lucide-react use-client warnings",
+    "source_checks": {
+      "routing_mode_preserved": true,
+      "include_selected_task_preserved": true,
+      "five_lane_order_present": true,
+      "gate_filter_order_present": true,
+      "inspector_tabs_present": true,
+      "event_table_present": true,
+      "settings_cards_present": true
+    },
+    "browser_url": "http://127.0.0.1:8787/",
+    "browser_viewport": "1280x720",
+    "browser_operations": {
+      "body_overflow_x": false,
+      "alert_banner": 1,
+      "top_status_bar": 1,
+      "metrics": 5,
+      "workstation_cards": 7,
+      "agent_avatars": 7,
+      "decision_lanes": 5,
+      "gate_tabs": 4,
+      "inspector_tabs": 4,
+      "event_tables": 1,
+      "visible_unknown": 0,
+      "visible_none": 0,
+      "max_primary_code_length": 11,
+      "console_warnings_errors": []
+    },
+    "browser_secondary_views": {
+      "run_graph_title": "任务流列表",
+      "run_graph_visible_unknown": 0,
+      "run_graph_visible_none": 0,
+      "artifact_cards": 3,
+      "settings_cards": 3,
+      "console_warnings_errors": []
+    }
+  }
+}

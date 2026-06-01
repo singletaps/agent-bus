@@ -1,0 +1,24 @@
+{
+  "target": "http://127.0.0.1:8787/",
+  "capturedAt": "2026-05-29T06:21:05.081Z",
+  "hasSections": true,
+  "hasHeadings": true,
+  "hasMojibake": false,
+  "metrics": {
+    "panels": 3,
+    "bodyOverflow": false,
+    "actionCardOverflow": false,
+    "actionCards": 5,
+    "metroNodes": 9
+  },
+  "clicked": {
+    "clicked": true,
+    "textLength": 4
+  },
+  "drawerOpened": true,
+  "submitClicked": true,
+  "sendHit": true,
+  "severeLogCount": 0,
+  "severeLogs": [],
+  "screenshot": "coordination/visual-layout-wave2-home.png"
+}

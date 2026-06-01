@@ -1,0 +1,48 @@
+{
+  "task": "PRODUCT_RESTRUCTURE_WAVE_B_B4",
+  "agent": "runtime-worker-4",
+  "status": "ready",
+  "scope": "Diagnostics page and visual system CSS",
+  "changed_by_worker4": [
+    "frontend/src/pages/DiagnosticsPage.tsx",
+    "frontend/src/main.tsx",
+    "frontend/src/styles/base.css",
+    "frontend/src/styles/layout.css",
+    "frontend/src/styles/status.css"
+  ],
+  "not_touched_by_worker4_b4": [
+    "frontend/src/App.tsx",
+    "frontend/src/operationsApi.ts",
+    "frontend/src/styles.css"
+  ],
+  "integration_dependency": {
+    "owner": "runtime-helper-1",
+    "note": "helper1 wired DiagnosticsPage into App.tsx under B1 after QA confirmed App route wiring ownership"
+  },
+  "changes": [
+    "Added DiagnosticsPage with fixed-height raw event frame, filters, protocol warnings, stale-event count, and session/projection facts.",
+    "Added stable CSS status tokens for green, yellow, red, gray, purple, and blue.",
+    "Added status badge, metric, diagnostics grid, fixed event-frame, and responsive page-grid rules.",
+    "Updated main.tsx to import base/layout/status CSS before the legacy styles.css compatibility layer."
+  ],
+  "verification": {
+    "build_command": "npm --prefix frontend run build",
+    "build_exit_code": 0,
+    "build_context": "after helper1 wired DiagnosticsPage into App.tsx",
+    "warnings": [
+      "lucide-react module-level use client directives ignored by Vite bundling"
+    ],
+    "status_mapping_check": [
+      "--status-green",
+      "--status-yellow",
+      "--status-red",
+      "--status-gray",
+      "--status-blue",
+      ".status-green",
+      ".status-yellow",
+      ".status-red",
+      ".status-gray",
+      ".status-blue"
+    ]
+  }
+}

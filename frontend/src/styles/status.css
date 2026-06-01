@@ -1,0 +1,379 @@
+.statusBadge {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.statusBadge::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.status-green {
+  color: var(--status-green);
+}
+
+.status-yellow {
+  color: var(--status-yellow);
+}
+
+.status-red {
+  color: var(--status-red);
+}
+
+.status-gray {
+  color: var(--status-gray);
+}
+
+.status-purple {
+  color: var(--status-purple);
+}
+
+.status-blue {
+  color: var(--status-blue);
+}
+
+.idChip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: var(--surface-panel-soft);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentMark {
+  --agent-role-color: var(--agent-role-worker);
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.agentMark[data-role="controller"] {
+  --agent-role-color: var(--agent-role-controller);
+}
+
+.agentMark[data-role="helper"] {
+  --agent-role-color: var(--agent-role-helper);
+}
+
+.agentMark[data-role="observer"] {
+  --agent-role-color: var(--agent-role-observer);
+}
+
+.agentMark[data-role="qa"] {
+  --agent-role-color: var(--agent-role-qa);
+}
+
+.agentMark[data-role="worker"] {
+  --agent-role-color: var(--agent-role-worker);
+}
+
+.agentMarkIcon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--agent-role-color) 44%, #ffffff);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--agent-role-color) 12%, #ffffff), #ffffff);
+  color: var(--agent-role-color);
+  flex: 0 0 32px;
+}
+
+.agentMarkText {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.agentMarkText strong,
+.agentMarkText span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentMarkText strong {
+  color: var(--text-strong);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.agentMarkText span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.agentMark[data-compact="true"] {
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.agentMark[data-compact="true"] .agentMarkText span {
+  text-transform: none;
+}
+
+.gateItem .agentMark {
+  width: 100%;
+}
+
+.diagnosticsSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metricTile {
+  min-width: 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.metricTile span {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.metricTile strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-strong);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.metricTile[data-tone="good"] {
+  border-color: color-mix(in srgb, var(--status-green) 34%, var(--line-soft));
+}
+
+.metricTile[data-tone="warn"] {
+  border-color: color-mix(in srgb, var(--status-yellow) 36%, var(--line-soft));
+}
+
+.metricTile[data-tone="bad"] {
+  border-color: color-mix(in srgb, var(--status-red) 38%, var(--line-soft));
+}
+
+.referenceCard {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+
+.referenceCardHeader {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+}
+
+.referenceCardHeader h3,
+.referenceCardHeader p {
+  margin: 0;
+}
+
+.referenceCardHeader h3 {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.referenceCardHeader p {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.referenceTabs {
+  min-width: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 4px;
+}
+
+.referenceTabs button,
+.referenceTab {
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1;
+  padding: 0 11px;
+}
+
+.referenceTabs button[aria-selected="true"],
+.referenceTabs button[aria-pressed="true"],
+.referenceTab[aria-selected="true"],
+.referenceTab[aria-pressed="true"] {
+  border-color: #bfdbfe;
+  background: #ffffff;
+  color: var(--blue);
+  box-shadow: var(--shadow-sm);
+}
+
+.referenceTabs button:hover,
+.referenceTab:hover {
+  color: var(--blue);
+}
+
+.referenceEmpty {
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--text-muted);
+  padding: 18px;
+}
+
+.referenceEmpty strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.diagnosticsList {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 18px 16px 32px;
+  color: var(--text-strong);
+}
+
+.diagnosticsFacts {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.diagnosticsFacts div {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.45fr) minmax(0, 1fr);
+  gap: 10px;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 10px 12px;
+}
+
+.diagnosticsFacts div:last-child {
+  border-bottom: 0;
+}
+
+.diagnosticsFacts dt {
+  color: var(--text-muted);
+  font-weight: 800;
+}
+
+.diagnosticsFacts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-strong);
+}
+
+.segmentedControl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+}
+
+.segmentButton {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: var(--surface-panel);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.segmentButton[aria-pressed="true"] {
+  border-color: var(--action-blue);
+  background: color-mix(in srgb, var(--action-blue) 10%, #ffffff);
+  color: var(--action-blue);
+  font-weight: 800;
+}
+
+.segmentButton:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.diagnosticsTypeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+
+.diagnosticsTypeList span {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--surface-panel-soft);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.emptyNote {
+  margin: 0;
+  padding: 14px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 760px) {
+  .diagnosticsSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .diagnosticsSummary {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "artifact": "frontend-product-restructure-a23-helper2",
+  "registered_artifact_id": "artifact_e8452220eda347c4a949e4fbd2377e84",
+  "created_at": "2026-05-29T11:03:40+08:00",
+  "created_by": "runtime-helper-2",
+  "assignment": "Wave A A23 backend contract bundle",
+  "scope": {
+    "modified": [
+      "agent_bus/models.py",
+      "agent_bus/projections.py",
+      "agent_bus/server.py"
+    ],
+    "created": [
+      "agent_bus/artifacts.py",
+      "tests/test_communication_projection.py",
+      "tests/test_artifact_manifests.py"
+    ],
+    "frontend_files_touched": []
+  },
+  "changes": [
+    "Added BusMessageLink and BusMessageProjection models.",
+    "Added Bus-backed message projection from selected Bus events and inbox rows, including interrupt_event_id inbox links.",
+    "Added GET /api/projections/messages and POST /api/messages/send.",
+    "Added safe artifact manifest reader and GET /api/artifacts/manifests.",
+    "Projected missing gate owners to the QA agent in operations projection without mutating durable gate records."
+  ],
+  "verification": {
+    "command": "pytest tests/test_communication_projection.py tests/test_artifact_manifests.py tests/test_server.py tests/test_tasks_gates_reviews.py -q",
+    "exit_code": 0,
+    "output": "19 passed in 2.66s"
+  },
+  "notes": [
+    "No frontend files were edited for A23.",
+    "Artifact path containment uses Path.relative_to instead of string-prefix checks.",
+    "Registered in coordination/live-agent-bus.sqlite3 as artifact_e8452220eda347c4a949e4fbd2377e84."
+  ]
+}

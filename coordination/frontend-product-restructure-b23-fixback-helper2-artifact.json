@@ -1,0 +1,59 @@
+{
+  "agent": "runtime-helper-2",
+  "created_at": "2026-05-29T12:12:06+08:00",
+  "scope": "PRODUCT_RESTRUCTURE_B_GATE_FIXBACK_B23",
+  "files_changed": [
+    "frontend/src/components/AgentMark.tsx",
+    "frontend/src/components/DetailRail.tsx",
+    "frontend/src/components/EventTable.tsx",
+    "frontend/src/components/IdChip.tsx",
+    "frontend/src/components/Panel.tsx",
+    "frontend/src/components/StatusBadge.tsx",
+    "frontend/src/pages/ArtifactsPage.tsx",
+    "frontend/src/pages/CommunicationPage.tsx",
+    "frontend/src/pages/GatesPage.tsx",
+    "frontend/src/pages/RunsPage.tsx"
+  ],
+  "change_summary": [
+    "Added explicit React runtime imports required by the current classic JSX output.",
+    "Kept changes mechanical: no layout, copy, API, or product-behavior edits."
+  ],
+  "verification": [
+    {
+      "command": "npm --prefix frontend run build",
+      "result": "pass; 1768 modules; lucide use-client warnings only"
+    },
+    {
+      "command": "npm --prefix frontend exec tsc -- --noEmit --jsx react-jsx --module ESNext --target ES2020 --moduleResolution Bundler --allowSyntheticDefaultImports --esModuleInterop --skipLibCheck frontend/src/operationsApi.ts frontend/src/components/AgentMark.tsx frontend/src/components/DetailRail.tsx frontend/src/components/EventTable.tsx frontend/src/components/IdChip.tsx frontend/src/components/Panel.tsx frontend/src/components/StatusBadge.tsx frontend/src/pages/CommunicationPage.tsx frontend/src/pages/RunsPage.tsx frontend/src/pages/GatesPage.tsx frontend/src/pages/ArtifactsPage.tsx",
+      "result": "pass"
+    },
+    {
+      "command": "Vite SSR render probe for App plus CommunicationPage/RunsPage/GatesPage/ArtifactsPage",
+      "result": "pass; App htmlLength 6103; B23 pages render non-empty HTML"
+    },
+    {
+      "command": "Browser mounted route smoke on canonical http://127.0.0.1:8787/",
+      "result": "Home and B23 nav render; Communication and Artifacts show 404 for new A23 APIs because process 30636 started before A23 routes were loaded"
+    },
+    {
+      "command": "Temporary current-code service http://127.0.0.1:8788/ with same live DB",
+      "result": "/api/projections/messages and /api/artifacts/manifests return 200; mounted Communication/Runs/Gates/Artifacts nav clicks pass; no browser warning/error logs; no route text contains 'returned 404'"
+    }
+  ],
+  "runtime_blocker": {
+    "canonical_service": "http://127.0.0.1:8787",
+    "observed_pid": 30636,
+    "started_at": "2026-05-29T09:10:48+08:00",
+    "issue": "The canonical live service is stale and does not expose A23 routes until restarted.",
+    "required_action": "Restart or reroute the 8787 agent_bus serve process onto current code before final Gate B browser revalidation."
+  },
+  "runtime_blocker_resolution": {
+    "resolved_at": "2026-05-29T12:16:20+08:00",
+    "resolved_by": "runtime-qa service restart",
+    "post_restart_http": [
+      "/api/projections/messages -> 200",
+      "/api/artifacts/manifests -> 200"
+    ],
+    "post_restart_browser": "Canonical http://127.0.0.1:8787 mounted Communication/Runs/Gates/Artifacts nav checks pass; no blank body, no returned 404 text, no browser warning/error logs."
+  }
+}

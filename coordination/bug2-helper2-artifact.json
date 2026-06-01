@@ -1,0 +1,15 @@
+{
+  "summary": "BUG-2 fixed by making Command Composer routing explicit. Mismatched explicit target agent now defaults to agent-only routing unless task context is explicitly included.",
+  "root_cause": "frontend/src/App.tsx submitInterrupt always sent selectedTask id/owner while also sending explicit targetAgent as task_assignee/additional_agents. Because selectedTask defaulted to projection.tasks[0], a target-agent interrupt could also wake the unrelated selected task owner.",
+  "changed_files": [
+    "frontend/src/App.tsx",
+    "frontend/src/styles.css"
+  ],
+  "verification": [
+    "npm run build passed in frontend/",
+    "Browser smoke at http://127.0.0.1:8787/ showed Include task context unchecked and AGENT ONLY when target runtime-helper-2 differed from selected task owner runtime-worker-1.",
+    "Live DB event seq107 from the smoke interrupt had task_id null, routing_mode agent-only, include_selected_task false, and affected_agents controller, observer, runtime-helper-2, qa. It did not include runtime-worker-1."
+  ],
+  "independent_cross_check_required": true,
+  "cross_check_owner": "runtime-worker-4 or runtime-helper-1"
+}

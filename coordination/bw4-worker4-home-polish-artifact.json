@@ -1,0 +1,56 @@
+{
+  "run_id": "run_d31e5d68c71d4bcea3a181dd3b839f6f",
+  "task_id": "task_0056d7760a0e4f80930631562aff2317",
+  "gate_id": "gate_e9202dbad45b4d8a84d93bf669a9023b",
+  "worker": "runtime-worker-4",
+  "scope": "BW-4 Worker4 Home visual polish and screenshot",
+  "files_changed": [
+    "frontend/src/styles.css",
+    "coordination/frontend-optimization-qa-checklist.md",
+    "coordination/bw4-worker4-home-polish-artifact.json"
+  ],
+  "screenshots": [
+    "coordination/blue-white-worker4-polish.png"
+  ],
+  "verification": {
+    "frontend_build": {
+      "command": "npm run build",
+      "workdir": "frontend",
+      "exit_code": 0,
+      "warnings": [
+        "lucide-react module-level \"use client\" directives ignored by Vite bundle"
+      ]
+    },
+    "browser_desktop": {
+      "url": "http://127.0.0.1:8787/",
+      "viewport": "1280x720",
+      "active_nav": "控制首页",
+      "counts": {
+        ".homePage": 1,
+        ".metric": 4,
+        ".homePage > .panel": 1,
+        ".homePage .artifactCard": 4,
+        ".navItem.active": 1,
+        ".sidebar": 1
+      },
+      "colors": {
+        "body_background": "rgb(246, 248, 251)",
+        "sidebar_background": "rgba(255, 255, 255, 0.96)",
+        "home_panel_background": "rgba(255, 255, 255, 0.96)",
+        "active_nav_background": "linear-gradient(135deg, rgb(37, 99, 235), rgb(9, 87, 247))"
+      },
+      "document_scroll_width": 1280,
+      "overflow_count": 0,
+      "current_8787_console_error_warning_count": 0
+    },
+    "browser_mobile": {
+      "status": "not_run",
+      "reason": "Current in-app Browser path exposed the fixed desktop viewport used for QA; mobile was optional in the release instruction."
+    }
+  },
+  "notes": [
+    "Kept product edits to CSS only; App.tsx, backend, and BUG-2 payload behavior were not changed by Worker4.",
+    "Home first screen now follows the user reference direction: light workspace, white sidebar, blue active nav, KPI cards, prominent current workflow card, quick action cards, and Controller suggestion card.",
+    "Dense 总览 remains a sidebar destination handled by helper2's BW-3H structure."
+  ]
+}

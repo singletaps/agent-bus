@@ -1,0 +1,30 @@
+{
+  "summary": "Round2 bugfix QA passes from runtime-helper-2 perspective.",
+  "gate": "gate_cdfd1244f34b4592a982fc0e5a9c23b6",
+  "run": "run_baa1ce49d36e43b1ae6b22737fb91fcd",
+  "qa_task": "task_5821dfcbe78643798d0b5c1b05a55773",
+  "recommendation": "pass",
+  "commands": [
+    "python -m pytest -q => 58 passed",
+    "frontend npm run build => vite build succeeded",
+    "python -m agent_bus artifact create ... --metadata-json @coordination/bug2-helper2-artifact.json => ok true",
+    "malformed --metadata-json '{bad' => structured JSON error and LASTEXITCODE=2"
+  ],
+  "live_service": {
+    "url": "http://127.0.0.1:8787/",
+    "pid_after_restart": 11728,
+    "runtime_qa_state": "STANDBY_DEGRADED stale=true",
+    "runtime_worker_1_heartbeat": "POST /api/agents/runtime-worker-1/heartbeat returned 200 and emitted agent.status_changed",
+    "events_stream": "GET /api/events/stream emitted operations snapshot",
+    "browser": "Browser reload showed runtime-qa STANDBY_DEGRADED and no console errors"
+  },
+  "bug_results": {
+    "BUG-1": "pass; stale runtime-qa no longer healthy STANDBY_READY",
+    "BUG-2": "pass with independent Worker4 cross-check; mismatched target/task owner routes agent-only and does not wake runtime-worker-1",
+    "BUG-3": "pass; @path metadata works and malformed JSON returns structured exit 2 error"
+  },
+  "open_risks": [
+    "Explicit session end/close semantics remain future work; freshness projection fixes the user-visible healthy-ready stale session bug.",
+    "Controller should ensure Worker4 docs/checklist task state is accepted before gate closure if strict task completion is required."
+  ]
+}

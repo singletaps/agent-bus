@@ -1,0 +1,54 @@
+{
+  "run_id": "run_d31e5d68c71d4bcea3a181dd3b839f6f",
+  "gate_id": "gate_e9202dbad45b4d8a84d93bf669a9023b",
+  "task_id": "task_b1ae5bada01645669f7af57722f75815",
+  "created_by": "runtime-worker-1",
+  "scope": "source regression only; no frontend source edits",
+  "files_checked": [
+    "frontend/src/operationsApi.ts",
+    "frontend/src/App.tsx",
+    "frontend/src/uiText.ts",
+    "frontend/src/operationsRoomModel.ts",
+    "coordination/frontend-optimization-qa-checklist.md"
+  ],
+  "verification": {
+    "build": {
+      "command": "npm run build",
+      "working_directory": "frontend",
+      "exit_code": 0,
+      "notes": "Vite build passed; only known lucide-react module-level directive warnings."
+    },
+    "home_default": {
+      "view_union_has_home": true,
+      "default_active_view": "Home",
+      "nav_order_home_first": true,
+      "labels": {
+        "Home": "控制首页",
+        "Operations": "总览"
+      }
+    },
+    "overview_route": {
+      "dense_overview_reachable_via_sidebar": true,
+      "home_links_to_operations_for_detail": true
+    },
+    "bug2_payload": {
+      "routing_mode": "taskContext ? \"task-context\" : \"agent-only\"",
+      "include_selected_task": "Boolean(taskContext)",
+      "preserved": true
+    },
+    "content_regression": {
+      "fake_reference_copy_found": false,
+      "fake_reference_terms_checked": [
+        "Q2",
+        "营销活动",
+        "marketing campaign"
+      ],
+      "visible_unknown_none_source_risk": "unknown/none remain only as normalization fallbacks or non-text role icon keys; displayOrEmpty filters unknown/none/no-run/no-session/unassigned before primary display."
+    }
+  },
+  "notes": [
+    "BW-3H was controller-accepted before this regression.",
+    "BW-4 visual polish was completed before this regression started.",
+    "Worker1 did not edit App.tsx, operationsApi.ts, uiText.ts, operationsRoomModel.ts, or styles.css during BW-5."
+  ]
+}

@@ -1,0 +1,1799 @@
+{
+  "run_id": "run_609faa7cf6b34d85be3567a028ebd50f",
+  "task_id": "task_dde40723d1484b79abb333c26decbc0b",
+  "created_by": "runtime-helper-1",
+  "viewport": "1280x720",
+  "build": {
+    "command": "npm run build",
+    "exit_code": 0,
+    "notes": "Vite build passed with known lucide-react module directive warnings."
+  },
+  "routes": [
+    {
+      "route": {
+        "index": 0,
+        "label": "控制首页",
+        "slug": "home"
+      },
+      "facts": {
+        "activeNav": "控制首页",
+        "bodyHorizontalOverflow": false,
+        "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\n总览\n\n当前运行：Live Round 1 · 运行中 · 6 tasks\n\n运行中\n1\n已完成\n25\n开放门禁\n1\n成功率\n81%\n当前任务流\nWorker2 CLI child fail\n\n定位、复查或重新分派\n\n进度 0%\n检测到需要关注的事项\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n继续运行\n查看总览\n待你处理\n需要关注或决策的事项\n5\n查看并处理\n门禁与审批\n待审批的请求\n1\n查看审批\n近期成果\n已完成或产出的结果\n25\n查看成果\nController 建议\n建议优先处理异常任务，避免后续回归和门禁继续等待。\n应用建议",
+        "buttonCount": 13,
+        "buttons": [
+          {
+            "cls": "navItem active",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          },
+          {
+            "cls": "commandButton",
+            "disabled": false,
+            "index": 7,
+            "text": "继续运行"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 8,
+            "text": "查看总览"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 9,
+            "text": "查看并处理"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 10,
+            "text": "查看审批"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 11,
+            "text": "查看成果"
+          },
+          {
+            "cls": "commandButton",
+            "disabled": false,
+            "index": 12,
+            "text": "应用建议"
+          }
+        ],
+        "clientWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "总览",
+          "Worker2 CLI child fail"
+        ],
+        "mojibakeMarker": false,
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 10,
+        "routeLabel": "控制首页",
+        "scrollWidth": 1265,
+        "visibleElementCount": 118,
+        "visibleNone": false,
+        "visibleTextElementCount": 79,
+        "visibleUnknown": false
+      },
+      "screenshot": {
+        "ok": true,
+        "path": "coordination/page-by-page-qa-home.png",
+        "error": null
+      },
+      "clickResults": [
+        {
+          "text": "继续运行",
+          "className": "commandButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:03:59\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "查看总览",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:04\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "查看并处理",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:04\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "查看审批",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:04\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "查看成果",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "产物",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:09\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n产物\n任务产物\n截",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "应用建议",
+          "className": "commandButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:09\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        }
+      ]
+    },
+    {
+      "route": {
+        "index": 1,
+        "label": "总览",
+        "slug": "overview"
+      },
+      "facts": {
+        "activeNav": "总览",
+        "bodyHorizontalOverflow": false,
+        "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:09\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态 / 可信度\n工作中\nruntime-helper-1\nhelper-bootstrapper\n健康 95%\n能力 35%\n工作中\nses_6cfddf…\n当前\nUX-W6 Helper1 final UX QA gate\n下一步\n定位异常任务\n可信度\n上下文可信\n等待中\nruntime-helper-2\nhelper\n健康 90%\n能力 0%\n空轮询\nses_8fa581…\n当前\n10 条 inbox\n下一步\n处理 inbox\n可信度\n上下文可信\n降级注意\nruntime-qa\nqa-gatekeeper\n健康 55%\n能力 35%\n降级待命\nses_e02ba8…\n当前\n9 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-1\nworker\n健康 55%\n能力 35%\n降级待命\nses_3a3cb9…\n当前\nUX-W5 Worker1 source-level regression check\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-2\ncli-worker\n健康 55%\n能力 35%\n降级待命\nses_538415…\n当前\n7 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-3\nreact-console\n健康 55%\n能力 35%\n降级",
+        "buttonCount": 45,
+        "buttons": [
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "cls": "navItem active",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          },
+          {
+            "cls": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "text": "刷新"
+          },
+          {
+            "cls": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "text": "处理异常任务"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 9,
+            "text": "工作中runtime-helper-1helper-bootstrapper健康 95%能力 35%工作中ses_6cfddf…当前UX-W6 Helper1 final UX QA gate下一步定位异常任务可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 10,
+            "text": "等待中runtime-helper-2helper健康 90%能力 0%空轮询ses_8fa581…当前10 条 inbox下一步处理 inbox可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 11,
+            "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 12,
+            "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-level regression check下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 13,
+            "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 14,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 15,
+            "text": "降级注意runtime-worker-4docs健康 55%能力 35%降级待命ses_d34a19…当前UX-W4 Worker4 screenshot polish pass下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 16,
+            "text": "Worker2 CLI child fail失败未分配task_7472c…进度 0%定位、复查或重新分派run_58a117…0"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 17,
+            "text": "UX-W4 Worker4 screenshot polish pass失败runtime-worker-4task_39e9e…进度 0%定位、复查或重新分派run_94c6e7…70"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 18,
+            "text": "UX-W5 Worker1 source-level regression check失败runtime-worker-1task_ae9d8…进度 0%定位、复查或重新分派run_94c6e7…70"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 19,
+            "text": "UX-W6 Helper1 final UX QA gate失败runtime-helper-1task_8afa8…进度 0%定位、复查或重新分派run_94c6e7…60"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 20,
+            "text": "BW-2 Worker4 blue-white theme foundation失败runtime-worker-4task_84561…进度 0%定位、复查或重新分派run_d31e5d…100"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 21,
+            "text": "PGQA-1 Helper1 page-by-page screenshot and click audit工作中runtime-helper-1task_dde40…进度 70%继续执行并上传证据run_609faa…100"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 22,
+            "text": "Worker1: verify QA close/session lifecycle and backend projection behavior已完成runtime-worker-1task_7ae9e…进度 100%归档run_58a117…90"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 23,
+            "text": "Worker2: exercise CLI wait/ack/task/gate/review commands on live DB已完成runtime-worker-2task_9d3ed…进度 100%归档run_58a117…85"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 24,
+            "text": "Worker3: exercise Operations Console UI flows with real backend data已完成runtime-worker-3task_0112d…进度 100%归档run_58a117…85"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 25,
+            "text": "Worker4: audit docs against real-service workflow and capture gaps已完成runtime-worker-4task_f97d1…进度 100%归档run_58a117…80"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 26,
+            "text": "Worker2 CLI child complete已完成runtime-worker-2task_02d3e…进度 100%归档run_58a117…10"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 27,
+            "text": "BUG-1 Fix stale/closed agent session projection已完成runtime-worker-1task_550bf…进度 100%归档run_baa1ce…100"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 28,
+            "text": "BUG-3 Fix CLI metadata-json PowerShell contract and examples已完成runtime-worker-2task_10c3c…进度 100%归档run_baa1ce…85"
+          },
+          {
+            "cls": "decisionCard",
+            "disabled": false,
+            "index": 29,
+            "text": "BUG-2 Fix Command Composer mixed target/task routing已完成runtime-helper-2task_48fb9…进度 100%归档run_baa1ce…95"
+          },
+          {
+            "cls": "filterButton active",
+            "disabled": false,
+            "index": 30,
+            "text": "全部"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 31,
+            "text": "门禁"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 32,
+            "text": "中断"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 33,
+            "text": "接管"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 34,
+            "text": "异常"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 35,
+            "text": "概览"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 36,
+            "text": "上下文"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 37,
+            "text": "事件"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 38,
+            "text": "操作"
+          },
+          {
+            "cls": "filterButton active",
+            "disabled": false,
+            "index": 39,
+            "text": "开放"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 40,
+            "text": "高风险"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 41,
+            "text": "已处理"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 42,
+            "text": "全部"
+          },
+          {
+            "cls": "commandButton",
+            "disabled": false,
+            "index": 43,
+            "text": "批准"
+          },
+          {
+            "cls": "commandButton",
+            "disabled": false,
+            "index": 44,
+            "text": "发送"
+          }
+        ],
+        "clientWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "智能体工作台",
+          "任务态势",
+          "事件控制台",
+          "检查器",
+          "门禁",
+          "接管席位",
+          "指令台"
+        ],
+        "mojibakeMarker": false,
+        "offscreenPrimary": [
+          {
+            "cls": "decisionLane",
+            "left": 1113,
+            "right": 1373,
+            "text": "审查中0暂无任务。"
+          },
+          {
+            "cls": "decisionLane",
+            "left": 1385,
+            "right": 1645,
+            "text": "已完成8Worker1: verify QA close/session lifecycle and backend projection behavior已完"
+          }
+        ],
+        "offscreenPrimaryCount": 2,
+        "primarySurfaceCount": 13,
+        "routeLabel": "总览",
+        "scrollWidth": 1265,
+        "visibleElementCount": 152,
+        "visibleNone": false,
+        "visibleTextElementCount": 105,
+        "visibleUnknown": false
+      },
+      "screenshot": {
+        "ok": true,
+        "path": "coordination/page-by-page-qa-overview.png",
+        "error": null
+      },
+      "clickResults": [
+        {
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:14\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:14\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "工作中runtime-helper-1helper-bootstrapper健康 95%能力 35%工作中ses_6cfddf…当前UX-W6 Helper1 final UX QA gate下一步定位异常任务可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:19\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "等待中runtime-helper-2helper健康 90%能力 0%空轮询ses_8fa581…当前10 条 inbox下一步处理 inbox可信度上下文可信",
+          "status": "missing-after-reset"
+        },
+        {
+          "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:19\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-level regression check下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:19\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:24\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:24\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-4docs健康 55%能力 35%降级待命ses_d34a19…当前UX-W4 Worker4 screenshot polish pass下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:29\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "Worker2 CLI child fail失败未分配task_7472c…进度 0%定位、复查或重新分派run_58a117…0",
+          "className": "decisionCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:29\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "UX-W4 Worker4 screenshot polish pass失败runtime-worker-4task_39e9e…进度 0%定位、复查或重新分派run_94c6e7…70",
+          "className": "decisionCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:29\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "UX-W5 Worker1 source-level regression check失败runtime-worker-1task_ae9d8…进度 0%定位、复查或重新分派run_94c6e7…70",
+          "className": "decisionCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:34\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        }
+      ]
+    },
+    {
+      "route": {
+        "index": 2,
+        "label": "智能体",
+        "slug": "agents"
+      },
+      "facts": {
+        "activeNav": "智能体",
+        "bodyHorizontalOverflow": false,
+        "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:34\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态 / 可信度\n工作中\nruntime-helper-1\nhelper-bootstrapper\n健康 95%\n能力 35%\n工作中\nses_6cfddf…\n当前\nUX-W6 Helper1 final UX QA gate\n下一步\n定位异常任务\n可信度\n上下文可信\n等待中\nruntime-helper-2\nhelper\n健康 95%\n能力 0%\n等待总线\nses_8fa581…\n当前\n10 条 inbox\n下一步\n处理 inbox\n可信度\n上下文可信\n降级注意\nruntime-qa\nqa-gatekeeper\n健康 55%\n能力 35%\n降级待命\nses_e02ba8…\n当前\n9 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-1\nworker\n健康 55%\n能力 35%\n降级待命\nses_3a3cb9…\n当前\nUX-W5 Worker1 source-level regression check\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-2\ncli-worker\n健康 55%\n能力 35%\n降级待命\nses_538415…\n当前\n7 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-3\nreact-console\n健康 55%\n能力 35%\n降",
+        "buttonCount": 21,
+        "buttons": [
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "cls": "navItem active",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          },
+          {
+            "cls": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "text": "刷新"
+          },
+          {
+            "cls": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "text": "处理异常任务"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 9,
+            "text": "工作中runtime-helper-1helper-bootstrapper健康 95%能力 35%工作中ses_6cfddf…当前UX-W6 Helper1 final UX QA gate下一步定位异常任务可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 10,
+            "text": "等待中runtime-helper-2helper健康 95%能力 0%等待总线ses_8fa581…当前10 条 inbox下一步处理 inbox可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 11,
+            "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 12,
+            "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-level regression check下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 13,
+            "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 14,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "workstationCard",
+            "disabled": false,
+            "index": 15,
+            "text": "降级注意runtime-worker-4docs健康 55%能力 35%降级待命ses_d34a19…当前UX-W4 Worker4 screenshot polish pass下一步检查会话健康可信度上下文可信"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 16,
+            "text": "概览"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 17,
+            "text": "上下文"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 18,
+            "text": "事件"
+          },
+          {
+            "cls": "",
+            "disabled": false,
+            "index": 19,
+            "text": "操作"
+          },
+          {
+            "cls": "commandButton",
+            "disabled": false,
+            "index": 20,
+            "text": "发送"
+          }
+        ],
+        "clientWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "智能体工作台",
+          "检查器",
+          "指令台"
+        ],
+        "mojibakeMarker": false,
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 10,
+        "routeLabel": "智能体",
+        "scrollWidth": 1265,
+        "visibleElementCount": 150,
+        "visibleNone": false,
+        "visibleTextElementCount": 94,
+        "visibleUnknown": false
+      },
+      "screenshot": {
+        "ok": true,
+        "path": "coordination/page-by-page-qa-agents.png",
+        "error": null
+      },
+      "clickResults": [
+        {
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:37\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:39\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "工作中runtime-helper-1helper-bootstrapper健康 95%能力 35%工作中ses_6cfddf…当前UX-W6 Helper1 final UX QA gate下一步定位异常任务可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:39\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "等待中runtime-helper-2helper健康 95%能力 0%等待总线ses_8fa581…当前10 条 inbox下一步处理 inbox可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:39\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:44\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-level regression check下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:44\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:44\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:49\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "降级注意runtime-worker-4docs健康 55%能力 35%降级待命ses_d34a19…当前UX-W4 Worker4 screenshot polish pass下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:49\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "概览",
+          "className": "",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:54\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "上下文",
+          "className": "",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:54\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "事件",
+          "className": "",
+          "status": "clicked",
+          "after": {
+            "activeNav": "智能体",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:54\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        }
+      ]
+    },
+    {
+      "route": {
+        "index": 3,
+        "label": "门禁",
+        "slug": "gates"
+      },
+      "facts": {
+        "activeNav": "门禁",
+        "bodyHorizontalOverflow": false,
+        "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:04:54\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开放\n高风险\n已处理\n全部\nWorker2 CLI reject gate\ngate_0447082...\nnormal\n已拒绝\n负责人待确认\nWorker2 CLI escalate gate\ngate_cc0618d...\nnormal\nescalated\n负责人待确认\nAgent Workstation Redesign QA Gate\ngate_d947df0...\nhigh\n已拒绝\n负责人待确认\nPost-gate page-by-page QA gate\ngate_ba02f3c...\nhigh\n开放\n负责人待确认\n事件控制台\n事件流\n全部\n门禁\n中断\n接管\n异常\n时间\t类型\tACTOR\tTARGET\t摘要\n15:42:33\ttask.completed\truntime-worker-4\t无\ttask.completed\n15:42:45\ttask.completed\truntime-worker-3\t无\ttask.completed\n15:43:12\tartifact.created\truntime-worker-4\t无\tartifact.created\n15:43:38\tagent.message\truntime-worker-4\t无\tLIVE_TASK_COMPLETE from runtime-worker-4: completed task_f97d109f67",
+        "buttonCount": 18,
+        "buttons": [
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "cls": "navItem active",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          },
+          {
+            "cls": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "text": "刷新"
+          },
+          {
+            "cls": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "text": "处理异常任务"
+          },
+          {
+            "cls": "filterButton active",
+            "disabled": false,
+            "index": 9,
+            "text": "开放"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 10,
+            "text": "高风险"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 11,
+            "text": "已处理"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 12,
+            "text": "全部"
+          },
+          {
+            "cls": "filterButton active",
+            "disabled": false,
+            "index": 13,
+            "text": "全部"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 14,
+            "text": "门禁"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 15,
+            "text": "中断"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 16,
+            "text": "接管"
+          },
+          {
+            "cls": "filterButton",
+            "disabled": false,
+            "index": 17,
+            "text": "异常"
+          }
+        ],
+        "clientWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "门禁",
+          "事件控制台"
+        ],
+        "mojibakeMarker": false,
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 9,
+        "routeLabel": "门禁",
+        "scrollWidth": 1265,
+        "visibleElementCount": 134,
+        "visibleNone": false,
+        "visibleTextElementCount": 91,
+        "visibleUnknown": false
+      },
+      "screenshot": {
+        "ok": true,
+        "path": "coordination/page-by-page-qa-gates.png",
+        "error": null
+      },
+      "clickResults": [
+        {
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:00\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:00\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "开放",
+          "className": "filterButton active",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:04\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "高风险",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:04\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "已处理",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:04\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "全部",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:09\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "全部",
+          "className": "filterButton active",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:09\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "门禁",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:09\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "接管",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:14\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "异常",
+          "className": "filterButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "门禁",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:14\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        }
+      ]
+    },
+    {
+      "route": {
+        "index": 4,
+        "label": "任务流",
+        "slug": "rungraph"
+      },
+      "facts": {
+        "activeNav": "任务流",
+        "bodyHorizontalOverflow": false,
+        "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:14\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n任务流列表\n任务流 / 阶段\nrun_58a11729...\n已创建\ncreated\nqueued\nworking\ngate\nreview\ndone\ntask_7ae9e0a...\ntask_9d3ed42...\ntask_0112dd2...\ntask_f97d109...\ntask_02d3e09...\ntask_7472c79...\nrun_baa1ce49...\n已创建\ncreated\nqueued\nworking\ngate\nreview\ndone\ntask_550bf5a...\ntask_10c3c18...\ntask_48fb94c...\ntask_f5d9855...\ntask_5821dfc...\nrun_2c6e4edf...\n已创建\ncreated\nqueued\nworking\ngate\nreview\ndone\ntask_093ceb3...\ntask_b6c2ecc...\ntask_e8655e2...\ntask_5cb7648...\ntask_f6f0e22...\nrun_94c6e75f...\n已创建\ncreated\nqueued\nworking\ngate\nreview\ndone\ntask_f52c13f...\ntask_4569d4d...\ntask_f39d477...\ntask_39e9e8a...\ntask_ae9d849...\ntask_8afa8ff...\nru",
+        "buttonCount": 9,
+        "buttons": [
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "cls": "navItem active",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          },
+          {
+            "cls": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "text": "刷新"
+          },
+          {
+            "cls": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "text": "处理异常任务"
+          }
+        ],
+        "clientWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "任务流列表"
+        ],
+        "mojibakeMarker": false,
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 8,
+        "routeLabel": "任务流",
+        "scrollWidth": 1265,
+        "visibleElementCount": 162,
+        "visibleNone": false,
+        "visibleTextElementCount": 119,
+        "visibleUnknown": false
+      },
+      "screenshot": {
+        "ok": true,
+        "path": "coordination/page-by-page-qa-rungraph.png",
+        "error": null
+      },
+      "clickResults": [
+        {
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "任务流",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:19\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n任务流列表\n任务流",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:19\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        }
+      ]
+    },
+    {
+      "route": {
+        "index": 5,
+        "label": "产物",
+        "slug": "artifacts"
+      },
+      "facts": {
+        "activeNav": "产物",
+        "bodyHorizontalOverflow": false,
+        "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:19\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n产物\n任务产物\n截图\n等待 screenshot artifact\n报告\n等待 summary/report artifact\n日志\n等待 trace/log artifact\n\n当前任务流还没有产物。当 Agent 创建 artifact.created 事件后，截图、报告、日志和审查结果会出现在这里。",
+        "buttonCount": 9,
+        "buttons": [
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "cls": "navItem active",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          },
+          {
+            "cls": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "text": "刷新"
+          },
+          {
+            "cls": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "text": "处理异常任务"
+          }
+        ],
+        "clientWidth": 1280,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "产物"
+        ],
+        "mojibakeMarker": false,
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 11,
+        "routeLabel": "产物",
+        "scrollWidth": 1280,
+        "visibleElementCount": 112,
+        "visibleNone": false,
+        "visibleTextElementCount": 69,
+        "visibleUnknown": false
+      },
+      "screenshot": {
+        "ok": true,
+        "path": "coordination/page-by-page-qa-artifacts.png",
+        "error": null
+      },
+      "clickResults": [
+        {
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "产物",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:24\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n产物\n任务产物\n截",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:24\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        }
+      ]
+    },
+    {
+      "route": {
+        "index": 6,
+        "label": "设置",
+        "slug": "settings"
+      },
+      "facts": {
+        "activeNav": "设置",
+        "bodyHorizontalOverflow": false,
+        "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:24\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n设置\n投影来源\n投影源Endpoint: /api/projections/operationsRefresh: 5sLast generated: 2026-05-28T11:05:24.414Z\n显示偏好密度：紧凑主题：浅色事件流：自动刷新\n调试信息active run count: 6agent count: 7projection version: live",
+        "buttonCount": 9,
+        "buttons": [
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "cls": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "cls": "navItem active",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          },
+          {
+            "cls": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "text": "刷新"
+          },
+          {
+            "cls": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "text": "处理异常任务"
+          }
+        ],
+        "clientWidth": 1280,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "设置"
+        ],
+        "mojibakeMarker": false,
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 11,
+        "routeLabel": "设置",
+        "scrollWidth": 1280,
+        "visibleElementCount": 117,
+        "visibleNone": false,
+        "visibleTextElementCount": 74,
+        "visibleUnknown": false
+      },
+      "screenshot": {
+        "ok": true,
+        "path": "coordination/page-by-page-qa-settings.png",
+        "error": null
+      },
+      "clickResults": [
+        {
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "after": {
+            "activeNav": "设置",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:29\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n设置\n投影来源\n投",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        },
+        {
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "after": {
+            "activeNav": "总览",
+            "bodyHorizontalOverflow": false,
+            "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:05:29\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态",
+            "fakeReferenceCopy": false,
+            "visibleNone": false,
+            "visibleUnknown": false
+          },
+          "newWarningOrErrorCount": 0,
+          "newBadLogs": []
+        }
+      ]
+    }
+  ],
+  "badLogs": [],
+  "summary": {
+    "routesAudited": 7,
+    "screenshotFailures": [],
+    "routesWithBodyOverflow": [],
+    "routesWithVisibleUnknownNone": [],
+    "routesWithFakeCopy": [],
+    "routesWithMojibakeMarker": [],
+    "routeDensity": [
+      {
+        "route": "控制首页",
+        "visibleElementCount": 118,
+        "visibleTextElementCount": 79,
+        "primarySurfaceCount": 10,
+        "buttonCount": 13,
+        "offscreenPrimaryCount": 0
+      },
+      {
+        "route": "总览",
+        "visibleElementCount": 152,
+        "visibleTextElementCount": 105,
+        "primarySurfaceCount": 13,
+        "buttonCount": 45,
+        "offscreenPrimaryCount": 2
+      },
+      {
+        "route": "智能体",
+        "visibleElementCount": 150,
+        "visibleTextElementCount": 94,
+        "primarySurfaceCount": 10,
+        "buttonCount": 21,
+        "offscreenPrimaryCount": 0
+      },
+      {
+        "route": "门禁",
+        "visibleElementCount": 134,
+        "visibleTextElementCount": 91,
+        "primarySurfaceCount": 9,
+        "buttonCount": 18,
+        "offscreenPrimaryCount": 0
+      },
+      {
+        "route": "任务流",
+        "visibleElementCount": 162,
+        "visibleTextElementCount": 119,
+        "primarySurfaceCount": 8,
+        "buttonCount": 9,
+        "offscreenPrimaryCount": 0
+      },
+      {
+        "route": "产物",
+        "visibleElementCount": 112,
+        "visibleTextElementCount": 69,
+        "primarySurfaceCount": 11,
+        "buttonCount": 9,
+        "offscreenPrimaryCount": 0
+      },
+      {
+        "route": "设置",
+        "visibleElementCount": 117,
+        "visibleTextElementCount": 74,
+        "primarySurfaceCount": 11,
+        "buttonCount": 9,
+        "offscreenPrimaryCount": 0
+      }
+    ],
+    "clickErrors": []
+  }
+}

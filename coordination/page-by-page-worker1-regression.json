@@ -1,0 +1,109 @@
+{
+  "artifact": "PGQA-4 Worker1 source regression after helper2 density fix",
+  "agent": "runtime-worker-1",
+  "task_id": "task_29238dae2733475fb88b2acf703c7b57",
+  "run_id": "run_609faa7cf6b34d85be3567a028ebd50f",
+  "created_at": "2026-05-28T19:27:14+08:00",
+  "trigger": {
+    "source": "Task 4 start condition met after Helper2 product-code fix landed",
+    "helper2_task_id": "task_3a3f37bbf02b47f0bc482d2cc75c3228",
+    "helper2_artifact_id": "artifact_2bc6768a5aea465ea61193e230b0ffd4",
+    "helper2_artifact_file": "coordination/overview-density-helper2-artifact.json",
+    "helper2_screenshot": "coordination/overview-density-helper2-after.png"
+  },
+  "scope": {
+    "worker1_changed_product_code": false,
+    "worker1_created_files": [
+      "coordination/page-by-page-worker1-regression.json"
+    ],
+    "source_files_checked": [
+      "frontend/src/App.tsx",
+      "frontend/src/operationsRoomModel.ts",
+      "frontend/src/uiText.ts",
+      "frontend/src/styles.css",
+      "frontend/src/operationsApi.ts"
+    ]
+  },
+  "source_checks": {
+    "home_default_preserved": {
+      "ok": true,
+      "evidence": [
+        "frontend/src/App.tsx has views ordered with Home before Operations.",
+        "frontend/src/App.tsx initializes activeView with useState<ViewName>(\"Home\").",
+        "frontend/src/uiText.ts maps Home to \\u63a7\\u5236\\u9996\\u9875."
+      ]
+    },
+    "overview_route_preserved": {
+      "ok": true,
+      "evidence": [
+        "frontend/src/App.tsx keeps Operations in the sidebar view list.",
+        "frontend/src/uiText.ts maps Operations to \\u603b\\u89c8.",
+        "frontend/src/operationsApi.ts still includes Home and Operations in ViewName."
+      ]
+    },
+    "bug2_command_payload_preserved": {
+      "ok": true,
+      "evidence": [
+        "frontend/src/App.tsx preserves routing_mode: taskContext ? \"task-context\" : \"agent-only\".",
+        "frontend/src/App.tsx preserves include_selected_task: Boolean(taskContext)."
+      ]
+    },
+    "fake_reference_copy_absent": {
+      "ok": true,
+      "evidence": "rg found no frontend/src matches for Q2, \\u8425\\u9500\\u6d3b\\u52a8, or marketing campaign."
+    },
+    "unknown_none_handling_preserved": {
+      "ok": true,
+      "evidence": [
+        "operationsRoomModel.displayOrEmpty filters empty, unknown, none, no-run, no-session, and unassigned values.",
+        "Remaining unknown/none matches are API normalization fallbacks, CSS reset values, or non-visible icon/state keys."
+      ]
+    },
+    "helper2_density_fix_scope_confirmed": {
+      "ok": true,
+      "evidence": [
+        "Helper2 artifact reports styles.css-only scope.",
+        "frontend/src/App.tsx mtime predates PGQA-2R and was not changed for the takeover.",
+        "frontend/src/styles.css contains .operationsGrid .decisionLanes with grid-auto-flow: row and repeat(auto-fit, minmax(180px, 1fr))."
+      ]
+    }
+  },
+  "helper2_visual_evidence_reused": {
+    "ok": true,
+    "from_file": "coordination/overview-density-helper2-artifact.json",
+    "browser_1280x720": {
+      "home_is_default": true,
+      "home_has_ops_topbar": false,
+      "overview_active_nav": "overview",
+      "decision_lane_count": 5,
+      "offscreen_primary_count": 0,
+      "body_horizontal_overflow": false,
+      "visible_unknown_count": 0,
+      "visible_none_count": 0,
+      "fake_reference_copy": false,
+      "console_warning_error_count": 0
+    }
+  },
+  "build": {
+    "command": "npm run build",
+    "working_directory": "frontend",
+    "exit_code": 0,
+    "result": "passed",
+    "warnings": [
+      "lucide-react module directive warnings only: \"use client\" ignored by Vite bundling."
+    ],
+    "output_assets": [
+      "dist/index.html",
+      "dist/assets/index-DHeldF4Y.css",
+      "dist/assets/index-BfDA6bql.js"
+    ]
+  },
+  "result": {
+    "status": "pass",
+    "ready_for": "Helper1 Task 5 final page-by-page QA gate",
+    "notes": [
+      "Worker1 Task 4 plan requires source check and build; final route screenshots/click-through remain Helper1 Task 5 ownership.",
+      "No backend APIs, /api/interrupt behavior, App structure, labels, or BUG-2 payload fields were changed by Worker1."
+    ]
+  }
+}

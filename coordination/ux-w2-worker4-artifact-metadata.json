@@ -1,0 +1,17 @@
+{
+  "files_changed": [
+    "frontend/src/styles.css",
+    "coordination/frontend-optimization-qa-checklist.md"
+  ],
+  "selectors": [
+    "operationsBrief",
+    "workstationCard",
+    "stationGlyph",
+    "decisionLanes",
+    "decisionCard"
+  ],
+  "verification": [
+    "npm run build exit 0; lucide-react use-client warnings only"
+  ],
+  "worker": "runtime-worker-4"
+}

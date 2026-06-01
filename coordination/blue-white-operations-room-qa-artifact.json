@@ -1,0 +1,82 @@
+{
+  "run_id": "run_d31e5d68c71d4bcea3a181dd3b839f6f",
+  "gate_id": "gate_e9202dbad45b4d8a84d93bf669a9023b",
+  "task_id": "task_41c6a5a0c388478fb8e133285fec5cbc",
+  "created_by": "runtime-helper-1",
+  "decision": "PASS",
+  "latest_user_direction": "Use the user-provided Home reference image: low-density blue-white Home / 控制首页 first screen above 总览; dense overview remains on-demand in the sidebar.",
+  "inputs_verified": {
+    "bw3h_controller_artifact": "artifact_f16d2b3143eb4bff8f66e81d4b5f95d5",
+    "bw3h_helper2_artifact": "artifact_688696671c51460fa388f36a63b6e778",
+    "bw4_worker4_artifact": "artifact_edcea2430f104fd99431ca2216eaf385",
+    "bw5_worker1_artifact": "artifact_3ae21ef37d0e4460b908be32b715e089"
+  },
+  "fresh_verification": {
+    "build": {
+      "command": "npm run build",
+      "working_directory": "frontend",
+      "exit_code": 0,
+      "notes": "Vite build passed; only known lucide-react module-level directive warnings."
+    },
+    "source_check": {
+      "command": "rg -n \"routing_mode|include_selected_task|type ViewName|ViewName|activeView|控制首页|总览|Q2|营销活动|marketing campaign|unknown|none\" frontend/src/App.tsx frontend/src/operationsApi.ts frontend/src/uiText.ts frontend/src/operationsRoomModel.ts",
+      "home_label": "Home: 控制首页",
+      "operations_label": "Operations: 总览",
+      "default_active_view": "Home",
+      "bug2_payload": {
+        "routing_mode": "taskContext ? \"task-context\" : \"agent-only\"",
+        "include_selected_task": "Boolean(taskContext)",
+        "preserved": true
+      },
+      "fake_reference_copy_found": false,
+      "unknown_none_note": "Remaining unknown/none matches are model/API normalization fallbacks, not primary visible UI labels."
+    },
+    "browser_desktop_1280x720": {
+      "evidence": "coordination/blue-white-operations-room-desktop-qa.json",
+      "home_default_active_nav": "控制首页",
+      "home_metrics": 4,
+      "home_workflow_panel": true,
+      "home_controller_suggestion": true,
+      "overview_reachable": true,
+      "overview_active_nav_after_click": "总览",
+      "overview_lane_labels": [
+        "需处理",
+        "进行中",
+        "等待门禁",
+        "审查中",
+        "已完成"
+      ],
+      "body_horizontal_overflow": false,
+      "console_warnings_or_errors": 0,
+      "visible_unknown": false,
+      "visible_none": false,
+      "fake_reference_copy_found": false
+    },
+    "browser_mobile_390x844": {
+      "evidence": "coordination/blue-white-operations-room-mobile-qa.json",
+      "home_default_active_nav": "控制首页",
+      "body_horizontal_overflow": false,
+      "home_primary_surfaces_offscreen": false,
+      "console_warnings_or_errors": 0,
+      "visible_unknown": false,
+      "visible_none": false,
+      "fake_reference_copy_found": false
+    },
+    "screenshot": {
+      "after_png": "coordination/blue-white-operations-room-after.png",
+      "source": "Copied from Worker4's already verified desktop screenshot because the Browser CDP screenshot call timed out during final QA. DOM/browser QA was rerun fresh by helper1."
+    }
+  },
+  "ux_10_second_test": {
+    "system_abnormal_visible": true,
+    "task_needing_attention_visible": "Worker2 CLI child fail",
+    "working_agents_visible": "Available in 总览 sidebar route; Home intentionally keeps lower density.",
+    "gate_attention_visible": "开放门禁 metric and 门禁与审批 quick card show 1",
+    "first_click_visible": "继续运行 / 查看总览 / 查看并处理"
+  },
+  "notes": [
+    "QA follows the latest user reference image, which changed the earlier blue-white plan from dark navy sidebar to a white/light sidebar with blue active navigation.",
+    "Desktop dense 总览 has internal long-content geometry but document-level horizontal overflow is false; Home first screen has no offscreen primary surfaces.",
+    "No product-code edits were made by helper1 during final QA."
+  ]
+}

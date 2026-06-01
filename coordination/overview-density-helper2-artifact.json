@@ -1,0 +1,51 @@
+{
+  "artifact": "PGQA-2R Helper2 Overview density takeover",
+  "agent": "runtime-helper-2",
+  "task_id": "task_3a3f37bbf02b47f0bc482d2cc75c3228",
+  "run_id": "run_609faa7cf6b34d85be3567a028ebd50f",
+  "created_at": "2026-05-28T19:22:59+08:00",
+  "scope": [
+    "frontend/src/styles.css"
+  ],
+  "summary": [
+    "Adopted Worker4's partial full-width Overview board layout.",
+    "Changed the Operations/Overview decision-lane container from a horizontal strip to a wrapping CSS grid.",
+    "Kept all five lane labels visible/reachable while removing horizontal offscreen lanes at 1280x720.",
+    "Did not edit App.tsx, uiText.ts, backend code, Home default route, sidebar labels, or BUG-2 command payload behavior."
+  ],
+  "root_cause": [
+    "Controller smoke showed the remaining failure was horizontal lane layout: two decision lanes had right edges beyond the 1280px viewport.",
+    "The local PGQA-2 override still forced decision lanes into grid-auto-flow: column with 240px auto columns, creating a lane strip wider than the available Overview board."
+  ],
+  "changes": [
+    "Set .operationsGrid .decisionLanes to row flow with repeat(auto-fit, minmax(180px, 1fr)).",
+    "Removed horizontal strip overflow from the Operations/Overview lane container.",
+    "Kept per-lane vertical scrolling with bounded lane height for dense task lists."
+  ],
+  "verification": {
+    "build": "npm run build passed; lucide-react module directive warnings only.",
+    "source_checks": {
+      "routing_mode_preserved": true,
+      "include_selected_task_preserved": true,
+      "home_default_preserved": true
+    },
+    "browser_1280x720": {
+      "home_active_nav": "control-home",
+      "home_is_default": true,
+      "home_has_ops_topbar": false,
+      "overview_active_nav": "overview",
+      "decision_lane_count": 5,
+      "offscreen_primary_count": 0,
+      "body_horizontal_overflow": false,
+      "visible_unknown_count": 0,
+      "visible_none_count": 0,
+      "fake_reference_copy": false,
+      "console_warning_error_count": 0
+    },
+    "screenshot": "coordination/overview-density-helper2-after.png"
+  },
+  "notes": [
+    "The fifth lane wraps to a second row at 1280px, which removes horizontal hidden/offscreen lanes while keeping the lane label visible/reachable.",
+    "No product-code files outside styles.css were changed by this takeover task."
+  ]
+}

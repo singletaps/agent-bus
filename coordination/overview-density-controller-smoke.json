@@ -1,0 +1,43 @@
+{
+  "density": {
+    "activeNav": "总览",
+    "bodyHorizontalOverflow": false,
+    "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 19:15:20\n\nAgent\n7\n待处理 inbox\n133\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态 / 可信度\n降级注意\nruntime-helper-1\nhelper-bootstrapper\n健康 55%\n能力 35%\n降级待命\nses_6cfddf…\n当前\nUX-W6 Helper1 final UX QA gate\n下一步\n检查会话健康\n可信度\n上下文可信\n等待中\nruntime-helper-2\nhelper\n健康 90%\n能力 0%\n空轮询\nses_8fa581…\n当前\n10 条 inbox\n下一步\n处理 inbox\n可信度\n上下文可信\n降级注意\nruntime-qa\nqa-gatekeeper\n健康 55%\n能力 35%\n降级待命\nses_e02ba8…\n当前\n9 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-1\nworker\n健康 55%\n能力 35%\n降级待命\nses_3a3cb9…\n当前\nUX-W5 Worker1 source-level regression check\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-2\ncli-worker\n健康 55%\n能力 35%\n降级待命\nses_538415…\n当前\n7 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-3\nreact-console\n健康 55%\n能力 35%\n降级待命\nses_a1255d…\n当前\n5 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-4\ndocs\n健康 30%\n能力 35%\n疑似卡住\nses",
+    "buttonCount": 45,
+    "clientWidth": 1265,
+    "fakeReferenceCopy": false,
+    "headings": [
+      "Agent Bus",
+      "Agent Operations Room",
+      "智能体工作台",
+      "任务态势",
+      "事件控制台",
+      "检查器",
+      "门禁",
+      "接管席位",
+      "指令台"
+    ],
+    "offscreenPrimary": [
+      {
+        "cls": "decisionLane",
+        "left": 1055,
+        "right": 1295,
+        "text": "审查中0暂无任务。"
+      },
+      {
+        "cls": "decisionLane",
+        "left": 1307,
+        "right": 1547,
+        "text": "已完成8Worker1: verify QA close/session lifecycle and backend projection behavior已完"
+      }
+    ],
+    "offscreenPrimaryCount": 2,
+    "primarySurfaceCount": 15,
+    "scrollWidth": 1265,
+    "visibleElementCount": 191,
+    "visibleNone": false,
+    "visibleTextElementCount": 141,
+    "visibleUnknown": false
+  },
+  "badLogs": []
+}

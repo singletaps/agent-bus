@@ -1,0 +1,40 @@
+{
+  "artifact": "runtime-qa independent page-by-page final audit summary",
+  "agent": "runtime-qa",
+  "run_id": "run_609faa7cf6b34d85be3567a028ebd50f",
+  "related_task_id": "task_05c3880c010a4598aa6d088fc656c1b9",
+  "generated_at": "2026-05-29T02:36:15.976Z",
+  "service": "http://127.0.0.1:8787/",
+  "build": {
+    "command": "npm run build",
+    "exitCode": 0,
+    "note": "runtime-qa reran build before Browser audit; lucide-react module directive warnings only"
+  },
+  "viewport": "1280x720",
+  "routes_audited": 7,
+  "screenshots": [
+    "coordination/runtime-qa-v2-page-home.png",
+    "coordination/runtime-qa-v2-page-overview.png",
+    "coordination/runtime-qa-v2-page-agents.png",
+    "coordination/runtime-qa-v2-page-gates.png",
+    "coordination/runtime-qa-v2-page-rungraph.png",
+    "coordination/runtime-qa-v2-page-artifacts.png",
+    "coordination/runtime-qa-v2-page-settings.png"
+  ],
+  "clicked_controls": 52,
+  "checks": {
+    "horizontal_overflow_routes": [],
+    "visible_unknown_routes": [],
+    "visible_none_routes": [],
+    "fake_reference_copy_routes": [],
+    "horizontal_offscreen_primary_routes": [],
+    "click_errors": [],
+    "console_warning_error_count": 0
+  },
+  "result": "pass",
+  "notes": [
+    "Offscreen criterion is horizontal offscreen/overflow at 1280px; vertical scrolling is allowed for long operations pages.",
+    "Overview screenshot was visually inspected by runtime-qa after automated checks."
+  ],
+  "full_artifact": "coordination/runtime-qa-final-page-audit-v2.json"
+}

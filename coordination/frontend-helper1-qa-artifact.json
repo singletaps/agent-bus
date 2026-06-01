@@ -1,0 +1,61 @@
+{
+  "artifact_type": "frontend_qa_report",
+  "created_by": "runtime-helper-1",
+  "created_at": "2026-05-28T09:06:23.8682717Z",
+  "run_id": "run_2c6e4edf192f4aafbe2b64ab9043c3b1",
+  "task_id": "task_f6f0e22e5f464bf18b44268ffa572bbc",
+  "gate_id": "gate_03f1055f63804b379a617f2a8d2c75f7",
+  "resolved_findings": [
+    "finding_03687f3203aa41abbf4f999d5872398a"
+  ],
+  "verification": {
+    "build": {
+      "command": "npm run build",
+      "cwd": "C:\\Users\\laptopofzy\\Documents\\Agent bus\\frontend",
+      "exit_code": 0,
+      "notes": "Vite build passed; lucide-react emitted only non-fatal module directive warnings."
+    },
+    "desktop_browser": {
+      "url": "http://127.0.0.1:8787/",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "console_errors_or_warnings": [],
+      "mission_lane_widths": [
+        311,
+        311,
+        311
+      ],
+      "mission_grid_columns": "310.6px 310.6px",
+      "outside_count": 0,
+      "overflow_count": 0,
+      "has_chinese_labels": true,
+      "bug2_include_task_context_visible": true,
+      "stale_degraded_readable": true
+    },
+    "mobile_browser": {
+      "url": "http://127.0.0.1:8787/",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "console_errors_or_warnings": [],
+      "document_scroll_width": 375,
+      "outside_count": 0,
+      "overflow_count": 0,
+      "has_chinese_labels": true,
+      "bug2_include_task_context_visible": true,
+      "stale_degraded_readable": true
+    },
+    "bug2_regression": {
+      "source_checks": [
+        "frontend/src/App.tsx keeps payload.routing_mode",
+        "frontend/src/App.tsx keeps payload.include_selected_task",
+        "frontend/src/uiText.ts keeps label 携带任务上下文"
+      ],
+      "result": "preserved"
+    }
+  },
+  "recommendation": "PASS"
+}

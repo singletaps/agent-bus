@@ -1,0 +1,43 @@
+{
+  "agent": "runtime-worker-4",
+  "task": "PRODUCT_RESTRUCTURE_C4",
+  "status": "ready",
+  "files": [
+    "frontend/src/components/AgentMark.tsx",
+    "frontend/src/styles/base.css",
+    "frontend/src/styles/layout.css",
+    "frontend/src/styles/status.css"
+  ],
+  "changes": [
+    "Mapped protocol role strings and compound runtime role labels to compact lucide role marks.",
+    "Added 32px fixed AgentMark icon boxes with role-specific colors and truncated text rails.",
+    "Added high-specificity responsive page grid rules for split layout CSS without creating pages.css."
+  ],
+  "verification": {
+    "build": "npm --prefix frontend run build -> exit 0; Vite transformed 1768 modules; lucide use-client warnings only.",
+    "source_scan": "AgentMark includes Command, Hammer, ScanEye, CircuitBoard role marks and substring roleKeywords; CSS includes agent role tokens, agentMarkIcon, and pageShell layout rules.",
+    "desktop_screenshot": "coordination/product-restructure-c4-worker4-desktop.png",
+    "narrow_screenshot": "coordination/product-restructure-c4-worker4-narrow.png",
+    "desktop_stats": {
+      "activeNav": "通信",
+      "agentMarkCount": 7,
+      "overflowX": false,
+      "clientWidth": 1265,
+      "scrollWidth": 1265,
+      "iconBox": "32x32"
+    },
+    "narrow_stats": {
+      "activeNav": "通信",
+      "agentMarkCount": 7,
+      "overflowX": false,
+      "clientWidth": 390,
+      "scrollWidth": 390,
+      "iconBox": "32x32"
+    },
+    "roles_seen": ["helper", "qa", "worker", "controller", "observer"]
+  },
+  "notes": [
+    "No App, Home, B23 page, backend, or styles.css edits were made for C4.",
+    "An earlier C4 build blocker in C1-owned App.tsx was reported and acknowledged before rerun."
+  ]
+}

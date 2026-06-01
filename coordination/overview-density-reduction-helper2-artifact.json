@@ -1,0 +1,120 @@
+{
+  "agent": "runtime-helper-2",
+  "task_id": "task_c0d3f27056ca4e61abd1f8ff0d40e825",
+  "run_id": "run_609faa7cf6b34d85be3567a028ebd50f",
+  "gate_id": "gate_ba02f3c21f764249b2d1a42038f0a969",
+  "finding_id": "finding_0083d962e7a14d138aaa91e4ed526e79",
+  "created_at": "2026-05-29T10:51:02+08:00",
+  "scope": [
+    "frontend/src/App.tsx",
+    "frontend/src/styles.css"
+  ],
+  "changes": [
+    "Removed the duplicated current-run metric from the Overview top status bar while preserving the active run text in the brief.",
+    "Added a compact lane summary strip for all five task lanes.",
+    "Rendered only focus lanes in the first viewport: needs-action and active lanes, plus waiting/review lanes only when they contain tasks.",
+    "Collapsed empty/handled secondary lanes behind a reachable details section.",
+    "Limited focus-lane cards in the first viewport and kept overflow tasks reachable through in-lane details."
+  ],
+  "preserved_behavior": [
+    "Home / control homepage remains the default first screen.",
+    "Sidebar labels and route order are preserved.",
+    "Backend/API files were not changed.",
+    "BUG-2 command payload source remains routing_mode: taskContext ? \"task-context\" : \"agent-only\".",
+    "BUG-2 command payload source remains include_selected_task: Boolean(taskContext)."
+  ],
+  "verification": {
+    "build": {
+      "command": "npm run build",
+      "working_directory": "frontend",
+      "exit_code": 0,
+      "warnings": [
+        "Known lucide-react module directive warnings only: \"use client\" ignored by Vite bundling."
+      ]
+    },
+    "source_checks": {
+      "home_default_line": "frontend/src/App.tsx:122 const [activeView, setActiveView] = useState<ViewName>(\"Home\")",
+      "routing_mode_line": "frontend/src/App.tsx:246 routing_mode: taskContext ? \"task-context\" : \"agent-only\"",
+      "include_selected_task_line": "frontend/src/App.tsx:248 include_selected_task: Boolean(taskContext)",
+      "new_lane_summary_line": "frontend/src/App.tsx:892 laneSummaryText",
+      "current_run_metric_removed": true
+    },
+    "browser_desktop_1280x720": {
+      "screenshot": "coordination/overview-density-reduction-helper2-after.png",
+      "home_default": {
+        "active_nav": "控制首页",
+        "home_page_count": 1,
+        "ops_top_bar_count": 0,
+        "body_horizontal_overflow": false,
+        "visible_unknown": false,
+        "visible_none": false,
+        "fake_reference_copy": false
+      },
+      "overview": {
+        "active_nav": "总览",
+        "body_horizontal_overflow": false,
+        "offscreen_primary_count": 0,
+        "metric_count": 4,
+        "lane_summary_count": 5,
+        "visible_decision_lane_count": 2,
+        "visible_decision_card_count": 3,
+        "button_count": 33,
+        "viewport_button_count": 12,
+        "viewport_element_count": 170,
+        "visible_text_element_count": 124,
+        "primary_surface_count": 34,
+        "visible_unknown": false,
+        "visible_none": false,
+        "fake_reference_copy": false,
+        "secondary_lane_open": false
+      },
+      "click_smoke": {
+        "targets": [
+          "refresh",
+          "alertPrimary",
+          "secondaryLaneShelf",
+          "firstDecisionCard"
+        ],
+        "bad_console_logs": []
+      }
+    },
+    "browser_mobile_390x844": {
+      "active_nav": "总览",
+      "body_horizontal_overflow": false,
+      "offscreen_primary_count": 0,
+      "lane_summary_count": 5,
+      "visible_decision_lane_count": 2,
+      "visible_decision_card_count": 3
+    }
+  },
+  "before_vs_after_density": {
+    "before_source": "coordination/page-by-page-qa-final-artifact.json and coordination/page-by-page-final-overview.png",
+    "before": {
+      "button_count": 46,
+      "visible_element_count": 202,
+      "visible_text_element_count": 151,
+      "primary_surface_count": 13,
+      "full_lane_columns_visible": 5,
+      "notes": [
+        "Top status showed a duplicated current-run metric.",
+        "Empty waiting/review lanes consumed full columns.",
+        "Completed tasks were rendered as a full visible lane."
+      ]
+    },
+    "after": {
+      "button_count": 33,
+      "viewport_button_count": 12,
+      "viewport_element_count": 170,
+      "visible_text_element_count": 124,
+      "metric_count": 4,
+      "focus_lane_columns_visible": 2,
+      "visible_decision_card_count": 3,
+      "notes": [
+        "The first viewport now emphasizes the abnormal task and active lane.",
+        "All lane counts remain visible in compact summaries.",
+        "Empty, review, and completed lanes are reachable through the collapsed secondary section."
+      ]
+    }
+  },
+  "result": "pass"
+}

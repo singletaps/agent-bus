@@ -1,0 +1,2934 @@
+{
+  "artifact": "runtime-qa independent page-by-page final audit",
+  "agent": "runtime-qa",
+  "scope": [
+    "coordination/runtime-qa-page-*.png",
+    "coordination/runtime-qa-final-page-audit.json"
+  ],
+  "summary": {
+    "generatedAt": "2026-05-29T02:33:41.818Z",
+    "service": "http://127.0.0.1:8787/",
+    "build": {
+      "command": "npm run build",
+      "exitCode": 0,
+      "note": "runtime-qa reran build before Browser audit; lucide-react module directive warnings only"
+    },
+    "routeCount": 7,
+    "screenshots": [
+      "coordination/runtime-qa-page-home.png",
+      "coordination/runtime-qa-page-overview.png",
+      "coordination/runtime-qa-page-agents.png",
+      "coordination/runtime-qa-page-gates.png",
+      "coordination/runtime-qa-page-rungraph.png",
+      "coordination/runtime-qa-page-artifacts.png",
+      "coordination/runtime-qa-page-settings.png"
+    ],
+    "routesWithHorizontalOverflow": [],
+    "routesWithVisibleUnknown": [],
+    "routesWithVisibleNone": [],
+    "routesWithFakeReferenceCopy": [],
+    "routesWithOffscreenPrimary": [
+      {
+        "slug": "overview",
+        "count": 8,
+        "items": [
+          {
+            "bottom": 1887.4000854492188,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 3,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文",
+            "top": 1617.4500732421875,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2157.3500366210938,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 4,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-leve",
+            "top": 1887.4000244140625,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2427.3001098632812,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 5,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度",
+            "top": 2157.35009765625,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2697.2500610351562,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 6,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康",
+            "top": 2427.300048828125,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2967.2000122070312,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 7,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "等待中runtime-worker-4docs健康 90%能力 35%空轮询ses_d34a19…当前UX-W4 Worker4 screenshot poli",
+            "top": 2697.25,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 14079.999877929688,
+            "className": "panel timeline eventConsole",
+            "height": 12296.7998046875,
+            "index": 24,
+            "left": 284,
+            "right": 1244.7999877929688,
+            "text": "事件控制台事件流全部门禁中断接管异常时间类型ActorTarget摘要16:00:49task.reassignedruntime-helper-1无task.",
+            "top": 1783.2000732421875,
+            "width": 960.7999877929688
+          },
+          {
+            "bottom": 14271.199996948242,
+            "className": "panel replacementDock",
+            "height": 173.1999969482422,
+            "index": 27,
+            "left": 284,
+            "right": 630.3250122070312,
+            "text": "接管席位候选评分主候选runtime-helper-2得分80任务task_05c3880c010a4598aa6d088fc656c1b9批准missing ",
+            "top": 14098,
+            "width": 346.32501220703125
+          },
+          {
+            "bottom": 14276,
+            "className": "panel commandComposer",
+            "height": 178,
+            "index": 28,
+            "left": 648.3250122070312,
+            "right": 1244.800048828125,
+            "text": "指令台中断路径选中任务task_7472c…未分配携带任务上下文任务上下文目标 Agentruntime-helper-1runtime-helper-2run",
+            "top": 14098,
+            "width": 596.4750366210938
+          }
+        ]
+      },
+      {
+        "slug": "agents",
+        "count": 4,
+        "items": [
+          {
+            "bottom": 1963.6500854492188,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 6,
+            "left": 274.8000183105469,
+            "right": 1254.0000305175781,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康",
+            "top": 1693.7000732421875,
+            "width": 979.2000122070312
+          },
+          {
+            "bottom": 2253.6000366210938,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 7,
+            "left": 274.8000183105469,
+            "right": 1254.0000305175781,
+            "text": "等待中runtime-worker-4docs健康 90%能力 35%空轮询ses_d34a19…当前UX-W4 Worker4 screenshot poli",
+            "top": 1983.6500244140625,
+            "width": 979.2000122070312
+          },
+          {
+            "bottom": 2647.200164794922,
+            "className": "panel inspector inspectorPanel",
+            "height": 370.8000183105469,
+            "index": 8,
+            "left": 264,
+            "right": 1264.7999877929688,
+            "text": "检查器选中上下文概览上下文事件操作任务UX-W5 Worker1 source-level regression check负责人runtime-worker-",
+            "top": 2276.400146484375,
+            "width": 1000.7999877929688
+          },
+          {
+            "bottom": 2837.199951171875,
+            "className": "panel commandComposer",
+            "height": 178,
+            "index": 9,
+            "left": 264,
+            "right": 1264.7999877929688,
+            "text": "指令台中断路径选中任务task_ae9d8…runtime-worker-1携带任务上下文任务上下文目标 Agentruntime-helper-1runtim",
+            "top": 2659.199951171875,
+            "width": 1000.7999877929688
+          }
+        ]
+      }
+    ],
+    "clickedControls": 52,
+    "clickErrors": [],
+    "badLogCount": 0,
+    "badLogs": [],
+    "viewportSamples": [
+      {
+        "slug": "home",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        }
+      },
+      {
+        "slug": "overview",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        }
+      },
+      {
+        "slug": "agents",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        }
+      },
+      {
+        "slug": "gates",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        }
+      },
+      {
+        "slug": "rungraph",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        }
+      },
+      {
+        "slug": "artifacts",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        }
+      },
+      {
+        "slug": "settings",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        }
+      }
+    ],
+    "pass": false
+  },
+  "routes": [
+    {
+      "slug": "home",
+      "facts": {
+        "activeNav": "控制首页",
+        "bodyClientWidth": 1265,
+        "bodyHorizontalOverflow": false,
+        "bodyScrollWidth": 1265,
+        "buttonCount": 13,
+        "buttons": [
+          {
+            "bottom": 130,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 0,
+            "left": 16,
+            "right": 247,
+            "text": "控制首页",
+            "top": 78,
+            "visible": true
+          },
+          {
+            "bottom": 190,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "left": 16,
+            "right": 247,
+            "text": "总览",
+            "top": 138,
+            "visible": true
+          },
+          {
+            "bottom": 250,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "left": 16,
+            "right": 247,
+            "text": "智能体",
+            "top": 198,
+            "visible": true
+          },
+          {
+            "bottom": 310,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "left": 16,
+            "right": 247,
+            "text": "门禁",
+            "top": 258,
+            "visible": true
+          },
+          {
+            "bottom": 370,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "left": 16,
+            "right": 247,
+            "text": "任务流",
+            "top": 318,
+            "visible": true
+          },
+          {
+            "bottom": 430,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "left": 16,
+            "right": 247,
+            "text": "产物",
+            "top": 378,
+            "visible": true
+          },
+          {
+            "bottom": 490,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "left": 16,
+            "right": 247,
+            "text": "设置",
+            "top": 438,
+            "visible": true
+          },
+          {
+            "bottom": 255,
+            "className": "commandButton",
+            "disabled": false,
+            "index": 7,
+            "left": 988,
+            "right": 1208,
+            "text": "继续运行",
+            "top": 207,
+            "visible": true
+          },
+          {
+            "bottom": 315,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 8,
+            "left": 988,
+            "right": 1208,
+            "text": "查看总览",
+            "top": 267,
+            "visible": true
+          },
+          {
+            "bottom": 677,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 9,
+            "left": 323,
+            "right": 453,
+            "text": "查看并处理",
+            "top": 635,
+            "visible": true
+          },
+          {
+            "bottom": 677,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 10,
+            "left": 557,
+            "right": 657,
+            "text": "查看审批",
+            "top": 635,
+            "visible": true
+          },
+          {
+            "bottom": 677,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 11,
+            "left": 791,
+            "right": 908,
+            "text": "查看成果",
+            "top": 635,
+            "visible": true
+          },
+          {
+            "bottom": 626,
+            "className": "commandButton",
+            "disabled": false,
+            "index": 12,
+            "left": 1025,
+            "right": 1206,
+            "text": "应用建议",
+            "top": 584,
+            "visible": true
+          }
+        ],
+        "documentClientWidth": 1265,
+        "documentScrollWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "总览",
+          "Worker2 CLI child fail"
+        ],
+        "navs": [
+          {
+            "active": true,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          }
+        ],
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 5,
+        "slug": "home",
+        "textSample": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 7 tasks\n连接\n已连接\n总览\n\n当前运行：Live Round 1 · 运行中 · 7 tasks\n\n运行中\n1\n已完成\n29\n开放门禁\n1\n成功率\n81%\n当前任务流\nWorker2 CLI child fail\n\n定位、复查或重新分派\n\n进度 0%\n检测到需要关注的事项\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n继续运行\n查看总览\n待你处理\n需要关注或决策的事项\n6\n查看并处理\n门禁与审批\n待审批的请求\n1\n查看审批\n近期成果\n已完成或产出的结果\n29\n查看成果\nController 建议\n建议优先处理异常任务，避免后续回归和门禁继续等待。\n应用建议",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        },
+        "visibleNone": false,
+        "visibleUnknown": false
+      },
+      "screenshot": "coordination/runtime-qa-page-home.png",
+      "clickedControls": [
+        {
+          "index": 7,
+          "text": "继续运行",
+          "className": "commandButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 8,
+          "text": "查看总览",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 9,
+          "text": "查看并处理",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 10,
+          "text": "查看审批",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 11,
+          "text": "查看成果",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "产物",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        }
+      ]
+    },
+    {
+      "slug": "overview",
+      "facts": {
+        "activeNav": "总览",
+        "bodyClientWidth": 1265,
+        "bodyHorizontalOverflow": false,
+        "bodyScrollWidth": 1265,
+        "buttonCount": 46,
+        "buttons": [
+          {
+            "bottom": 130,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "left": 16,
+            "right": 247,
+            "text": "控制首页",
+            "top": 78,
+            "visible": true
+          },
+          {
+            "bottom": 190,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 1,
+            "left": 16,
+            "right": 247,
+            "text": "总览",
+            "top": 138,
+            "visible": true
+          },
+          {
+            "bottom": 250,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "left": 16,
+            "right": 247,
+            "text": "智能体",
+            "top": 198,
+            "visible": true
+          },
+          {
+            "bottom": 310,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "left": 16,
+            "right": 247,
+            "text": "门禁",
+            "top": 258,
+            "visible": true
+          },
+          {
+            "bottom": 370,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "left": 16,
+            "right": 247,
+            "text": "任务流",
+            "top": 318,
+            "visible": true
+          },
+          {
+            "bottom": 430,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "left": 16,
+            "right": 247,
+            "text": "产物",
+            "top": 378,
+            "visible": true
+          },
+          {
+            "bottom": 490,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "left": 16,
+            "right": 247,
+            "text": "设置",
+            "top": 438,
+            "visible": true
+          },
+          {
+            "bottom": 78,
+            "className": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "left": 1191,
+            "right": 1245,
+            "text": "刷新",
+            "top": 34,
+            "visible": true
+          },
+          {
+            "bottom": 165,
+            "className": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "left": 1127,
+            "right": 1250,
+            "text": "处理异常任务",
+            "top": 127,
+            "visible": true
+          },
+          {
+            "bottom": 1362,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 9,
+            "left": 297,
+            "right": 582,
+            "text": "降级注意runtime-helper-1helper-bootstrapper健康 30%能力 35%疑似卡住ses_6cfddf…当前UX-W6 Helper1 final UX",
+            "top": 1092,
+            "visible": true
+          },
+          {
+            "bottom": 1617,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 10,
+            "left": 297,
+            "right": 582,
+            "text": "等待中runtime-helper-2helper健康 90%能力 0%空轮询ses_8fa581…当前11 条 inbox下一步处理 inbox可信度上下文可信",
+            "top": 1362,
+            "visible": true
+          },
+          {
+            "bottom": 1887,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 11,
+            "left": 297,
+            "right": 582,
+            "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信",
+            "top": 1617,
+            "visible": true
+          },
+          {
+            "bottom": 2157,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 12,
+            "left": 297,
+            "right": 582,
+            "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-level regressi",
+            "top": 1887,
+            "visible": true
+          },
+          {
+            "bottom": 2427,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 13,
+            "left": 297,
+            "right": 582,
+            "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度上下文可信",
+            "top": 2157,
+            "visible": true
+          },
+          {
+            "bottom": 2697,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 14,
+            "left": 297,
+            "right": 582,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康可信度上下文可信",
+            "top": 2427,
+            "visible": true
+          },
+          {
+            "bottom": 2967,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 15,
+            "left": 297,
+            "right": 582,
+            "text": "等待中runtime-worker-4docs健康 90%能力 35%空轮询ses_d34a19…当前UX-W4 Worker4 screenshot polish pass下一步",
+            "top": 2697,
+            "visible": true
+          },
+          {
+            "bottom": 350,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 16,
+            "left": 312,
+            "right": 495,
+            "text": "Worker2 CLI child fail失败未分配task_7472c…进度 0%定位、复查或重新分派run_58a117…0",
+            "top": 308,
+            "visible": true
+          },
+          {
+            "bottom": 402,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 17,
+            "left": 312,
+            "right": 495,
+            "text": "UX-W4 Worker4 screenshot polish pass失败runtime-worker-4task_39e9e…进度 0%定位、复查或重新分派run_94c6e7",
+            "top": 360,
+            "visible": true
+          },
+          {
+            "bottom": 454,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 18,
+            "left": 312,
+            "right": 495,
+            "text": "UX-W5 Worker1 source-level regression check失败runtime-worker-1task_ae9d8…进度 0%定位、复查或重新分派run",
+            "top": 412,
+            "visible": true
+          },
+          {
+            "bottom": 506,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 19,
+            "left": 312,
+            "right": 495,
+            "text": "UX-W6 Helper1 final UX QA gate失败runtime-helper-1task_8afa8…进度 0%定位、复查或重新分派run_94c6e7…60",
+            "top": 464,
+            "visible": true
+          },
+          {
+            "bottom": 558,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 20,
+            "left": 312,
+            "right": 495,
+            "text": "BW-2 Worker4 blue-white theme foundation失败runtime-worker-4task_84561…进度 0%定位、复查或重新分派run_d3",
+            "top": 516,
+            "visible": true
+          },
+          {
+            "bottom": 610,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 21,
+            "left": 312,
+            "right": 495,
+            "text": "PGQA-2 Worker4 Overview density CSS fix失败runtime-worker-4task_86360…进度 0%定位、复查或重新分派run_609",
+            "top": 568,
+            "visible": true
+          },
+          {
+            "bottom": 508,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 22,
+            "left": 547,
+            "right": 730,
+            "text": "PGQA-5 Helper1 final page-by-page QA gate工作中runtime-helper-1task_05c38…进度 70%继续执行并上传证据run_",
+            "top": 308,
+            "visible": true
+          },
+          {
+            "bottom": 709,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 23,
+            "left": 312,
+            "right": 495,
+            "text": "Worker1: verify QA close/session lifecycle and backend projection behavior已完成runtime-worke",
+            "top": 680,
+            "visible": true
+          },
+          {
+            "bottom": 748,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 24,
+            "left": 312,
+            "right": 495,
+            "text": "Worker2: exercise CLI wait/ack/task/gate/review commands on live DB已完成runtime-worker-2task",
+            "top": 719,
+            "visible": true
+          },
+          {
+            "bottom": 787,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 25,
+            "left": 312,
+            "right": 495,
+            "text": "Worker3: exercise Operations Console UI flows with real backend data已完成runtime-worker-3tas",
+            "top": 758,
+            "visible": true
+          },
+          {
+            "bottom": 826,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 26,
+            "left": 312,
+            "right": 495,
+            "text": "Worker4: audit docs against real-service workflow and capture gaps已完成runtime-worker-4task_",
+            "top": 797,
+            "visible": true
+          },
+          {
+            "bottom": 865,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 27,
+            "left": 312,
+            "right": 495,
+            "text": "Worker2 CLI child complete已完成runtime-worker-2task_02d3e…进度 100%归档run_58a117…10",
+            "top": 836,
+            "visible": true
+          },
+          {
+            "bottom": 904,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 28,
+            "left": 312,
+            "right": 495,
+            "text": "BUG-1 Fix stale/closed agent session projection已完成runtime-worker-1task_550bf…进度 100%归档run_",
+            "top": 875,
+            "visible": true
+          },
+          {
+            "bottom": 943,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 29,
+            "left": 312,
+            "right": 495,
+            "text": "BUG-3 Fix CLI metadata-json PowerShell contract and examples已完成runtime-worker-2task_10c3c…",
+            "top": 914,
+            "visible": true
+          },
+          {
+            "bottom": 982,
+            "className": "decisionCard",
+            "disabled": false,
+            "index": 30,
+            "left": 312,
+            "right": 495,
+            "text": "BUG-2 Fix Command Composer mixed target/task routing已完成runtime-helper-2task_48fb9…进度 100%归",
+            "top": 953,
+            "visible": true
+          },
+          {
+            "bottom": 1876,
+            "className": "filterButton active",
+            "disabled": false,
+            "index": 31,
+            "left": 297,
+            "right": 342,
+            "text": "全部",
+            "top": 1844,
+            "visible": true
+          },
+          {
+            "bottom": 1876,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 32,
+            "left": 348,
+            "right": 394,
+            "text": "门禁",
+            "top": 1844,
+            "visible": true
+          },
+          {
+            "bottom": 1876,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 33,
+            "left": 400,
+            "right": 446,
+            "text": "中断",
+            "top": 1844,
+            "visible": true
+          },
+          {
+            "bottom": 1876,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 34,
+            "left": 452,
+            "right": 497,
+            "text": "接管",
+            "top": 1844,
+            "visible": true
+          },
+          {
+            "bottom": 1876,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 35,
+            "left": 503,
+            "right": 549,
+            "text": "异常",
+            "top": 1844,
+            "visible": true
+          },
+          {
+            "bottom": 1116,
+            "className": "",
+            "disabled": false,
+            "index": 36,
+            "left": 661,
+            "right": 708,
+            "text": "概览",
+            "top": 1090,
+            "visible": true
+          },
+          {
+            "bottom": 1116,
+            "className": "",
+            "disabled": false,
+            "index": 37,
+            "left": 716,
+            "right": 780,
+            "text": "上下文",
+            "top": 1090,
+            "visible": true
+          },
+          {
+            "bottom": 1116,
+            "className": "",
+            "disabled": false,
+            "index": 38,
+            "left": 788,
+            "right": 835,
+            "text": "事件",
+            "top": 1090,
+            "visible": true
+          },
+          {
+            "bottom": 1116,
+            "className": "",
+            "disabled": false,
+            "index": 39,
+            "left": 843,
+            "right": 890,
+            "text": "操作",
+            "top": 1090,
+            "visible": true
+          },
+          {
+            "bottom": 1395,
+            "className": "filterButton active",
+            "disabled": false,
+            "index": 40,
+            "left": 661,
+            "right": 707,
+            "text": "开放",
+            "top": 1363,
+            "visible": true
+          },
+          {
+            "bottom": 1395,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 41,
+            "left": 715,
+            "right": 772,
+            "text": "高风险",
+            "top": 1363,
+            "visible": true
+          },
+          {
+            "bottom": 1395,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 42,
+            "left": 780,
+            "right": 838,
+            "text": "已处理",
+            "top": 1363,
+            "visible": true
+          },
+          {
+            "bottom": 1395,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 43,
+            "left": 846,
+            "right": 892,
+            "text": "全部",
+            "top": 1363,
+            "visible": true
+          },
+          {
+            "bottom": 14216,
+            "className": "commandButton",
+            "disabled": false,
+            "index": 44,
+            "left": 526,
+            "right": 618,
+            "text": "批准",
+            "top": 14180,
+            "visible": true
+          },
+          {
+            "bottom": 14263,
+            "className": "commandButton",
+            "disabled": false,
+            "index": 45,
+            "left": 1140,
+            "right": 1232,
+            "text": "发送",
+            "top": 14227,
+            "visible": true
+          }
+        ],
+        "documentClientWidth": 1265,
+        "documentScrollWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "智能体工作台",
+          "任务态势",
+          "事件控制台",
+          "检查器",
+          "门禁",
+          "接管席位",
+          "指令台"
+        ],
+        "navs": [
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "active": true,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          }
+        ],
+        "offscreenPrimary": [
+          {
+            "bottom": 1887.4000854492188,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 3,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文",
+            "top": 1617.4500732421875,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2157.3500366210938,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 4,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-leve",
+            "top": 1887.4000244140625,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2427.3001098632812,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 5,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度",
+            "top": 2157.35009765625,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2697.2500610351562,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 6,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康",
+            "top": 2427.300048828125,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 2967.2000122070312,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 7,
+            "left": 296.8000183105469,
+            "right": 582.3250122070312,
+            "text": "等待中runtime-worker-4docs健康 90%能力 35%空轮询ses_d34a19…当前UX-W4 Worker4 screenshot poli",
+            "top": 2697.25,
+            "width": 285.5249938964844
+          },
+          {
+            "bottom": 14079.999877929688,
+            "className": "panel timeline eventConsole",
+            "height": 12296.7998046875,
+            "index": 24,
+            "left": 284,
+            "right": 1244.7999877929688,
+            "text": "事件控制台事件流全部门禁中断接管异常时间类型ActorTarget摘要16:00:49task.reassignedruntime-helper-1无task.",
+            "top": 1783.2000732421875,
+            "width": 960.7999877929688
+          },
+          {
+            "bottom": 14271.199996948242,
+            "className": "panel replacementDock",
+            "height": 173.1999969482422,
+            "index": 27,
+            "left": 284,
+            "right": 630.3250122070312,
+            "text": "接管席位候选评分主候选runtime-helper-2得分80任务task_05c3880c010a4598aa6d088fc656c1b9批准missing ",
+            "top": 14098,
+            "width": 346.32501220703125
+          },
+          {
+            "bottom": 14276,
+            "className": "panel commandComposer",
+            "height": 178,
+            "index": 28,
+            "left": 648.3250122070312,
+            "right": 1244.800048828125,
+            "text": "指令台中断路径选中任务task_7472c…未分配携带任务上下文任务上下文目标 Agentruntime-helper-1runtime-helper-2run",
+            "top": 14098,
+            "width": 596.4750366210938
+          }
+        ],
+        "offscreenPrimaryCount": 8,
+        "primarySurfaceCount": 29,
+        "slug": "overview",
+        "textSample": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 7 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 7 tasks\n\n同步 10:32:20\n\nAgent\n7\n待处理 inbox\n136\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态 / 可信度\n降级注意\nruntime-helper-1\nhelper-bootstrapper\n健康 30%\n能力 35%\n疑似卡住\nses_6cfddf…\n当前\nUX-W6 Helper1 final UX QA gate\n下一步\n检查会话健康\n可信度\n上下文可信\n等待中\nruntime-helper-2\nhelper\n健康 90%\n能力 0%\n空轮询\nses_8fa581…\n当前\n11 条 inbox\n下一步\n处理 inbox\n可信度\n上下文可信\n降级注意\nruntime-qa\nqa-gatekeeper\n健康 55%\n能力 35%\n降级待命\nses_e02ba8…\n当前\n9 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-1\nworker\n健康 55%\n能力 35%\n降级待命\nses_3a3cb9…\n当前\nUX-W5 Worker1",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        },
+        "visibleNone": false,
+        "visibleUnknown": false
+      },
+      "screenshot": "coordination/runtime-qa-page-overview.png",
+      "clickedControls": [
+        {
+          "index": 7,
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 8,
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 9,
+          "text": "降级注意runtime-helper-1helper-bootstrapper健康 30%能力 35%疑似卡住ses_6cfddf…当前UX-W6 Helper1 final UX",
+          "className": "workstationCard",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 16,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 10,
+          "text": "等待中runtime-helper-2helper健康 90%能力 0%空轮询ses_8fa581…当前11 条 inbox下一步处理 inbox可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 17,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 11,
+          "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 17,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 16,
+          "text": "Worker2 CLI child fail失败未分配task_7472c…进度 0%定位、复查或重新分派run_58a117…0",
+          "className": "decisionCard",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 7,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 17,
+          "text": "UX-W4 Worker4 screenshot polish pass失败runtime-worker-4task_39e9e…进度 0%定位、复查或重新分派run_94c6e7",
+          "className": "decisionCard",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 7,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 18,
+          "text": "UX-W5 Worker1 source-level regression check失败runtime-worker-1task_ae9d8…进度 0%定位、复查或重新分派run",
+          "className": "decisionCard",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 6,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 31,
+          "text": "全部",
+          "className": "filterButton active",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 23,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 32,
+          "text": "门禁",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 21,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 33,
+          "text": "中断",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 20,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 34,
+          "text": "接管",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 20,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 35,
+          "text": "异常",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 21,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 36,
+          "text": "概览",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 11,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 37,
+          "text": "上下文",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 9,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 38,
+          "text": "事件",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 9,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 39,
+          "text": "操作",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 9,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 40,
+          "text": "开放",
+          "className": "filterButton active",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 17,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 41,
+          "text": "高风险",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 17,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 42,
+          "text": "已处理",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 17,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 43,
+          "text": "全部",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 19,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        }
+      ]
+    },
+    {
+      "slug": "agents",
+      "facts": {
+        "activeNav": "智能体",
+        "bodyClientWidth": 1265,
+        "bodyHorizontalOverflow": false,
+        "bodyScrollWidth": 1265,
+        "buttonCount": 21,
+        "buttons": [
+          {
+            "bottom": 130,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "left": 16,
+            "right": 247,
+            "text": "控制首页",
+            "top": 78,
+            "visible": true
+          },
+          {
+            "bottom": 190,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "left": 16,
+            "right": 247,
+            "text": "总览",
+            "top": 138,
+            "visible": true
+          },
+          {
+            "bottom": 250,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 2,
+            "left": 16,
+            "right": 247,
+            "text": "智能体",
+            "top": 198,
+            "visible": true
+          },
+          {
+            "bottom": 310,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "left": 16,
+            "right": 247,
+            "text": "门禁",
+            "top": 258,
+            "visible": true
+          },
+          {
+            "bottom": 370,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "left": 16,
+            "right": 247,
+            "text": "任务流",
+            "top": 318,
+            "visible": true
+          },
+          {
+            "bottom": 430,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "left": 16,
+            "right": 247,
+            "text": "产物",
+            "top": 378,
+            "visible": true
+          },
+          {
+            "bottom": 490,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "left": 16,
+            "right": 247,
+            "text": "设置",
+            "top": 438,
+            "visible": true
+          },
+          {
+            "bottom": 78,
+            "className": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "left": 1191,
+            "right": 1245,
+            "text": "刷新",
+            "top": 34,
+            "visible": true
+          },
+          {
+            "bottom": 165,
+            "className": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "left": 1127,
+            "right": 1250,
+            "text": "处理异常任务",
+            "top": 127,
+            "visible": true
+          },
+          {
+            "bottom": 529,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 9,
+            "left": 275,
+            "right": 1254,
+            "text": "降级注意runtime-helper-1helper-bootstrapper健康 30%能力 35%疑似卡住ses_6cfddf…当前UX-W6 Helper1 final UX",
+            "top": 259,
+            "visible": true
+          },
+          {
+            "bottom": 804,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 10,
+            "left": 275,
+            "right": 1254,
+            "text": "等待中runtime-helper-2helper健康 90%能力 0%空轮询ses_8fa581…当前11 条 inbox下一步处理 inbox可信度上下文可信",
+            "top": 549,
+            "visible": true
+          },
+          {
+            "bottom": 1094,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 11,
+            "left": 275,
+            "right": 1254,
+            "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信",
+            "top": 824,
+            "visible": true
+          },
+          {
+            "bottom": 1384,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 12,
+            "left": 275,
+            "right": 1254,
+            "text": "降级注意runtime-worker-1worker健康 55%能力 35%降级待命ses_3a3cb9…当前UX-W5 Worker1 source-level regressi",
+            "top": 1114,
+            "visible": true
+          },
+          {
+            "bottom": 1674,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 13,
+            "left": 275,
+            "right": 1254,
+            "text": "降级注意runtime-worker-2cli-worker健康 55%能力 35%降级待命ses_538415…当前7 条 inbox下一步检查会话健康可信度上下文可信",
+            "top": 1404,
+            "visible": true
+          },
+          {
+            "bottom": 1964,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 14,
+            "left": 275,
+            "right": 1254,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康可信度上下文可信",
+            "top": 1694,
+            "visible": true
+          },
+          {
+            "bottom": 2254,
+            "className": "workstationCard",
+            "disabled": false,
+            "index": 15,
+            "left": 275,
+            "right": 1254,
+            "text": "等待中runtime-worker-4docs健康 90%能力 35%空轮询ses_d34a19…当前UX-W4 Worker4 screenshot polish pass下一步",
+            "top": 1984,
+            "visible": true
+          },
+          {
+            "bottom": 2364,
+            "className": "",
+            "disabled": false,
+            "index": 16,
+            "left": 277,
+            "right": 324,
+            "text": "概览",
+            "top": 2339,
+            "visible": true
+          },
+          {
+            "bottom": 2364,
+            "className": "",
+            "disabled": false,
+            "index": 17,
+            "left": 332,
+            "right": 395,
+            "text": "上下文",
+            "top": 2339,
+            "visible": true
+          },
+          {
+            "bottom": 2364,
+            "className": "",
+            "disabled": false,
+            "index": 18,
+            "left": 403,
+            "right": 450,
+            "text": "事件",
+            "top": 2339,
+            "visible": true
+          },
+          {
+            "bottom": 2364,
+            "className": "",
+            "disabled": false,
+            "index": 19,
+            "left": 458,
+            "right": 506,
+            "text": "操作",
+            "top": 2339,
+            "visible": true
+          },
+          {
+            "bottom": 2824,
+            "className": "commandButton",
+            "disabled": false,
+            "index": 20,
+            "left": 1160,
+            "right": 1252,
+            "text": "发送",
+            "top": 2788,
+            "visible": true
+          }
+        ],
+        "documentClientWidth": 1265,
+        "documentScrollWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "智能体工作台",
+          "检查器",
+          "指令台"
+        ],
+        "navs": [
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "active": true,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          }
+        ],
+        "offscreenPrimary": [
+          {
+            "bottom": 1963.6500854492188,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 6,
+            "left": 274.8000183105469,
+            "right": 1254.0000305175781,
+            "text": "降级注意runtime-worker-3react-console健康 55%能力 35%降级待命ses_a1255d…当前5 条 inbox下一步检查会话健康",
+            "top": 1693.7000732421875,
+            "width": 979.2000122070312
+          },
+          {
+            "bottom": 2253.6000366210938,
+            "className": "workstationCard",
+            "height": 269.95001220703125,
+            "index": 7,
+            "left": 274.8000183105469,
+            "right": 1254.0000305175781,
+            "text": "等待中runtime-worker-4docs健康 90%能力 35%空轮询ses_d34a19…当前UX-W4 Worker4 screenshot poli",
+            "top": 1983.6500244140625,
+            "width": 979.2000122070312
+          },
+          {
+            "bottom": 2647.200164794922,
+            "className": "panel inspector inspectorPanel",
+            "height": 370.8000183105469,
+            "index": 8,
+            "left": 264,
+            "right": 1264.7999877929688,
+            "text": "检查器选中上下文概览上下文事件操作任务UX-W5 Worker1 source-level regression check负责人runtime-worker-",
+            "top": 2276.400146484375,
+            "width": 1000.7999877929688
+          },
+          {
+            "bottom": 2837.199951171875,
+            "className": "panel commandComposer",
+            "height": 178,
+            "index": 9,
+            "left": 264,
+            "right": 1264.7999877929688,
+            "text": "指令台中断路径选中任务task_ae9d8…runtime-worker-1携带任务上下文任务上下文目标 Agentruntime-helper-1runtim",
+            "top": 2659.199951171875,
+            "width": 1000.7999877929688
+          }
+        ],
+        "offscreenPrimaryCount": 4,
+        "primarySurfaceCount": 10,
+        "slug": "agents",
+        "textSample": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 7 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 7 tasks\n\n同步 10:33:00\n\nAgent\n7\n待处理 inbox\n136\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态 / 可信度\n降级注意\nruntime-helper-1\nhelper-bootstrapper\n健康 30%\n能力 35%\n疑似卡住\nses_6cfddf…\n当前\nUX-W6 Helper1 final UX QA gate\n下一步\n检查会话健康\n可信度\n上下文可信\n等待中\nruntime-helper-2\nhelper\n健康 90%\n能力 0%\n空轮询\nses_8fa581…\n当前\n11 条 inbox\n下一步\n处理 inbox\n可信度\n上下文可信\n降级注意\nruntime-qa\nqa-gatekeeper\n健康 55%\n能力 35%\n降级待命\nses_e02ba8…\n当前\n9 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n降级注意\nruntime-worker-1\nworker\n健康 55%\n能力 35%\n降级待命\nses_3a3cb9…\n当前\nUX-W5 Worker1",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        },
+        "visibleNone": false,
+        "visibleUnknown": false
+      },
+      "screenshot": "coordination/runtime-qa-page-agents.png",
+      "clickedControls": [
+        {
+          "index": 7,
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 4,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 8,
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 9,
+          "text": "降级注意runtime-helper-1helper-bootstrapper健康 30%能力 35%疑似卡住ses_6cfddf…当前UX-W6 Helper1 final UX",
+          "className": "workstationCard",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 4,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 10,
+          "text": "等待中runtime-helper-2helper健康 90%能力 0%空轮询ses_8fa581…当前11 条 inbox下一步处理 inbox可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 3,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 11,
+          "text": "降级注意runtime-qaqa-gatekeeper健康 55%能力 35%降级待命ses_e02ba8…当前9 条 inbox下一步检查会话健康可信度上下文可信",
+          "className": "workstationCard",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 3,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 16,
+          "text": "概览",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 6,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 17,
+          "text": "上下文",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 6,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 18,
+          "text": "事件",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 5,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 19,
+          "text": "操作",
+          "className": "",
+          "status": "clicked",
+          "afterActiveNav": "智能体",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 6,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        }
+      ]
+    },
+    {
+      "slug": "gates",
+      "facts": {
+        "activeNav": "门禁",
+        "bodyClientWidth": 1265,
+        "bodyHorizontalOverflow": false,
+        "bodyScrollWidth": 1265,
+        "buttonCount": 18,
+        "buttons": [
+          {
+            "bottom": 130,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "left": 16,
+            "right": 247,
+            "text": "控制首页",
+            "top": 78,
+            "visible": true
+          },
+          {
+            "bottom": 190,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "left": 16,
+            "right": 247,
+            "text": "总览",
+            "top": 138,
+            "visible": true
+          },
+          {
+            "bottom": 250,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "left": 16,
+            "right": 247,
+            "text": "智能体",
+            "top": 198,
+            "visible": true
+          },
+          {
+            "bottom": 310,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 3,
+            "left": 16,
+            "right": 247,
+            "text": "门禁",
+            "top": 258,
+            "visible": true
+          },
+          {
+            "bottom": 370,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "left": 16,
+            "right": 247,
+            "text": "任务流",
+            "top": 318,
+            "visible": true
+          },
+          {
+            "bottom": 430,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "left": 16,
+            "right": 247,
+            "text": "产物",
+            "top": 378,
+            "visible": true
+          },
+          {
+            "bottom": 490,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "left": 16,
+            "right": 247,
+            "text": "设置",
+            "top": 438,
+            "visible": true
+          },
+          {
+            "bottom": 78,
+            "className": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "left": 1191,
+            "right": 1245,
+            "text": "刷新",
+            "top": 34,
+            "visible": true
+          },
+          {
+            "bottom": 165,
+            "className": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "left": 1127,
+            "right": 1250,
+            "text": "处理异常任务",
+            "top": 127,
+            "visible": true
+          },
+          {
+            "bottom": 291,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 9,
+            "left": 277,
+            "right": 322,
+            "text": "开放",
+            "top": 259,
+            "visible": true
+          },
+          {
+            "bottom": 291,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 10,
+            "left": 330,
+            "right": 388,
+            "text": "高风险",
+            "top": 259,
+            "visible": true
+          },
+          {
+            "bottom": 291,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 11,
+            "left": 396,
+            "right": 454,
+            "text": "已处理",
+            "top": 259,
+            "visible": true
+          },
+          {
+            "bottom": 291,
+            "className": "filterButton active",
+            "disabled": false,
+            "index": 12,
+            "left": 462,
+            "right": 507,
+            "text": "全部",
+            "top": 259,
+            "visible": true
+          },
+          {
+            "bottom": 1214,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 13,
+            "left": 277,
+            "right": 322,
+            "text": "全部",
+            "top": 1182,
+            "visible": true
+          },
+          {
+            "bottom": 1214,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 14,
+            "left": 328,
+            "right": 374,
+            "text": "门禁",
+            "top": 1182,
+            "visible": true
+          },
+          {
+            "bottom": 1214,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 15,
+            "left": 380,
+            "right": 426,
+            "text": "中断",
+            "top": 1182,
+            "visible": true
+          },
+          {
+            "bottom": 1214,
+            "className": "filterButton",
+            "disabled": false,
+            "index": 16,
+            "left": 432,
+            "right": 477,
+            "text": "接管",
+            "top": 1182,
+            "visible": true
+          },
+          {
+            "bottom": 1214,
+            "className": "filterButton active",
+            "disabled": false,
+            "index": 17,
+            "left": 483,
+            "right": 529,
+            "text": "异常",
+            "top": 1182,
+            "visible": true
+          }
+        ],
+        "documentClientWidth": 1265,
+        "documentScrollWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "门禁",
+          "事件控制台"
+        ],
+        "navs": [
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "active": true,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          }
+        ],
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 2,
+        "slug": "gates",
+        "textSample": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 7 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 7 tasks\n\n同步 10:33:15\n\nAgent\n7\n待处理 inbox\n136\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n门禁\n审批中心\n开放\n高风险\n已处理\n全部\nLive Round 1 completion gate\ngate_66e3413...\nmedium\n已批准\n负责人待确认\nWorker2 CLI approve gate\ngate_070838e...\nnormal\n已批准\n负责人待确认\nWorker2 CLI reject gate\ngate_0447082...\nnormal\n已拒绝\n负责人待确认\nWorker2 CLI escalate gate\ngate_cc0618d...\nnormal\nescalated\n负责人待确认\nRound2 bugfix gate blocks frontend redesign\ngate_cdfd124...\nhigh\n已批准\n负责人待确认\nFrontend Optimization QA Gate\ngate_03f1055...\nhigh\n已批准\n负责人待确认\nAge",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        },
+        "visibleNone": false,
+        "visibleUnknown": false
+      },
+      "screenshot": "coordination/runtime-qa-page-gates.png",
+      "clickedControls": [
+        {
+          "index": 7,
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 8,
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 9,
+          "text": "开放",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 10,
+          "text": "高风险",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 11,
+          "text": "已处理",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 12,
+          "text": "全部",
+          "className": "filterButton active",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 13,
+          "text": "全部",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 1,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 14,
+          "text": "门禁",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 15,
+          "text": "中断",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 16,
+          "text": "接管",
+          "className": "filterButton",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 17,
+          "text": "异常",
+          "className": "filterButton active",
+          "status": "clicked",
+          "afterActiveNav": "门禁",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        }
+      ]
+    },
+    {
+      "slug": "rungraph",
+      "facts": {
+        "activeNav": "任务流",
+        "bodyClientWidth": 1265,
+        "bodyHorizontalOverflow": false,
+        "bodyScrollWidth": 1265,
+        "buttonCount": 9,
+        "buttons": [
+          {
+            "bottom": 130,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "left": 16,
+            "right": 247,
+            "text": "控制首页",
+            "top": 78,
+            "visible": true
+          },
+          {
+            "bottom": 190,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "left": 16,
+            "right": 247,
+            "text": "总览",
+            "top": 138,
+            "visible": true
+          },
+          {
+            "bottom": 250,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "left": 16,
+            "right": 247,
+            "text": "智能体",
+            "top": 198,
+            "visible": true
+          },
+          {
+            "bottom": 310,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "left": 16,
+            "right": 247,
+            "text": "门禁",
+            "top": 258,
+            "visible": true
+          },
+          {
+            "bottom": 370,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 4,
+            "left": 16,
+            "right": 247,
+            "text": "任务流",
+            "top": 318,
+            "visible": true
+          },
+          {
+            "bottom": 430,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "left": 16,
+            "right": 247,
+            "text": "产物",
+            "top": 378,
+            "visible": true
+          },
+          {
+            "bottom": 490,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "left": 16,
+            "right": 247,
+            "text": "设置",
+            "top": 438,
+            "visible": true
+          },
+          {
+            "bottom": 78,
+            "className": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "left": 1191,
+            "right": 1245,
+            "text": "刷新",
+            "top": 34,
+            "visible": true
+          },
+          {
+            "bottom": 165,
+            "className": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "left": 1127,
+            "right": 1250,
+            "text": "处理异常任务",
+            "top": 127,
+            "visible": true
+          }
+        ],
+        "documentClientWidth": 1265,
+        "documentScrollWidth": 1265,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "任务流列表"
+        ],
+        "navs": [
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "active": true,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          }
+        ],
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 1,
+        "slug": "rungraph",
+        "textSample": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 7 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 7 tasks\n\n同步 10:33:30\n\nAgent\n7\n待处理 inbox\n137\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n任务流列表\n任务流 / 阶段\nrun_58a11729...\n已创建\ncreated\nqueued\nworking\ngate\nreview\ndone\ntask_7ae9e0a...\ntask_9d3ed42...\ntask_0112dd2...\ntask_f97d109...\ntask_02d3e09...\ntask_7472c79...\nrun_baa1ce49...\n已创建\ncreated\nqueued\nworking\ngate\nreview\ndone\ntask_550bf5a...\ntask_10c3c18...\ntask_48fb94c...\ntask_f5d9855...\ntask_5821dfc...\nrun_2c6e4edf...\n已创建\ncreated\nqueued\nworking\ngate\nreview\ndone\ntask_093ceb3...\ntask_b6c2ecc...\ntask_e",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        },
+        "visibleNone": false,
+        "visibleUnknown": false
+      },
+      "screenshot": "coordination/runtime-qa-page-rungraph.png",
+      "clickedControls": [
+        {
+          "index": 7,
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "afterActiveNav": "任务流",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 8,
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        }
+      ]
+    },
+    {
+      "slug": "artifacts",
+      "facts": {
+        "activeNav": "产物",
+        "bodyClientWidth": 1280,
+        "bodyHorizontalOverflow": false,
+        "bodyScrollWidth": 1280,
+        "buttonCount": 9,
+        "buttons": [
+          {
+            "bottom": 130,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "left": 16,
+            "right": 247,
+            "text": "控制首页",
+            "top": 78,
+            "visible": true
+          },
+          {
+            "bottom": 190,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "left": 16,
+            "right": 247,
+            "text": "总览",
+            "top": 138,
+            "visible": true
+          },
+          {
+            "bottom": 250,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "left": 16,
+            "right": 247,
+            "text": "智能体",
+            "top": 198,
+            "visible": true
+          },
+          {
+            "bottom": 310,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "left": 16,
+            "right": 247,
+            "text": "门禁",
+            "top": 258,
+            "visible": true
+          },
+          {
+            "bottom": 370,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "left": 16,
+            "right": 247,
+            "text": "任务流",
+            "top": 318,
+            "visible": true
+          },
+          {
+            "bottom": 430,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 5,
+            "left": 16,
+            "right": 247,
+            "text": "产物",
+            "top": 378,
+            "visible": true
+          },
+          {
+            "bottom": 490,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "left": 16,
+            "right": 247,
+            "text": "设置",
+            "top": 438,
+            "visible": true
+          },
+          {
+            "bottom": 78,
+            "className": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "left": 1206,
+            "right": 1260,
+            "text": "刷新",
+            "top": 34,
+            "visible": true
+          },
+          {
+            "bottom": 278,
+            "className": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "left": 1142,
+            "right": 1265,
+            "text": "处理异常任务",
+            "top": 240,
+            "visible": true
+          }
+        ],
+        "documentClientWidth": 1280,
+        "documentScrollWidth": 1280,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "产物"
+        ],
+        "navs": [
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "active": true,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          }
+        ],
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 4,
+        "slug": "artifacts",
+        "textSample": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 7 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 7 tasks\n\n同步 10:33:32\n\nAgent\n7\n待处理 inbox\n137\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n产物\n任务产物\n截图\n等待 screenshot artifact\n报告\n等待 summary/report artifact\n日志\n等待 trace/log artifact\n\n当前任务流还没有产物。当 Agent 创建 artifact.created 事件后，截图、报告、日志和审查结果会出现在这里。",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        },
+        "visibleNone": false,
+        "visibleUnknown": false
+      },
+      "screenshot": "coordination/runtime-qa-page-artifacts.png",
+      "clickedControls": [
+        {
+          "index": 7,
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "afterActiveNav": "产物",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 8,
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        }
+      ]
+    },
+    {
+      "slug": "settings",
+      "facts": {
+        "activeNav": "设置",
+        "bodyClientWidth": 1280,
+        "bodyHorizontalOverflow": false,
+        "bodyScrollWidth": 1280,
+        "buttonCount": 9,
+        "buttons": [
+          {
+            "bottom": 130,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "left": 16,
+            "right": 247,
+            "text": "控制首页",
+            "top": 78,
+            "visible": true
+          },
+          {
+            "bottom": 190,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "left": 16,
+            "right": 247,
+            "text": "总览",
+            "top": 138,
+            "visible": true
+          },
+          {
+            "bottom": 250,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "left": 16,
+            "right": 247,
+            "text": "智能体",
+            "top": 198,
+            "visible": true
+          },
+          {
+            "bottom": 310,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "left": 16,
+            "right": 247,
+            "text": "门禁",
+            "top": 258,
+            "visible": true
+          },
+          {
+            "bottom": 370,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "left": 16,
+            "right": 247,
+            "text": "任务流",
+            "top": 318,
+            "visible": true
+          },
+          {
+            "bottom": 430,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "left": 16,
+            "right": 247,
+            "text": "产物",
+            "top": 378,
+            "visible": true
+          },
+          {
+            "bottom": 490,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 6,
+            "left": 16,
+            "right": 247,
+            "text": "设置",
+            "top": 438,
+            "visible": true
+          },
+          {
+            "bottom": 78,
+            "className": "iconButton",
+            "disabled": false,
+            "index": 7,
+            "left": 1206,
+            "right": 1260,
+            "text": "刷新",
+            "top": 34,
+            "visible": true
+          },
+          {
+            "bottom": 346,
+            "className": "alertPrimary",
+            "disabled": false,
+            "index": 8,
+            "left": 1142,
+            "right": 1265,
+            "text": "处理异常任务",
+            "top": 308,
+            "visible": true
+          }
+        ],
+        "documentClientWidth": 1280,
+        "documentScrollWidth": 1280,
+        "fakeReferenceCopy": false,
+        "headings": [
+          "Agent Bus",
+          "Agent Operations Room",
+          "设置"
+        ],
+        "navs": [
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 0,
+            "text": "控制首页"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 1,
+            "text": "总览"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 2,
+            "text": "智能体"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 3,
+            "text": "门禁"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 4,
+            "text": "任务流"
+          },
+          {
+            "active": false,
+            "className": "navItem",
+            "disabled": false,
+            "index": 5,
+            "text": "产物"
+          },
+          {
+            "active": true,
+            "className": "navItem active",
+            "disabled": false,
+            "index": 6,
+            "text": "设置"
+          }
+        ],
+        "offscreenPrimary": [],
+        "offscreenPrimaryCount": 0,
+        "primarySurfaceCount": 1,
+        "slug": "settings",
+        "textSample": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 7 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 7 tasks\n\n同步 10:33:36\n\nAgent\n7\n待处理 inbox\n137\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n设置\n投影来源\n投影源Endpoint: /api/projections/operationsRefresh: 5sLast generated: 2026-05-29T02:33:36.298Z\n显示偏好密度：紧凑主题：浅色事件流：自动刷新\n调试信息active run count: 6agent count: 7projection version: live",
+        "viewport": {
+          "devicePixelRatio": 1.25,
+          "height": 720,
+          "width": 1280
+        },
+        "visibleNone": false,
+        "visibleUnknown": false
+      },
+      "screenshot": "coordination/runtime-qa-page-settings.png",
+      "clickedControls": [
+        {
+          "index": 7,
+          "text": "刷新",
+          "className": "iconButton",
+          "status": "clicked",
+          "afterActiveNav": "设置",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 0,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        },
+        {
+          "index": 8,
+          "text": "处理异常任务",
+          "className": "alertPrimary",
+          "status": "clicked",
+          "afterActiveNav": "总览",
+          "afterOverflow": false,
+          "afterOffscreenPrimaryCount": 8,
+          "afterVisibleUnknown": false,
+          "afterVisibleNone": false
+        }
+      ]
+    }
+  ]
+}

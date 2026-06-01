@@ -1,0 +1,93 @@
+{
+  "target": "http://127.0.0.1:8787/",
+  "startedAt": "2026-05-29T06:31:05.294Z",
+  "navCount": 7,
+  "metrics": [
+    {
+      "activeNav": "控制首页",
+      "badMatches": [],
+      "bodyOverflow": false,
+      "buttonOverflowCount": 0,
+      "has404OrApiError": false,
+      "hasMojibake": false,
+      "routeKey": "Home",
+      "textLength": 1549
+    },
+    {
+      "activeNav": "通信",
+      "badMatches": [],
+      "bodyOverflow": false,
+      "buttonOverflowCount": 0,
+      "has404OrApiError": false,
+      "hasMojibake": false,
+      "routeKey": "Communication",
+      "textLength": 1578
+    },
+    {
+      "activeNav": "任务流",
+      "badMatches": [],
+      "bodyOverflow": false,
+      "buttonOverflowCount": 0,
+      "has404OrApiError": false,
+      "hasMojibake": false,
+      "routeKey": "Runs",
+      "textLength": 3227
+    },
+    {
+      "activeNav": "门禁",
+      "badMatches": [],
+      "bodyOverflow": false,
+      "buttonOverflowCount": 0,
+      "has404OrApiError": false,
+      "hasMojibake": false,
+      "routeKey": "Gates",
+      "textLength": 1376
+    },
+    {
+      "activeNav": "产物",
+      "badMatches": [],
+      "bodyOverflow": false,
+      "buttonOverflowCount": 0,
+      "has404OrApiError": false,
+      "hasMojibake": false,
+      "routeKey": "Artifacts",
+      "textLength": 353
+    },
+    {
+      "activeNav": "诊断",
+      "badMatches": [],
+      "bodyOverflow": false,
+      "buttonOverflowCount": 0,
+      "has404OrApiError": false,
+      "hasMojibake": false,
+      "routeKey": "Diagnostics",
+      "textLength": 12715
+    },
+    {
+      "activeNav": "设置",
+      "badMatches": [],
+      "bodyOverflow": false,
+      "buttonOverflowCount": 0,
+      "has404OrApiError": false,
+      "hasMojibake": false,
+      "routeKey": "Settings",
+      "textLength": 340
+    }
+  ],
+  "allErrorLogs": [
+    {
+      "level": "error",
+      "message": "TypeError: s.suggestedActions.map is not a function\n    at Dv (http://127.0.0.1:8787/assets/index-CLULf_L5.js:9:51774)\n    at ii (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:47959)\n    at Mi (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:70712)\n    at io (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:81045)\n    at Yo (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:116739)\n    at B0 (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:115797)\n    at $i (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:115631)\n    at Ro (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:112439)\n    at Fo (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:124307)\n    at Tn (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:122855)",
+      "timestamp": "2026-05-29T04:16:20.493Z",
+      "url": "http://127.0.0.1:8787/assets/index-CLULf_L5.js"
+    },
+    {
+      "level": "error",
+      "message": "TypeError: s.suggestedActions.map is not a function\n    at Dv (http://127.0.0.1:8787/assets/index-CLULf_L5.js:9:51774)\n    at ii (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:47959)\n    at Mi (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:70712)\n    at io (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:81045)\n    at Yo (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:116739)\n    at B0 (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:115797)\n    at $i (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:115631)\n    at Ro (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:112439)\n    at Fo (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:124307)\n    at Tn (http://127.0.0.1:8787/assets/index-CLULf_L5.js:8:122855)",
+      "timestamp": "2026-05-29T04:18:08.024Z",
+      "url": "http://127.0.0.1:8787/assets/index-CLULf_L5.js"
+    }
+  ],
+  "currentErrors": [],
+  "generatedAt": "2026-05-29T06:31:17.174Z"
+}

@@ -1,0 +1,50 @@
+{
+  "target": "http://127.0.0.1:8787/",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "startedAt": "2026-05-29T06:34:26.934Z",
+  "results": [
+    {
+      "route": "Home",
+      "screenshot": "C:/Users/laptopofzy/Documents/Agent bus/coordination/gate2-final-home-narrow-qa.png",
+      "metrics": {
+        "activeNav": "控制首页",
+        "badMatches": [],
+        "bodyOverflow": false,
+        "buttonOverflowCount": 0,
+        "clientWidth": 375,
+        "has404OrApiError": false,
+        "hasMojibake": false,
+        "height": 844,
+        "overflowButtons": [],
+        "routeKey": "Home",
+        "scrollWidth": 375,
+        "textLength": 1549,
+        "width": 390
+      }
+    },
+    {
+      "route": "Communication",
+      "screenshot": "C:/Users/laptopofzy/Documents/Agent bus/coordination/gate2-final-communication-narrow-qa.png",
+      "metrics": {
+        "activeNav": "通信",
+        "badMatches": [],
+        "bodyOverflow": false,
+        "buttonOverflowCount": 0,
+        "clientWidth": 375,
+        "has404OrApiError": false,
+        "hasMojibake": false,
+        "height": 844,
+        "overflowButtons": [],
+        "routeKey": "Communication",
+        "scrollWidth": 375,
+        "textLength": 1578,
+        "width": 390
+      }
+    }
+  ],
+  "currentErrors": [],
+  "generatedAt": "2026-05-29T06:34:50.578Z"
+}

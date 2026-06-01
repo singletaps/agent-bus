@@ -1,0 +1,19 @@
+{
+  "summary": "UX-W3 App wiring for Operations first screen",
+  "files": [
+    "frontend/src/App.tsx"
+  ],
+  "build": "npm run build exit 0; lucide use-client warnings only",
+  "browser": {
+    "url": "http://127.0.0.1:8787/",
+    "viewport": "1280x720",
+    "operationsBrief": 1,
+    "briefAction": 1,
+    "workstationCards": 7,
+    "decisionLanes": 4,
+    "decisionCards": 13,
+    "overflowX": false,
+    "consoleWarningsErrors": 0
+  },
+  "bug2Payload": "routing_mode and include_selected_task preserved"
+}

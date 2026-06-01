@@ -1,0 +1,63 @@
+{
+  "agent": "runtime-helper-1",
+  "token": "VISUAL_LAYOUT_WAVE2_HOME_READY",
+  "task": "Task 2A Home reference visual layout",
+  "capturedAt": "2026-05-29T06:21:05.081Z",
+  "scope": {
+    "assigned": [
+      "frontend/src/pages/HomePage.tsx",
+      "frontend/src/uiText.ts (Home-only changes allowed)"
+    ],
+    "changedInWave2ByHelper1": [
+      "frontend/src/pages/HomePage.tsx"
+    ],
+    "notChangedByHelper1InWave2": [
+      "frontend/src/uiText.ts",
+      "frontend/src/styles/base.css",
+      "frontend/src/styles/layout.css",
+      "frontend/src/styles/status.css",
+      "frontend/src/styles.css",
+      "backend files",
+      "Communication/Gates/Runs/Artifacts pages",
+      "operationsRoomModel"
+    ]
+  },
+  "implementation": [
+    "Rebuilt Home as three numbered reference sections: runtime posture, task-flow metro, and action queue.",
+    "Used real projection and room data for run state, task lanes, gates, artifacts, pending inbox, and action targets.",
+    "Added Home-local inline layout constraints so action queue cards wrap/truncate long owner/status text without page overflow."
+  ],
+  "verification": {
+    "build": {
+      "command": "npm --prefix frontend run build",
+      "exitCode": 0,
+      "modulesTransformed": 1769,
+      "notes": "Vite build passed; lucide-react use-client warnings only."
+    },
+    "sourceScan": {
+      "command": "Select-String in frontend/src/pages/HomePage.tsx and frontend/src/uiText.ts for ???, ????, and common mojibake markers",
+      "result": "no matches; output was scan-complete"
+    },
+    "browserSmoke": {
+      "target": "http://127.0.0.1:8787/",
+      "screenshot": "coordination/visual-layout-wave2-home.png",
+      "json": "coordination/visual-layout-wave2-home-smoke.json",
+      "hasSections": true,
+      "hasHeadings": true,
+      "hasMojibake": false,
+      "panels": 3,
+      "bodyOverflow": false,
+      "actionCardOverflow": false,
+      "actionCards": 5,
+      "metroNodes": 9,
+      "drawerOpened": true,
+      "submitClicked": true,
+      "sendHit": true,
+      "severeLogCount": 0
+    }
+  },
+  "risks": [
+    "Home uses real backend task names and ids, so some English task titles remain by design.",
+    "The metro lane can scroll horizontally because it represents a long live task flow; document-level horizontal overflow is false."
+  ]
+}

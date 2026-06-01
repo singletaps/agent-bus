@@ -1,0 +1,78 @@
+{
+  "viewport": "1280x720",
+  "home": {
+    "activeNav": "控制首页",
+    "bodyBackground": "rgb(246, 248, 251)",
+    "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\n总览\n\n当前运行：Live Round 1 · 运行中 · 6 tasks\n\n运行中\n1\n已完成\n24\n开放门禁\n1\n成功率\n80%\n当前任务流\nWorker2 CLI child fail\n\n定位、复查或重新分派\n\n进度 0%\n检测到需要关注的事项\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n继续运行\n查看总览\n待你处理\n需要关注或决策的事项\n5\n查看并处理\n门禁与审批\n待审批的请求\n1\n查看审批\n近期成果\n已完成或产出的结果\n24\n查看成果\nController 建议\n建议优先处理异常任务，避免后续回归和门禁继续等待。\n应用建议",
+    "clientWidth": 1265,
+    "controllerSuggestion": true,
+    "fakeCopy": false,
+    "homePageCount": 1,
+    "metricCount": 4,
+    "navTexts": [
+      "控制首页",
+      "总览",
+      "智能体",
+      "门禁",
+      "任务流",
+      "产物",
+      "设置"
+    ],
+    "offscreenCount": 0,
+    "overflowX": false,
+    "overviewReachable": true,
+    "panelBackgrounds": [
+      "rgba(255, 255, 255, 0.92)",
+      "rgba(255, 255, 255, 0.92)",
+      "rgba(255, 255, 255, 0.92)",
+      "rgba(255, 255, 255, 0.92)",
+      "rgba(255, 255, 255, 0.96)",
+      "rgba(255, 255, 255, 0.96)",
+      "rgba(255, 255, 255, 0.96)",
+      "rgba(255, 255, 255, 0.96)"
+    ],
+    "scrollWidth": 1265,
+    "sidebarBackground": "rgba(255, 255, 255, 0.96)",
+    "visibleNone": false,
+    "visibleUnknown": false,
+    "workflowPanel": true
+  },
+  "overview": {
+    "activeNav": "总览",
+    "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\nAGENT OPERATIONS ROOM\nAgent Operations Room\n\nLive Round 1 / 运行中 · 6 tasks\n\n同步 18:53:27\n\nAgent\n7\n待处理 inbox\n131\n开放门禁\n1\n上下文风险\n0\n当前任务流\nLive Round 1\n刷新\n需要处理任务异常\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n处理异常任务\n智能体工作台\n姿态 / 可信度\n工作中\nruntime-helper-1\nhelper-bootstrapper\n健康 95%\n能力 35%\n工作中\nses_6cfddf…\n当前\nUX-W6 Helper1 final UX QA gate\n下一步\n定位异常任务\n可信度\n上下文可信\n等待中\nruntime-helper-2\nhelper\n健康 95%\n能力 0%\n等待总线\nses_8fa581…\n当前\n10 条 inbox\n下一步\n处理 inbox\n可信度\n上下文可信\n降级注意\nruntime-qa\nqa-gatekeeper\n健康 55%\n能力 35%\n降级待命\nses_e02ba8…\n当前\n9 条 inbox\n下一步\n检查会话健康\n可信度\n上下文可信\n待命\nruntime-worker-1\nworker\n健康 100%\n能力 35%\n待命就绪\nses_3a3cb9…\n当前\nUX-W5 Worker1 s",
+    "clientWidth": 1265,
+    "eventTable": 1,
+    "fakeCopy": false,
+    "inspector": true,
+    "laneLabelsPresent": [
+      [
+        "需处理",
+        true
+      ],
+      [
+        "进行中",
+        true
+      ],
+      [
+        "等待门禁",
+        true
+      ],
+      [
+        "审查中",
+        true
+      ],
+      [
+        "已完成",
+        true
+      ]
+    ],
+    "offscreenCount": 119,
+    "overflowX": false,
+    "scrollWidth": 1265,
+    "taskCards": 0,
+    "visibleNone": false,
+    "visibleUnknown": false,
+    "workstationCards": 0
+  },
+  "filteredLogs": []
+}

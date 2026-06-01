@@ -1,0 +1,137 @@
+{
+  "mobileHome": {
+    "activeNav": "控制首页",
+    "bodyStart": "AB\nAgent Bus\n\n运行控制台\n\n控制首页\n总览\n智能体\n门禁\n任务流\n产物\n设置\n当前任务流\nLive Round 1\n状态\n运行中 · 6 tasks\n连接\n已连接\n总览\n\n当前运行：Live Round 1 · 运行中 · 6 tasks\n\n运行中\n1\n已完成\n24\n开放门禁\n1\n成功率\n80%\n当前任务流\nWorker2 CLI child fail\n\n定位、复查或重新分派\n\n进度 0%\n检测到需要关注的事项\n\nWorker2 CLI child fail 需要定位、复查或重新分派。\n\n继续运行\n查看总览\n待你处理\n需要关注或决策的事项\n5\n查看并处理\n门禁与审批\n待审批的请求\n1\n查看审批\n近期成果\n已完成或产出的结果\n24\n查看成果\nController 建议\n建议优先处理异常任务，避免后续回归和门禁继续等待。\n应用建议",
+    "clientWidth": 375,
+    "controllerSuggestion": true,
+    "fakeCopy": false,
+    "hasHome": true,
+    "metricCount": 4,
+    "overflowX": false,
+    "rects": [
+      {
+        "bottom": 2589,
+        "cls": "homePage",
+        "left": 0,
+        "right": 375,
+        "text": "总览当前运行：Live Round 1 · 运行中 · 6 tasks运行中1已完成24开放门禁1成",
+        "top": 438
+      },
+      {
+        "bottom": 610,
+        "cls": "metric info",
+        "left": 18,
+        "right": 357,
+        "text": "运行中1",
+        "top": 534
+      },
+      {
+        "bottom": 696,
+        "cls": "metric good",
+        "left": 18,
+        "right": 357,
+        "text": "已完成24",
+        "top": 620
+      },
+      {
+        "bottom": 782,
+        "cls": "metric warn",
+        "left": 18,
+        "right": 357,
+        "text": "开放门禁1",
+        "top": 706
+      },
+      {
+        "bottom": 868,
+        "cls": "metric info",
+        "left": 18,
+        "right": 357,
+        "text": "成功率80%",
+        "top": 792
+      },
+      {
+        "bottom": 1413,
+        "cls": "panel",
+        "left": 18,
+        "right": 357,
+        "text": "当前任务流Worker2 CLI child fail定位、复查或重新分派进度 0%检测到需要关注的",
+        "top": 884
+      },
+      {
+        "bottom": 1716,
+        "cls": "artifactCard",
+        "left": 30,
+        "right": 345,
+        "text": "待你处理需要关注或决策的事项5查看并处理",
+        "top": 1441
+      },
+      {
+        "bottom": 2007,
+        "cls": "artifactCard",
+        "left": 30,
+        "right": 345,
+        "text": "门禁与审批待审批的请求1查看审批",
+        "top": 1732
+      },
+      {
+        "bottom": 2297,
+        "cls": "artifactCard",
+        "left": 30,
+        "right": 345,
+        "text": "近期成果已完成或产出的结果24查看成果",
+        "top": 2023
+      },
+      {
+        "bottom": 2559,
+        "cls": "artifactCard",
+        "left": 30,
+        "right": 345,
+        "text": "Controller 建议建议优先处理异常任务，避免后续回归和门禁继续等待。应用建议",
+        "top": 2313
+      }
+    ],
+    "scrollWidth": 375,
+    "selectorChecks": [
+      {
+        "count": 1,
+        "offscreen": [],
+        "selector": ".homePage"
+      },
+      {
+        "count": 4,
+        "offscreen": [],
+        "selector": ".metric"
+      },
+      {
+        "count": 1,
+        "offscreen": [],
+        "selector": ".panel"
+      },
+      {
+        "count": 4,
+        "offscreen": [],
+        "selector": ".artifactCard"
+      },
+      {
+        "count": 0,
+        "offscreen": [],
+        "selector": ".primaryButton"
+      },
+      {
+        "count": 0,
+        "offscreen": [],
+        "selector": ".secondaryButton"
+      },
+      {
+        "count": 7,
+        "offscreen": [],
+        "selector": ".navItem"
+      }
+    ],
+    "viewport": "390x844",
+    "visibleNone": false,
+    "visibleUnknown": false,
+    "workflowPanel": true
+  },
+  "filteredLogs": []
+}

@@ -1,0 +1,16 @@
+{
+  "files": [
+    "frontend/src/operationsRoomModel.ts",
+    "frontend/src/uiText.ts"
+  ],
+  "verification": "npm run build exit 0; lucide-react use-client warnings only",
+  "exports": [
+    "DecisionLane five-lane model",
+    "shortId",
+    "displayOrEmpty",
+    "TaskCardModel progress/nextAction/short ids",
+    "OperationsBrief activeRunLabel/activeRunMeta"
+  ],
+  "compatibility": "legacy waiting lane alias retained for pre-App-wiring build compatibility",
+  "scope": "no App.tsx/styles/backend changes"
+}

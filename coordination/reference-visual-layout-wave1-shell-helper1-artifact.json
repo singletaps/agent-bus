@@ -1,0 +1,24 @@
+﻿{
+    "agent":  "runtime-helper-1",
+    "token":  "VISUAL_LAYOUT_WAVE1_SHELL_READY",
+    "timestamp":  "2026-05-29T13:47:20.3960012+08:00",
+    "scope":  [
+                  "frontend/src/App.tsx",
+                  "frontend/src/uiText.ts",
+                  "frontend/src/components/PageToolbar.tsx"
+              ],
+    "build":  {
+                  "evidence":  "Vite build succeeded; 1769 modules transformed; assets index-B1ZkzBtf.js and index-d8DRdBZN.css; lucide use-client warnings only.",
+                  "exitCode":  0,
+                  "command":  "npm --prefix frontend run build"
+              },
+    "scans":  {
+                  "navLabels":  "Select-String found 控制首页, 通信, 任务流, 门禁, 产物, 诊断, 设置 in uiText.ts.",
+                  "toolbarMarkers":  "Select-String found lastLoadedAt, loadProjection, pageToolbar, toolbarButton in App.tsx/PageToolbar.tsx.",
+                  "mojibakeAssignedFiles":  "No hits for ???/????/common mojibake clusters in App.tsx, uiText.ts, PageToolbar.tsx using helper1 scan patterns."
+              },
+    "notes":  [
+                  "Interpreted QA plan mojibake snippets as clean Chinese visible copy because Gate 1 forbids visible mojibake/question marks.",
+                  "No CSS/backend/page redesign files edited; toolbar CSS styling remains worker4 Wave 1B foundation scope."
+              ]
+}

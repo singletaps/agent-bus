@@ -1,0 +1,30 @@
+{
+  "task": "PRODUCT_RESTRUCTURE_WAVE_A_A4",
+  "agent": "runtime-worker-4",
+  "status": "ready",
+  "scope": "diagnostics/shared UI text and reusable components only",
+  "changed_files": [
+    "frontend/src/uiText.ts",
+    "frontend/src/components/StatusBadge.tsx",
+    "frontend/src/components/IdChip.tsx",
+    "frontend/src/components/Panel.tsx",
+    "frontend/src/components/EventTable.tsx"
+  ],
+  "untouched_by_worker4_a4": [
+    "frontend/src/App.tsx",
+    "frontend/src/styles.css"
+  ],
+  "notes": [
+    "Readable Chinese labels are used instead of mojibake plan literals.",
+    "viewLabels includes compatibility keys for the existing route set and upcoming MVP route set.",
+    "StatusBadge follows the planned RuntimeStatus shape and is ready for helper1's statusModel contract.",
+    "EventTable keeps raw protocol events in a fixed eventFrame/eventTable structure for the Diagnostics page."
+  ],
+  "verification": {
+    "command": "npm --prefix frontend run build",
+    "exit_code": 0,
+    "warnings": [
+      "lucide-react module-level use client directives ignored by Vite bundling"
+    ]
+  }
+}

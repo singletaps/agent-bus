@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #f6f8fb;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-border: #e2e8f0;
+  --color-muted: #f8fafc;
+  --color-muted-foreground: #64748b;
+  --color-primary: #2563eb;
+  --color-primary-foreground: #ffffff;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-destructive: #dc2626;
+  --color-review: #7c3aed;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+:root {
+  color-scheme: light;
+  --bg: #f6f8fb;
+  --shell: #ffffff;
+  --panel: #ffffff;
+  --panel-soft: #f8fafc;
+  --panel-elevated: #ffffff;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  --blue: #2563eb;
+  --blue-soft: #eff6ff;
+  --green: #16a34a;
+  --amber: #d97706;
+  --red: #dc2626;
+  --purple: #7c3aed;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --status-green: var(--green);
+  --status-yellow: var(--amber);
+  --status-red: var(--red);
+  --status-gray: #64748b;
+  --status-purple: var(--purple);
+  --status-blue: var(--blue);
+  --action-blue: var(--blue);
+  --surface-app: var(--bg);
+  --surface-panel: var(--panel);
+  --surface-panel-soft: var(--panel-soft);
+  --line-soft: var(--border);
+  --text-strong: var(--text);
+  --agent-role-controller: #1d4ed8;
+  --agent-role-worker: #0f766e;
+  --agent-role-helper: #6d28d9;
+  --agent-role-qa: #b7791f;
+  --agent-role-observer: #64748b;
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--surface-app);
+}
+
+body {
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  letter-spacing: 0;
+}
+
+:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
