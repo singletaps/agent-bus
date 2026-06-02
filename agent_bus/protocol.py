@@ -7,7 +7,8 @@ from typing import Any, Callable, Iterable
 
 from .authority import AuthorityService, DIRECT_AUTHORITATIVE_MUTATORS, actor_role_for_principal
 from .fencing import FencingService
-from .models import BusEvent, EventType, new_id
+from .db import connect
+from .models import BusEvent, ContextPacket, EventType, InboxItem, TaskRecord, TaskState, new_id, utc_now_iso
 from .policy import PolicyService
 from .protocol_models import (
     ClaimStatus,
@@ -16,6 +17,7 @@ from .protocol_models import (
     ProjectionEffect,
     ProtocolViolation,
     ProtocolWriteResult,
+    PacketKind,
     TaskClaimKind,
     TaskClaimRecord,
 )
@@ -243,6 +245,215 @@ class ProtocolKernel:
             claim_status=stored_claim.status if stored_claim is not None else None,
         )
 
+    def assign_task(
+        self,
+        *,
+        task_id: str,
+        assignee_agent_id: str,
+        actor: str | None,
+        principal: Principal,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
+        assignment_session_id: str | None = None,
+        assignment_session_epoch: int | None = None,
+        failure_hook: Callable[[sqlite3.Connection], None] | None = None,
+    ) -> ProtocolWriteResult:
+        task = self._task_record(task_id)
+        from .tasks import StateTransitionError, TASK_TRANSITIONS
+
+        next_state = TaskState.ASSIGNED if task.status is TaskState.CREATED else TaskState.REASSIGNED
+        if next_state not in TASK_TRANSITIONS[task.status]:
+            raise StateTransitionError(f"invalid task transition: {task.status.value} -> {next_state.value}")
+
+        now = utc_now_iso()
+        task = task.model_copy(
+            update={
+                "status": next_state,
+                "assignee_agent_id": assignee_agent_id,
+                "blocked_reason": None,
+                "updated_at": now,
+            }
+        )
+        event_type = EventType.TASK_ASSIGNED if next_state is TaskState.ASSIGNED else EventType.TASK_REASSIGNED
+        task_event = BusEvent(
+            type=event_type,
+            actor=actor,
+            actor_role=actor_role_for_principal(principal),
+            run_id=task.run_id,
+            task_id=task.task_id,
+            agent_id=assignee_agent_id,
+            projection_effect=ProjectionEffect.COMMIT,
+            fencing_result=FencingResult.NOT_REQUIRED,
+            payload=task.model_dump(mode="json"),
+        )
+
+        authority = self.authority.evaluate(
+            actor=actor,
+            actor_role=task_event.actor_role,
+            action=event_type.value,
+            principal=principal,
+        )
+        if not authority.allowed:
+            return self._reject(
+                attempted_event_id=task_event.event_id,
+                action=event_type.value,
+                actor=actor,
+                actor_role=task_event.actor_role,
+                reason=authority.reason or "authority denied assignment",
+                fencing_result=FencingResult.NOT_REQUIRED,
+                payload=task_event.payload,
+                run_id=task.run_id,
+                task_id=task.task_id,
+                agent_id=assignee_agent_id,
+            )
+        policy = self.policy.evaluate(
+            action=event_type.value,
+            actor=actor,
+            agent_id=assignee_agent_id,
+            task_id=task.task_id,
+            session_id=session_id,
+            context_packet_id=None,
+        )
+        if not policy.allowed:
+            return self._reject(
+                attempted_event_id=task_event.event_id,
+                action=event_type.value,
+                actor=actor,
+                actor_role=task_event.actor_role,
+                reason=policy.reason or "policy denied assignment",
+                fencing_result=FencingResult.NOT_REQUIRED,
+                payload=task_event.payload,
+                run_id=task.run_id,
+                task_id=task.task_id,
+                agent_id=assignee_agent_id,
+            )
+
+        packet = ContextPacket(
+            agent_id=assignee_agent_id,
+            task_id=task.task_id,
+            run_id=task.run_id,
+            summary=f"Assignment for {task.title}",
+            packet_kind=PacketKind.ASSIGNMENT,
+            instructions={
+                "kind": "assignment",
+                "task_id": task.task_id,
+                "run_id": task.run_id,
+                "title": task.title,
+                "next_action": "acknowledge_task",
+            },
+        )
+        inbox_item = InboxItem(
+            agent_id=assignee_agent_id,
+            kind="task_assigned",
+            priority=max(50, task.priority),
+            payload={
+                "task_id": task.task_id,
+                "run_id": task.run_id,
+                "state": task.status.value,
+                "context_packet_id": packet.packet_id,
+            },
+            context_packet_id=packet.packet_id,
+            dedupe_key=f"task_assigned:{task.task_id}:{task.status.value}",
+        )
+
+        self._ensure_assignment_tables()
+        with UnitOfWork(self.db_path, conn=self.conn) as uow:
+            appended_task = uow.append_event(
+                task_event,
+                guard=True,
+                guard_targets=(
+                    ("tasks", task.task_id, event_type.value),
+                    ("context_packets", packet.packet_id, EventType.CONTEXT_CREATED.value),
+                    ("task_context_bindings", packet.packet_id, EventType.CONTEXT_CREATED.value),
+                    ("inbox_items", inbox_item.inbox_id, EventType.INBOX_ENQUEUED.value),
+                ),
+            )
+            uow.upsert_task(task)
+            if failure_hook is not None:
+                failure_hook(uow.conn)
+            packet = packet.model_copy(update={"created_from_event_id": appended_task.event_id})
+            context_event = BusEvent(
+                type=EventType.CONTEXT_CREATED,
+                actor=actor,
+                actor_role=actor_role_for_principal(principal),
+                run_id=packet.run_id,
+                task_id=packet.task_id,
+                agent_id=packet.agent_id,
+                context_packet_id=packet.packet_id,
+                causation_id=appended_task.event_id,
+                projection_effect=ProjectionEffect.COMMIT,
+                fencing_result=FencingResult.NOT_REQUIRED,
+                payload=packet.model_dump(mode="json"),
+            )
+            appended_context = uow.append_event(
+                context_event,
+                guard=True,
+                guard_targets=(
+                    ("context_packets", packet.packet_id, EventType.CONTEXT_CREATED.value),
+                    ("task_context_bindings", packet.packet_id, EventType.CONTEXT_CREATED.value),
+                ),
+            )
+            uow.insert_context_packet_and_binding(
+                packet,
+                appended_context,
+                session_id=assignment_session_id,
+                session_epoch=assignment_session_epoch,
+            )
+            inbox_item = inbox_item.model_copy(update={"context_packet_id": packet.packet_id})
+            inbox_event = BusEvent(
+                type=EventType.INBOX_ENQUEUED,
+                actor=actor,
+                actor_role=actor_role_for_principal(principal),
+                agent_id=inbox_item.agent_id,
+                context_packet_id=inbox_item.context_packet_id,
+                causation_id=appended_context.event_id,
+                projection_effect=ProjectionEffect.COMMIT,
+                fencing_result=FencingResult.NOT_REQUIRED,
+                payload=inbox_item.model_dump(mode="json"),
+            )
+            appended_inbox = uow.append_event(
+                inbox_event,
+                guard=True,
+                guard_targets=(("inbox_items", inbox_item.inbox_id, EventType.INBOX_ENQUEUED.value),),
+            )
+            uow.insert_inbox_item(inbox_item)
+            task_effect = uow.record_projection_effect(
+                event_id=appended_task.event_id,
+                effect=ProjectionEffect.COMMIT,
+                reason="task assignment, context binding, and inbox delivery committed atomically",
+                target_table="tasks",
+                target_id=task.task_id,
+                run_id=task.run_id,
+                task_id=task.task_id,
+            )
+            uow.record_projection_effect(
+                event_id=appended_context.event_id,
+                effect=ProjectionEffect.COMMIT,
+                reason="assignment context committed atomically with task assignment",
+                target_table="context_packets",
+                target_id=packet.packet_id,
+                run_id=task.run_id,
+                task_id=task.task_id,
+            )
+            uow.record_projection_effect(
+                event_id=appended_inbox.event_id,
+                effect=ProjectionEffect.COMMIT,
+                reason="assignment inbox item committed atomically with task assignment",
+                target_table="inbox_items",
+                target_id=inbox_item.inbox_id,
+                run_id=task.run_id,
+                task_id=task.task_id,
+            )
+        return ProtocolWriteResult(
+            accepted=True,
+            event_id=appended_task.event_id,
+            seq=appended_task.seq,
+            effect_id=task_effect.effect_id,
+            projection_effect=ProjectionEffect.COMMIT,
+            fencing_result=FencingResult.NOT_REQUIRED,
+        )
+
     def reject_action(
         self,
         *,
@@ -387,6 +598,48 @@ class ProtocolKernel:
             return None
         finally:
             board.close()
+
+    def _task_record(self, task_id: str) -> TaskRecord:
+        conn = self.conn or connect(self.db_path)
+        owns_conn = self.conn is None
+        try:
+            row = conn.execute("select * from tasks where task_id = ?", (task_id,)).fetchone()
+        finally:
+            if owns_conn:
+                conn.close()
+        if row is None:
+            from .tasks import RuntimeRecordError
+
+            raise RuntimeRecordError(f"unknown task: {task_id}")
+        return TaskRecord(
+            task_id=row["task_id"],
+            run_id=row["run_id"],
+            title=row["title"],
+            owner_agent_id=row["owner_agent_id"],
+            assignee_agent_id=row["assignee_agent_id"],
+            status=TaskState(row["status"]),
+            priority=row["priority"],
+            parent_task_id=row["parent_task_id"],
+            supersedes_task_id=row["supersedes_task_id"],
+            blocked_reason=row["blocked_reason"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            completed_at=row["completed_at"],
+            failed_at=row["failed_at"],
+        )
+
+    def _ensure_assignment_tables(self) -> None:
+        from .context import migrate as migrate_context
+        from .inbox import migrate as migrate_inbox
+
+        if self.conn is not None:
+            migrate_context(self.conn)
+            migrate_inbox(self.conn)
+            self.conn.commit()
+            return
+        with connect(self.db_path) as conn:
+            migrate_context(conn)
+            migrate_inbox(conn)
 
     def _reject(
         self,

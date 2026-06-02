@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import sqlite3
 
-from agent_bus.authority import agent_principal
+from agent_bus.authority import agent_principal, controller_principal
+from agent_bus.context import ContextStore
 from agent_bus.fencing import FencingService
 from agent_bus.protocol import ProtocolKernel
-from agent_bus.protocol_models import FencingResult, Principal, PrincipalType, ProjectionEffect, SessionRole
+from agent_bus.protocol_models import FencingResult, PacketKind, Principal, PrincipalType, ProjectionEffect, SessionRole
 from agent_bus.store import EventStore
 
 
@@ -19,6 +20,15 @@ def test_worker_event_with_valid_fence_commits_event_and_projection(tmp_path):
     )
     kernel = ProtocolKernel(db_path)
     principal = agent_principal("worker.backend", session_id=registration.session_id)
+    packet = ContextStore(db_path, principal=controller_principal()).create_packet(
+        agent_id="worker.backend",
+        task_id="task-1",
+        summary="Worker assignment context",
+        actor="controller",
+        session_id=registration.session_id,
+        session_epoch=registration.session_epoch,
+        packet_kind=PacketKind.ASSIGNMENT,
+    )
 
     result = kernel.record_event(
         event_type="task.progress_reported",
@@ -30,6 +40,7 @@ def test_worker_event_with_valid_fence_commits_event_and_projection(tmp_path):
         task_id="task-1",
         session_id=registration.session_id,
         session_epoch=registration.session_epoch,
+        context_packet_id=packet.packet_id,
         fencing_token=registration.raw_token,
         payload={"message": "halfway"},
     )

@@ -186,6 +186,30 @@ def build_parser() -> argparse.ArgumentParser:
     worker_task_complete.add_argument("--context-packet-id")
     _add_db(worker_task_complete)
     _add_json(worker_task_complete)
+    worker_inbox = worker_subparsers.add_parser("inbox", help="fenced worker inbox operations")
+    worker_inbox_subparsers = worker_inbox.add_subparsers(
+        dest="worker_inbox_command",
+        metavar="WORKER_INBOX_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    worker_inbox_wait = worker_inbox_subparsers.add_parser("wait", help="wait for inbox with fencing")
+    worker_inbox_wait.add_argument("--agent", required=True)
+    worker_inbox_wait.add_argument("--session-id", required=True)
+    worker_inbox_wait.add_argument("--session-epoch", type=int, required=True)
+    worker_inbox_wait.add_argument("--fencing-token", required=True)
+    worker_inbox_wait.add_argument("--timeout", default=300.0, type=float)
+    worker_inbox_wait.add_argument("--busy", action="store_true")
+    _add_db(worker_inbox_wait)
+    _add_json(worker_inbox_wait)
+    worker_inbox_ack = worker_inbox_subparsers.add_parser("ack", help="ack inbox item with fencing")
+    worker_inbox_ack.add_argument("inbox_id")
+    worker_inbox_ack.add_argument("--agent", required=True)
+    worker_inbox_ack.add_argument("--session-id", required=True)
+    worker_inbox_ack.add_argument("--session-epoch", type=int, required=True)
+    worker_inbox_ack.add_argument("--fencing-token", required=True)
+    _add_db(worker_inbox_ack)
+    _add_json(worker_inbox_ack)
 
     controller_parser = subparsers.add_parser("controller", help="controller-scoped commands")
     controller_subparsers = controller_parser.add_subparsers(
@@ -475,6 +499,11 @@ def _dispatch_task(args: argparse.Namespace) -> int:
 def _dispatch_worker(args: argparse.Namespace) -> int:
     if args.worker_command == "task" and args.worker_task_command == "complete":
         return _handle_worker_task_complete(args)
+    if args.worker_command == "inbox":
+        if args.worker_inbox_command == "wait":
+            return _handle_worker_inbox_wait(args)
+        if args.worker_inbox_command == "ack":
+            return _handle_worker_inbox_ack(args)
     raise CliUsageError("worker requires a subcommand")
 
 
@@ -770,6 +799,59 @@ def _handle_ack(args: argparse.Namespace) -> int:
     if not ok:
         raise CliError(
             f"inbox item not found or already acked: {args.inbox_id}",
+            payload={"inbox_id": args.inbox_id, "agent_id": args.agent},
+        )
+    _emit({"ok": True, "inbox_id": args.inbox_id, "acked": True}, as_json=_as_json(args))
+    return EXIT_OK
+
+
+def _handle_worker_inbox_wait(args: argparse.Namespace) -> int:
+    from .inbox import wait
+
+    try:
+        result = wait(
+            args.agent,
+            args.timeout,
+            db_path=args.db,
+            busy=args.busy,
+            session_id=args.session_id,
+            session_epoch=args.session_epoch,
+            fencing_token=args.fencing_token,
+            require_fence=True,
+        )
+    except PermissionError as exc:
+        raise CliError(str(exc), payload={"agent_id": args.agent, "session_id": args.session_id}) from exc
+    _emit(
+        {
+            "ok": True,
+            "kind": result.kind,
+            "noop": result.noop,
+            "timed_out": result.timed_out,
+            "item": result.item,
+        },
+        as_json=_as_json(args),
+    )
+    return EXIT_OK
+
+
+def _handle_worker_inbox_ack(args: argparse.Namespace) -> int:
+    from .inbox import ack
+
+    try:
+        ok = ack(
+            args.inbox_id,
+            agent_id=args.agent,
+            db_path=args.db,
+            session_id=args.session_id,
+            session_epoch=args.session_epoch,
+            fencing_token=args.fencing_token,
+            require_fence=True,
+        )
+    except PermissionError as exc:
+        raise CliError(str(exc), payload={"inbox_id": args.inbox_id, "agent_id": args.agent}) from exc
+    if not ok:
+        raise CliError(
+            f"inbox item not found or fencing rejected: {args.inbox_id}",
             payload={"inbox_id": args.inbox_id, "agent_id": args.agent},
         )
     _emit({"ok": True, "inbox_id": args.inbox_id, "acked": True}, as_json=_as_json(args))

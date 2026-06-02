@@ -315,9 +315,7 @@ class GateBoard:
     ) -> None:
         principal = principal or self.principal
         if principal is None:
-            self._insert_or_update_gate(gate)
-            self._append_event(event_type, actor=actor, gate=gate)
-            return
+            raise PermissionError("gate decision requires principal")
         event = BusEvent(
             type=event_type,
             actor=actor,

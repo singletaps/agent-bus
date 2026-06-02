@@ -108,3 +108,17 @@ def test_gate_approval_rejects_self_review_by_requester(tmp_path):
         gates.approve_gate(gate.gate_id, actor="runtime-worker-5")
 
     assert gates.get_gate(gate.gate_id).state is GateState.OPEN
+
+
+def test_gate_decision_without_principal_fails_closed(tmp_path):
+    db_path = tmp_path / "agent-bus.sqlite3"
+    controller_gates = GateBoard(db_path=db_path, principal=controller_principal())
+    gate = controller_gates.create_gate("No legacy principal", task_id="task-1", requested_by="runtime-worker-5")
+    legacy_gates = GateBoard(db_path=db_path)
+
+    with pytest.raises(PermissionError, match="principal"):
+        legacy_gates.approve_gate(gate.gate_id, actor="controller")
+
+    assert controller_gates.get_gate(gate.gate_id).state is GateState.OPEN
+    gate_events = EventStore(db_path).query_events(task_id="task-1")
+    assert "gate.approved" not in [event.type for event in gate_events]

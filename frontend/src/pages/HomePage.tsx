@@ -73,9 +73,41 @@ export function HomePage({
   const progress = activeRun.progress;
   const actionItems = projection.ui.actionItems.slice(0, 5);
   const currentState = activeRun.state || projection.runs[0]?.state || "none";
-  const taskWorkflow = projection.ui.taskWorkflow;
+  const workflowTaskIds = React.useMemo(
+    () => Object.keys(projection.ui.taskWorkflows),
+    [projection.ui.taskWorkflows],
+  );
+  const taskTitlesById = React.useMemo(
+    () => new Map(projection.tasks.map((task) => [task.id, task.title || task.id])),
+    [projection.tasks],
+  );
+  const defaultTaskId =
+    projection.ui.selectedTaskId ||
+    actionItems.find((item) => item.taskId)?.taskId ||
+    workflowTaskIds[0] ||
+    projection.ui.taskWorkflow.taskIds[0] ||
+    "";
+  const [selectedTaskId, setSelectedTaskId] = React.useState(defaultTaskId);
+
+  React.useEffect(() => {
+    if (!defaultTaskId) {
+      setSelectedTaskId("");
+      return;
+    }
+    if (!projection.ui.taskWorkflows[selectedTaskId]) {
+      setSelectedTaskId(defaultTaskId);
+    }
+  }, [defaultTaskId, projection.ui.taskWorkflows, selectedTaskId]);
+
+  const selectedWorkflow =
+    workflowForTask(selectedTaskId, projection) ||
+    projection.ui.selectedTaskWorkflow ||
+    projection.ui.taskWorkflow;
 
   function openAction(item: UiActionItem) {
+    if (item.taskId) {
+      setSelectedTaskId(item.taskId);
+    }
     onViewChange(item.route);
     const drawerItem = drawerItemFromAction(item);
     if (drawerItem) {
@@ -84,6 +116,9 @@ export function HomePage({
   }
 
   function openNode(node: UiMetroNode) {
+    if (node.taskId) {
+      setSelectedTaskId(node.taskId);
+    }
     onViewChange(node.route);
     const drawerItem = drawerItemFromNode(node);
     if (drawerItem) {
@@ -138,7 +173,9 @@ export function HomePage({
             <span className="sectionNumber">2</span>
             任务工作流
           </h3>
-          <span>{taskWorkflow.nodes.length} 个真实节点</span>
+          <span>
+            {selectedTaskId ? `当前 Task · ${shortDisplayId(selectedTaskId)}` : `${selectedWorkflow.nodes.length} 个真实节点`}
+          </span>
         </header>
         <div className="laneSummaryStrip" aria-label="任务状态汇总">
           {laneOrder.map((lane) => (
@@ -149,7 +186,25 @@ export function HomePage({
             </div>
           ))}
         </div>
-        <MetroGraph metro={taskWorkflow} onNodeSelect={openNode} />
+        {workflowTaskIds.length > 1 ? (
+          <div className="workflowTaskPicker" aria-label="选择任务工作流">
+            {workflowTaskIds.map((taskId) => (
+              <button
+                aria-pressed={taskId === selectedTaskId}
+                className="workflowTaskButton"
+                data-selected={taskId === selectedTaskId ? "true" : "false"}
+                key={taskId}
+                onClick={() => setSelectedTaskId(taskId)}
+                title={taskId}
+                type="button"
+              >
+                <span>{taskTitlesById.get(taskId) || shortDisplayId(taskId)}</span>
+                <small>{shortDisplayId(taskId)}</small>
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <MetroGraph metro={selectedWorkflow} onNodeSelect={openNode} />
       </section>
 
       <section className="panel actionQueuePanel">
@@ -182,7 +237,7 @@ export function HomePage({
                 </div>
                 <ActionWorkflowStrip
                   item={item}
-                  metro={taskWorkflow}
+                  metro={workflowForTask(item.taskId, projection) || selectedWorkflow}
                   onNodeSelect={openNode}
                 />
                 <button
@@ -221,6 +276,20 @@ type WorkflowStep = {
   tone: UiTone;
   node?: UiMetroNode;
 };
+
+function workflowForTask(
+  taskId: string,
+  projection: OperationsProjection,
+): UiTaskWorkflowProjection | undefined {
+  if (!taskId) {
+    return undefined;
+  }
+  return projection.ui.taskWorkflows[taskId];
+}
+
+function shortDisplayId(value: string): string {
+  return value.length > 12 ? `${value.slice(0, 10)}...` : value;
+}
 
 function ActionWorkflowStrip({
   item,

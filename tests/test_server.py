@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from agent_bus.agents import AgentDirectory
 from agent_bus.authority import controller_principal, user_principal
 from agent_bus.context import ContextStore
+from agent_bus.fencing import FencingService
 from agent_bus.gates import GateBoard
 from agent_bus.inbox import InboxStore
 from agent_bus.models import AgentRuntimeState, BusEvent, CapabilityEvidenceSource
@@ -129,10 +130,10 @@ def test_operations_api_projects_ui_metro_and_durable_artifacts(tmp_path):
     assert f"task:{task.task_id}" in node_ids
     assert f"gate:{gate.gate_id}" in node_ids
     assert f"artifact:{artifact.artifact_id}" in node_ids
-    assert projection["ui"]["metro"]["branch_groups"][f"task:{task.task_id}"] == [
-        f"gate:{gate.gate_id}",
-        f"artifact:{artifact.artifact_id}",
-    ]
+    branch_group = projection["ui"]["metro"]["branch_groups"][f"task:{task.task_id}"]
+    assert any(item.startswith("context:") for item in branch_group)
+    assert f"gate:{gate.gate_id}" in branch_group
+    assert f"artifact:{artifact.artifact_id}" in branch_group
     assert any(item["kind"] == "gate" and item["gate_id"] == gate.gate_id for item in projection["ui"]["action_items"])
     assert projection["ui"]["artifact_summary"]["latest_artifact_id"] == artifact.artifact_id
     assert projection["ui"]["agent_summaries"][0]["agent_id"] in {"controller", "runtime-qa", "worker.frontend"}
@@ -225,11 +226,23 @@ def test_inbox_wait_and_ack_api_return_actionable_item_then_noop(tmp_path):
         {"task_id": "task-1"},
         actor="controller",
     )
+    fence = FencingService(db_path).register_session(
+        "frontend-session",
+        agent_id="worker.frontend",
+        token="frontend-token",
+    )
     client = TestClient(create_app(db_path=db_path, frontend_dist=tmp_path / "missing-dist"))
 
     delivered = client.post(
-        "/api/inbox/wait",
-        json={"agent_id": "worker.frontend", "timeout": 1, "poll_interval": 0.01},
+        "/api/worker/inbox/wait",
+        json={
+            "agent_id": "worker.frontend",
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+            "timeout": 1,
+            "poll_interval": 0.01,
+        },
     ).json()
 
     assert delivered["ok"] is True
@@ -237,12 +250,28 @@ def test_inbox_wait_and_ack_api_return_actionable_item_then_noop(tmp_path):
     assert delivered["item"]["inbox_id"] == item.inbox_id
     assert delivered["item"]["payload"] == {"task_id": "task-1"}
 
-    acked = client.post("/api/inbox/ack", json={"inbox_id": item.inbox_id, "agent_id": "worker.frontend"}).json()
+    acked = client.post(
+        "/api/worker/inbox/ack",
+        json={
+            "inbox_id": item.inbox_id,
+            "agent_id": "worker.frontend",
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+        },
+    ).json()
     assert acked == {"ok": True, "inbox_id": item.inbox_id, "acked": True}
 
     noop = client.post(
-        "/api/inbox/wait",
-        json={"agent_id": "worker.frontend", "timeout": 0.01, "poll_interval": 0.005},
+        "/api/worker/inbox/wait",
+        json={
+            "agent_id": "worker.frontend",
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+            "timeout": 0.01,
+            "poll_interval": 0.005,
+        },
     ).json()
     assert noop["noop"] is True
     assert noop["timed_out"] is True

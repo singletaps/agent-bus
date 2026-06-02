@@ -289,7 +289,7 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
                   >
                     <AgentMark agent={agent} compact />
                     <span style={styles.agentMeta}>
-                      <span>{agent.state || "等待"}</span>
+                      <span title={agent.state || undefined}>{agentHealthLabel(agent.state)}</span>
                       <strong>{agent.inboxCount} inbox</strong>
                     </span>
                   </button>
@@ -553,6 +553,26 @@ function isMessageInView(
 
 function isOperatorLikeIdentity(value: string | undefined): boolean {
   return /operator|controller/i.test(value || "");
+}
+
+function agentHealthLabel(state: string): string {
+  const value = state.toLowerCase().replace(/[_-]/g, " ");
+  if (/context lost|needs rehydration|input unavailable|delivered not acked/.test(value)) {
+    return "Needs input";
+  }
+  if (/suspected stuck|stuck/.test(value)) {
+    return "Stuck";
+  }
+  if (/degraded|stale/.test(value)) {
+    return "Stale";
+  }
+  if (/working|busy|active/.test(value)) {
+    return "Busy";
+  }
+  if (/waiting|standby|ready|wait returned noop/.test(value)) {
+    return "Ready";
+  }
+  return state || "等待";
 }
 
 function classifyMessageSpace(message: BusMessageRow): SpaceKey {

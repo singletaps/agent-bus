@@ -289,6 +289,9 @@ export type UiArtifactSummary = {
 
 export type UiOperationsProjection = {
   activeRun: UiActiveRunProjection;
+  taskWorkflows: Record<string, UiTaskWorkflowProjection>;
+  selectedTaskId: string;
+  selectedTaskWorkflow: UiTaskWorkflowProjection;
   taskWorkflow: UiTaskWorkflowProjection;
   metro: UiTaskWorkflowProjection;
   actionItems: UiActionItem[];
@@ -358,6 +361,9 @@ export function emptyUiProjection(): UiOperationsProjection {
       updatedAt: "",
       progress: {},
     },
+    taskWorkflows: {},
+    selectedTaskId: "",
+    selectedTaskWorkflow: emptyUiTaskWorkflow(),
     taskWorkflow: emptyWorkflow,
     metro: emptyUiTaskWorkflow(),
     actionItems: [],
@@ -919,11 +925,32 @@ function normalizeUiProjection(ui: UnknownRecord): UiOperationsProjection {
   if (!Object.keys(ui).length) {
     return emptyUiProjection();
   }
+  const selectedTaskWorkflow = normalizeUiTaskWorkflow(
+    firstRecord(
+      ui.selected_task_workflow,
+      ui.selectedTaskWorkflow,
+      ui.task_workflow,
+      ui.taskWorkflow,
+      ui.metro,
+    ),
+  );
+  const selectedTaskId =
+    pickString(ui, ["selected_task_id", "selectedTaskId"]) ||
+    selectedTaskWorkflow.taskIds[0] ||
+    "";
   const taskWorkflow = normalizeUiTaskWorkflow(
-    firstRecord(ui.task_workflow, ui.taskWorkflow, ui.metro),
+    firstRecord(ui.task_workflow, ui.taskWorkflow, ui.selected_task_workflow, ui.selectedTaskWorkflow, ui.metro),
+  );
+  const taskWorkflows = normalizeUiTaskWorkflowMap(
+    firstValue(ui, ["task_workflows", "taskWorkflows"]),
+    selectedTaskId,
+    selectedTaskWorkflow,
   );
   return {
     activeRun: normalizeUiActiveRun(firstRecord(ui.active_run, ui.activeRun)),
+    taskWorkflows,
+    selectedTaskId,
+    selectedTaskWorkflow,
     taskWorkflow,
     metro: normalizeUiTaskWorkflow(firstRecord(ui.metro, ui.task_workflow, ui.taskWorkflow)),
     actionItems: toArray(firstValue(ui, ["action_items", "actionItems"])).map(
@@ -958,6 +985,23 @@ function normalizeUiActiveRun(run: UnknownRecord): UiActiveRunProjection {
 
 function normalizeUiMetro(metro: UnknownRecord): UiMetroProjection {
   return normalizeUiTaskWorkflow(metro);
+}
+
+function normalizeUiTaskWorkflowMap(
+  value: unknown,
+  selectedTaskId: string,
+  selectedWorkflow: UiTaskWorkflowProjection,
+): Record<string, UiTaskWorkflowProjection> {
+  const workflows: Record<string, UiTaskWorkflowProjection> = {};
+  if (isRecord(value)) {
+    Object.entries(value).forEach(([taskId, workflow]) => {
+      workflows[taskId] = normalizeUiTaskWorkflow(firstRecord(workflow));
+    });
+  }
+  if (selectedTaskId && !workflows[selectedTaskId]) {
+    workflows[selectedTaskId] = selectedWorkflow;
+  }
+  return workflows;
 }
 
 function normalizeUiTaskWorkflow(metro: UnknownRecord): UiTaskWorkflowProjection {

@@ -247,6 +247,9 @@ class UiArtifactSummary(BaseModel):
 
 class UiOperationsProjection(BaseModel):
     active_run: UiActiveRunProjection = Field(default_factory=UiActiveRunProjection)
+    task_workflows: dict[str, UiTaskWorkflowProjection] = Field(default_factory=dict)
+    selected_task_id: str | None = None
+    selected_task_workflow: UiTaskWorkflowProjection = Field(default_factory=UiTaskWorkflowProjection)
     task_workflow: UiTaskWorkflowProjection = Field(default_factory=UiTaskWorkflowProjection)
     metro: UiTaskWorkflowProjection = Field(default_factory=UiTaskWorkflowProjection)
     action_items: list[UiActionItem] = Field(default_factory=list)
@@ -583,7 +586,7 @@ def _build_ui_projection(
     run_artifacts = [
         artifact for artifact in artifacts if artifact.run_id == active_run_id
     ] if active_run_id else []
-    task_workflow = _build_task_workflow_projection(
+    task_workflows = _build_task_workflow_map(
         active_run,
         run_tasks,
         run_gates,
@@ -591,17 +594,26 @@ def _build_ui_projection(
         contexts,
         events,
     )
+    selected_task_id = _select_selected_workflow_task_id(run_tasks, run_gates, task_workflows)
+    selected_task_workflow = (
+        task_workflows.get(selected_task_id)
+        if selected_task_id is not None
+        else None
+    ) or UiTaskWorkflowProjection()
     legacy_metro = _build_task_workflow_projection(
         active_run,
         run_tasks,
         run_gates,
         run_artifacts,
-        [],
-        [],
+        contexts,
+        events,
     )
     return UiOperationsProjection(
         active_run=_build_active_run_projection(active_run, run_tasks),
-        task_workflow=task_workflow,
+        task_workflows=task_workflows,
+        selected_task_id=selected_task_id,
+        selected_task_workflow=selected_task_workflow,
+        task_workflow=legacy_metro,
         metro=legacy_metro,
         action_items=_build_action_items(
             runs=runs,
@@ -623,7 +635,9 @@ def _build_ui_projection(
         artifact_summary=_build_artifact_summary(artifacts),
         diagnostics=_build_diagnostics_projection(
             events=events,
-            workflow_diagnostics=task_workflow.diagnostics,
+            workflow_diagnostics=_unique_workflow_diagnostics(
+                [legacy_metro, *task_workflows.values()]
+            ),
             protocol_violations=protocol_violations,
             projection_effects=projection_effects,
         ),
@@ -656,6 +670,97 @@ def _build_active_run_projection(
         updated_at=run.updated_at,
         progress=_task_progress(tasks),
     )
+
+
+def _build_task_workflow_map(
+    run: RunRecord | None,
+    tasks: list[TaskRecord],
+    gates: list[GateRecord],
+    artifacts: list[ArtifactRecord],
+    contexts: list[ContextPacket],
+    events: list[BusEvent],
+) -> dict[str, UiTaskWorkflowProjection]:
+    if run is None:
+        return {}
+
+    workflows: dict[str, UiTaskWorkflowProjection] = {}
+    ordered_tasks = sorted(tasks, key=lambda task: (task.created_at, task.task_id))
+    for task in ordered_tasks:
+        workflows[task.task_id] = _build_task_workflow_projection(
+            run,
+            [task],
+            [gate for gate in gates if gate.task_id == task.task_id],
+            [artifact for artifact in artifacts if artifact.task_id == task.task_id],
+            contexts,
+            _events_for_task_workflow(events, task.task_id),
+        )
+    return workflows
+
+
+def _unique_workflow_diagnostics(
+    workflows: list[UiTaskWorkflowProjection],
+) -> list[UiWorkflowDiagnostic]:
+    diagnostics: list[UiWorkflowDiagnostic] = []
+    seen: set[tuple[str, str, str, str]] = set()
+    for workflow in workflows:
+        for diagnostic in workflow.diagnostics:
+            key = (
+                diagnostic.kind,
+                diagnostic.detail,
+                diagnostic.event_id or "",
+                diagnostic.task_id or "",
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            diagnostics.append(diagnostic)
+    return diagnostics
+
+
+def _events_for_task_workflow(events: list[BusEvent], task_id: str) -> list[BusEvent]:
+    scoped: list[BusEvent] = []
+    for event in events:
+        if _workflow_event_kind(event) is None:
+            continue
+        payload_task_id = str((event.payload or {}).get("task_id") or "")
+        event_task_id = str(event.task_id or "")
+        if task_id in {payload_task_id, event_task_id}:
+            scoped.append(event)
+    return scoped
+
+
+def _select_selected_workflow_task_id(
+    tasks: list[TaskRecord],
+    gates: list[GateRecord],
+    task_workflows: dict[str, UiTaskWorkflowProjection],
+) -> str | None:
+    if not task_workflows:
+        return None
+
+    open_gate = next(
+        (
+            gate
+            for gate in sorted(gates, key=lambda item: (_gate_priority(item), item.created_at, item.gate_id), reverse=True)
+            if gate.task_id in task_workflows and _normalize_state(gate.state) in {"open", "escalated"}
+        ),
+        None,
+    )
+    if open_gate is not None:
+        return open_gate.task_id
+
+    active_task = next(
+        (
+            task
+            for task in sorted(tasks, key=lambda item: (item.updated_at, item.created_at, item.task_id), reverse=True)
+            if task.task_id in task_workflows
+            and _normalize_state(task.status) in {"blocked", "working", "assigned", "acknowledged", "reassigned"}
+        ),
+        None,
+    )
+    if active_task is not None:
+        return active_task.task_id
+
+    return next(iter(task_workflows))
 
 
 def _build_task_workflow_projection(

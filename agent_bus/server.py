@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from .agents import AgentDirectory, AgentDirectoryError
 from .artifacts import ArtifactManifestItem, ArtifactPathError, read_artifact_manifests, resolve_artifact_file
-from .authority import controller_principal, user_principal
+from .authority import ensure_local_bootstrap_principals, resolve_local_api_principal
 from .context import ContextPacketInvalidated, ContextPacketNotFound, ContextStore
 from .db import initialize_database
 from .gates import GateBoard
@@ -132,6 +132,20 @@ class InboxWaitResponse(ApiEnvelope):
 class InboxAckRequest(BaseModel):
     inbox_id: str
     agent_id: str | None = None
+
+
+class WorkerInboxWaitRequest(InboxWaitRequest):
+    session_id: str
+    session_epoch: int
+    fencing_token: str
+
+
+class WorkerInboxAckRequest(BaseModel):
+    inbox_id: str
+    agent_id: str
+    session_id: str
+    session_epoch: int
+    fencing_token: str
 
 
 class InboxAckResponse(ApiEnvelope):
@@ -251,6 +265,7 @@ def create_app(
     frontend_dist: str | os.PathLike[str] | None = None,
 ) -> FastAPI:
     initialize_database(db_path)
+    ensure_local_bootstrap_principals(db_path)
     app = FastAPI(title="Agent Bus Runtime API", version="0.1.0")
     app.state.db_path = db_path
     app.state.frontend_dist = _resolve_frontend_dist(frontend_dist)
@@ -352,7 +367,7 @@ def create_app(
             replacement="api.user.interrupts",
             actor=payload.actor,
         )
-        principal = user_principal("api-user")
+        principal = resolve_local_api_principal(db, "user")
         context = ContextStore(db, principal=principal)
         inbox = InboxStore(db_path=db, principal=principal)
         try:
@@ -405,8 +420,8 @@ def create_app(
             return FileResponse(path, media_type=content_type, filename=path.name)
         return FileResponse(path, media_type=content_type)
 
-    @app.post("/api/inbox/wait", response_model=InboxWaitResponse)
-    async def inbox_wait(payload: InboxWaitRequest, request: Request) -> InboxWaitResponse:
+    @app.post("/api/worker/inbox/wait", response_model=InboxWaitResponse)
+    async def worker_inbox_wait(payload: WorkerInboxWaitRequest, request: Request) -> InboxWaitResponse | JSONResponse:
         db = _db_path(request)
         deadline = asyncio.get_running_loop().time() + payload.timeout
         store = InboxStore(db_path=db)
@@ -414,14 +429,28 @@ def create_app(
             while True:
                 if await request.is_disconnected():
                     raise HTTPException(status_code=499, detail="client disconnected")
-                result = await asyncio.to_thread(
-                    store.wait,
-                    payload.agent_id,
-                    0,
-                    busy=payload.busy,
-                    visibility_timeout=payload.visibility_timeout,
-                    poll_interval=payload.poll_interval,
-                )
+                try:
+                    result = await asyncio.to_thread(
+                        store.wait,
+                        payload.agent_id,
+                        0,
+                        busy=payload.busy,
+                        visibility_timeout=payload.visibility_timeout,
+                        poll_interval=payload.poll_interval,
+                        session_id=payload.session_id,
+                        session_epoch=payload.session_epoch,
+                        fencing_token=payload.fencing_token,
+                        require_fence=True,
+                    )
+                except PermissionError as exc:
+                    return JSONResponse(
+                        status_code=403,
+                        content=_stable_error_payload(
+                            "fencing_reject",
+                            str(exc),
+                            projection_effect=ProjectionEffect.REJECT.value,
+                        ),
+                    )
                 if result.item is not None or asyncio.get_running_loop().time() >= deadline:
                     return InboxWaitResponse(
                         kind=result.kind,
@@ -433,14 +462,70 @@ def create_app(
         finally:
             store.close()
 
-    @app.post("/api/inbox/ack", response_model=InboxAckResponse)
-    def inbox_ack(payload: InboxAckRequest, request: Request) -> InboxAckResponse:
+    @app.post("/api/inbox/wait", response_model=InboxWaitResponse)
+    async def inbox_wait(payload: InboxWaitRequest, request: Request) -> JSONResponse:
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.inbox.wait",
+            replacement="api.worker.inbox.wait",
+            actor=payload.agent_id,
+        )
+        return JSONResponse(
+            status_code=409,
+            content=_stable_error_payload(
+                "deprecated_adapter",
+                "legacy inbox wait requires fenced worker identity; use /api/worker/inbox/wait",
+                projection_effect=ProjectionEffect.AUDIT_ONLY.value,
+            ),
+        )
+
+    @app.post("/api/worker/inbox/ack", response_model=InboxAckResponse)
+    def worker_inbox_ack(payload: WorkerInboxAckRequest, request: Request) -> InboxAckResponse | JSONResponse:
         store = InboxStore(db_path=_db_path(request))
         try:
-            acked = store.ack(payload.inbox_id, agent_id=payload.agent_id)
-            return InboxAckResponse(inbox_id=payload.inbox_id, acked=acked)
+            try:
+                acked = store.ack(
+                    payload.inbox_id,
+                    agent_id=payload.agent_id,
+                    session_id=payload.session_id,
+                    session_epoch=payload.session_epoch,
+                    fencing_token=payload.fencing_token,
+                    require_fence=True,
+                )
+            except PermissionError as exc:
+                return JSONResponse(
+                    status_code=403,
+                    content=_stable_error_payload(
+                        "fencing_reject",
+                        str(exc),
+                        projection_effect=ProjectionEffect.REJECT.value,
+                    ),
+                )
+            if not acked:
+                return JSONResponse(
+                    status_code=409,
+                    content=_stable_error_payload("ack_rejected", "inbox ack was rejected"),
+                )
+            return InboxAckResponse(inbox_id=payload.inbox_id, acked=True)
         finally:
             store.close()
+
+    @app.post("/api/inbox/ack", response_model=InboxAckResponse)
+    def inbox_ack(payload: InboxAckRequest, request: Request) -> JSONResponse:
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.inbox.ack",
+            replacement="api.worker.inbox.ack",
+            actor=payload.agent_id,
+        )
+        return JSONResponse(
+            status_code=409,
+            content=_stable_error_payload(
+                "deprecated_adapter",
+                "legacy inbox ack requires fenced worker identity; use /api/worker/inbox/ack",
+                projection_effect=ProjectionEffect.AUDIT_ONLY.value,
+            ),
+        )
 
     @app.get("/api/context/{packet_id}", response_model=ContextPacket)
     def context_packet(
@@ -561,7 +646,7 @@ def create_app(
     def replacement_approve(payload: ReplacementApproveRequest, request: Request) -> ReplacementApproveResponse:
         db = _db_path(request)
         directory = AgentDirectory(db_path=db)
-        principal = controller_principal("api-controller")
+        principal = resolve_local_api_principal(db, "controller")
         inbox = InboxStore(db_path=db, principal=principal)
         context = ContextStore(db, principal=principal)
         coordinator = ReplacementCoordinator(
@@ -610,7 +695,7 @@ def create_app(
 
 def _user_interrupt(payload: InterruptRequest, request: Request) -> InterruptResponse:
     db = _db_path(request)
-    principal = user_principal("api-user")
+    principal = resolve_local_api_principal(db, "user")
     context = ContextStore(db, principal=principal)
     inbox = InboxStore(db_path=db, principal=principal)
     try:
@@ -706,7 +791,7 @@ def _controller_claim_commit(
 ) -> ControllerClaimDecisionResponse | JSONResponse:
     db = _db_path(request)
     try:
-        principal = _api_controller_principal_for_actor(payload.actor)
+        principal = _api_controller_principal_for_actor(payload.actor, db)
     except PermissionError as exc:
         return JSONResponse(
             status_code=403,
@@ -742,7 +827,7 @@ def _gate_decision(
 ) -> GateDecisionResponse | JSONResponse:
     db = _db_path(request)
     try:
-        principal = _api_principal_for_actor(payload.actor)
+        principal = _api_principal_for_actor(payload.actor, db)
     except PermissionError as exc:
         return JSONResponse(
             status_code=403,
@@ -789,20 +874,18 @@ def _gate_decision(
         gates.close()
 
 
-def _api_principal_for_actor(actor: str):
+def _api_principal_for_actor(actor: str, db_path: str | os.PathLike[str] | None):
     normalized = actor.strip().lower()
-    if normalized == "controller":
-        return controller_principal("api-controller")
-    if normalized == "user":
-        return user_principal("api-user")
-    raise PermissionError(f"unsupported gate decision actor '{actor}'; expected controller or user")
+    if normalized not in {"controller", "user"}:
+        raise PermissionError(f"unsupported gate decision actor '{actor}'; expected controller or user")
+    return resolve_local_api_principal(db_path, normalized)
 
 
-def _api_controller_principal_for_actor(actor: str):
+def _api_controller_principal_for_actor(actor: str, db_path: str | os.PathLike[str] | None):
     normalized = actor.strip().lower()
-    if normalized == "controller":
-        return controller_principal("api-controller")
-    raise PermissionError(f"controller actor is required; got '{actor}'")
+    if normalized != "controller":
+        raise PermissionError(f"controller actor is required; got '{actor}'")
+    return resolve_local_api_principal(db_path, normalized)
 
 
 def _assert_worker_actor(actor: str) -> None:

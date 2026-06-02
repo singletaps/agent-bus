@@ -50,10 +50,12 @@ def test_legacy_gateboard_approve_gate_cannot_commit_authoritative_state(tmp_pat
     try:
         gate = gates.create_gate("QA", task_id="task-1", requested_by="worker.backend")
 
-        with pytest.raises(sqlite3.IntegrityError, match="ProtocolKernel UnitOfWork"):
+        with pytest.raises(PermissionError, match="principal"):
             gates.approve_gate(gate.gate_id, actor="worker.backend")
 
         assert gates.get_gate(gate.gate_id).state is GateState.OPEN
+        gate_events = EventStore(db_path).query_events(task_id="task-1")
+        assert "gate.approved" not in [event.type for event in gate_events]
     finally:
         gates.close()
 

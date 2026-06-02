@@ -17,16 +17,32 @@ from agent_bus.server import create_app
 from agent_bus.tasks import TaskBoard
 
 
-def _wait_and_ack(client: TestClient, agent_id: str) -> dict:
+def _wait_and_ack(client: TestClient, agent_id: str, fence) -> dict:
     delivered = client.post(
-        "/api/inbox/wait",
-        json={"agent_id": agent_id, "timeout": 0.01, "poll_interval": 0.005},
+        "/api/worker/inbox/wait",
+        json={
+            "agent_id": agent_id,
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+            "timeout": 0.01,
+            "poll_interval": 0.005,
+        },
     )
     assert delivered.status_code == 200
     item = delivered.json()["item"]
     assert item is not None
 
-    acked = client.post("/api/inbox/ack", json={"agent_id": agent_id, "inbox_id": item["inbox_id"]})
+    acked = client.post(
+        "/api/worker/inbox/ack",
+        json={
+            "agent_id": agent_id,
+            "inbox_id": item["inbox_id"],
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+        },
+    )
     assert acked.status_code == 200
     assert acked.json()["acked"] is True
     return item
@@ -142,8 +158,8 @@ def test_live_four_agent_protocol_simulation_covers_claims_gate_interrupt_and_re
     backend_task = board.assign_task(backend_task.task_id, "worker.backend", actor="controller")
     client = TestClient(create_app(db_path=db_path, frontend_dist=tmp_path / "missing-dist"))
 
-    frontend_assignment = _wait_and_ack(client, "worker.frontend")
-    backend_assignment = _wait_and_ack(client, "worker.backend")
+    frontend_assignment = _wait_and_ack(client, "worker.frontend", frontend_fence)
+    backend_assignment = _wait_and_ack(client, "worker.backend", backend_fence)
     assert frontend_assignment["kind"] == "task_assigned"
     assert frontend_assignment["payload"]["task_id"] == frontend_task.task_id
     assert backend_assignment["kind"] == "task_assigned"

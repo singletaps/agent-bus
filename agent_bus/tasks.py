@@ -384,66 +384,24 @@ class TaskBoard:
         session_epoch: int | None = None,
         fencing_token: str | None = None,
     ) -> TaskRecord:
-        task = self.get_task(task_id)
         principal = principal or self.principal
-        next_state = TaskState.ASSIGNED if task.status is TaskState.CREATED else TaskState.REASSIGNED
-        self._assert_transition(task.status, next_state)
-        task.status = next_state
-        task.assignee_agent_id = assignee_agent_id
-        task.blocked_reason = None
-        task.updated_at = utc_now_iso()
-        event_type = EventType.TASK_ASSIGNED if next_state is TaskState.ASSIGNED else EventType.TASK_REASSIGNED
-        event = BusEvent(
-            type=event_type,
-            actor=actor,
-            actor_role=actor_role_for_principal(principal),
-            run_id=task.run_id,
-            task_id=task.task_id,
-            agent_id=assignee_agent_id,
-            projection_effect=ProjectionEffect.COMMIT,
-            fencing_result=FencingResult.NOT_REQUIRED,
-            payload=task.model_dump(mode="json"),
-        )
         from .protocol import ProtocolKernel
 
-        result = ProtocolKernel(self.db_path, conn=self.conn).commit_event(
-            event,
+        assignment_session_id, assignment_session_epoch = self._active_session_for_agent(assignee_agent_id)
+        result = ProtocolKernel(self.db_path, conn=self.conn).assign_task(
+            task_id=task_id,
+            assignee_agent_id=assignee_agent_id,
+            actor=actor,
             principal=principal,
             session_id=session_id,
             session_epoch=session_epoch,
             fencing_token=fencing_token,
-            guard_targets=(("tasks", task.task_id, event_type.value),),
-            target_table="tasks",
-            target_id=task.task_id,
-            reason="task assignment through ProtocolKernel command",
-            mutation=lambda _conn, _event: self._insert_or_update_task(task, commit=False),
+            assignment_session_id=assignment_session_id,
+            assignment_session_epoch=assignment_session_epoch,
         )
         if not result.accepted:
             raise PermissionError(result.reason or "protocol rejected task assignment")
-        context_packet_id = self._create_assignment_context(
-            task,
-            actor=actor,
-            principal=principal,
-        )
-        self._enqueue(
-            assignee_agent_id,
-            "task_assigned",
-            {
-                "task_id": task.task_id,
-                "run_id": task.run_id,
-                "state": task.status.value,
-                "context_packet_id": context_packet_id,
-            },
-            priority=max(50, task.priority),
-            context_packet_id=context_packet_id,
-            dedupe_key=f"task_assigned:{task.task_id}:{task.status.value}",
-            actor=actor,
-            principal=principal,
-            session_id=session_id,
-            session_epoch=session_epoch,
-            fencing_token=fencing_token,
-        )
-        return task
+        return self.get_task(task_id)
 
     def acknowledge_task(
         self,

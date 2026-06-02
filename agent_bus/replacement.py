@@ -259,104 +259,109 @@ class ReplacementCoordinator:
     ) -> ReplacementApproval:
         old_session = self.directory.get_session(recommendation.old_session_id)
         replacement_session = self._ensure_replacement_session(recommendation)
-        approval_request_event = self._record_approval_requested(
-            recommendation,
-            old_session=old_session,
-            replacement_session=replacement_session,
-            approved_by=approved_by,
-        )
-        scoped_invalidations = self._invalidate_old_task_session_bindings(
-            recommendation,
-            old_session=old_session,
-            invalidated_by_event_id=approval_request_event.event_id,
-            actor=approved_by,
-        )
-        invalidated_packet_id_list = _dedupe_preserving_order(
-            [packet.packet_id for packet in scoped_invalidations] + list(invalidated_packet_ids)
-        )
+        snapshot = self._snapshot_replacement_approval(recommendation, old_session, replacement_session)
+        try:
+            approval_request_event = self._record_approval_requested(
+                recommendation,
+                old_session=old_session,
+                replacement_session=replacement_session,
+                approved_by=approved_by,
+            )
+            scoped_invalidations = self._invalidate_old_task_session_bindings(
+                recommendation,
+                old_session=old_session,
+                invalidated_by_event_id=approval_request_event.event_id,
+                actor=approved_by,
+            )
+            invalidated_packet_id_list = _dedupe_preserving_order(
+                [packet.packet_id for packet in scoped_invalidations] + list(invalidated_packet_ids)
+            )
 
-        old_session, replacement_session = self.directory.replace_with_session(
-            old_session.session_id,
-            replacement_session.session_id,
-            reason=f"approved by {approved_by}: {recommendation.reason}",
-            replacement_state=AgentRuntimeState.REHYDRATING,
-        )
-        self._mark_fence_replaced(old_session.session_id, replacement_session.session_id)
-        packet = self.context_sink.create_rehydration_packet(
-            agent_id=replacement_session.agent_id,
-            task_id=recommendation.task_id,
-            run_id=recommendation.run_id,
-            role_contract=f"replacement for {recommendation.old_agent_id}",
-            current_task=recommendation.task_id,
-            last_known_summary=f"Replacement approved for {recommendation.old_agent_id}: {recommendation.reason}",
-            open_inbox_item_ids=self._open_inbox_item_ids(old_session.agent_id),
-            required_artifacts=list(required_artifacts),
-            next_action=next_action,
-            invalidated_packet_ids=invalidated_packet_id_list,
-            created_from_event_id=approval_request_event.event_id,
-            actor=approved_by,
-            principal=self.principal,
-            session_id=replacement_session.session_id,
-            session_epoch=replacement_session.session_epoch,
-        )
-        if self.inbox is not None:
-            self.inbox.enqueue(
-                replacement_session.agent_id,
-                "replacement_notice",
-                {
-                    "task_id": recommendation.task_id,
-                    "old_agent_id": old_session.agent_id,
-                    "old_session_id": old_session.session_id,
-                    "replacement_session_id": replacement_session.session_id,
-                    "recommendation_id": recommendation.recommendation_id,
-                },
-                priority=100,
-                context_packet_id=packet.packet_id,
-                dedupe_key=f"replacement:{recommendation.task_id}:{replacement_session.session_id}",
+            old_session, replacement_session = self.directory.replace_with_session(
+                old_session.session_id,
+                replacement_session.session_id,
+                reason=f"approved by {approved_by}: {recommendation.reason}",
+                replacement_state=AgentRuntimeState.REHYDRATING,
+            )
+            self._mark_fence_replaced(old_session.session_id, replacement_session.session_id)
+            packet = self.context_sink.create_rehydration_packet(
+                agent_id=replacement_session.agent_id,
+                task_id=recommendation.task_id,
+                run_id=recommendation.run_id,
+                role_contract=f"replacement for {recommendation.old_agent_id}",
+                current_task=recommendation.task_id,
+                last_known_summary=f"Replacement approved for {recommendation.old_agent_id}: {recommendation.reason}",
+                open_inbox_item_ids=self._open_inbox_item_ids(old_session.agent_id),
+                required_artifacts=list(required_artifacts),
+                next_action=next_action,
+                invalidated_packet_ids=invalidated_packet_id_list,
+                created_from_event_id=approval_request_event.event_id,
                 actor=approved_by,
                 principal=self.principal,
+                session_id=replacement_session.session_id,
+                session_epoch=replacement_session.session_epoch,
             )
-        approval_event = self._record_event(
-            BusEvent(
-                type=EventType.REPLACEMENT_APPROVED,
-                actor=approved_by,
-                actor_role=actor_role_for_principal(self.principal, "controller"),
-                run_id=recommendation.run_id,
-                task_id=recommendation.task_id,
-                agent_id=replacement_session.agent_id,
+            if self.inbox is not None:
+                self.inbox.enqueue(
+                    replacement_session.agent_id,
+                    "replacement_notice",
+                    {
+                        "task_id": recommendation.task_id,
+                        "old_agent_id": old_session.agent_id,
+                        "old_session_id": old_session.session_id,
+                        "replacement_session_id": replacement_session.session_id,
+                        "recommendation_id": recommendation.recommendation_id,
+                    },
+                    priority=100,
+                    context_packet_id=packet.packet_id,
+                    dedupe_key=f"replacement:{recommendation.task_id}:{replacement_session.session_id}",
+                    actor=approved_by,
+                    principal=self.principal,
+                )
+            approval_event = self._record_event(
+                BusEvent(
+                    type=EventType.REPLACEMENT_APPROVED,
+                    actor=approved_by,
+                    actor_role=actor_role_for_principal(self.principal, "controller"),
+                    run_id=recommendation.run_id,
+                    task_id=recommendation.task_id,
+                    agent_id=replacement_session.agent_id,
+                    context_packet_id=packet.packet_id,
+                    correlation_id=recommendation.recommendation_id,
+                    causation_id=approval_request_event.event_id,
+                    projection_effect=ProjectionEffect.COMMIT,
+                    fencing_result=FencingResult.NOT_REQUIRED,
+                    payload={
+                        "recommendation_id": recommendation.recommendation_id,
+                        "task_id": recommendation.task_id,
+                        "old_agent_id": old_session.agent_id,
+                        "old_session_id": old_session.session_id,
+                        "replacement_agent_id": replacement_session.agent_id,
+                        "replacement_session_id": replacement_session.session_id,
+                        "context_packet_id": packet.packet_id,
+                        "invalidated_packet_ids": invalidated_packet_id_list,
+                    },
+                )
+            )
+            self._reassign_task_to_replacement(
+                recommendation,
+                replacement_session,
+                approved_by,
+                causation_id=approval_event.event_id,
                 context_packet_id=packet.packet_id,
-                correlation_id=recommendation.recommendation_id,
-                causation_id=approval_request_event.event_id,
-                projection_effect=ProjectionEffect.COMMIT,
-                fencing_result=FencingResult.NOT_REQUIRED,
-                payload={
-                    "recommendation_id": recommendation.recommendation_id,
-                    "task_id": recommendation.task_id,
-                    "old_agent_id": old_session.agent_id,
-                    "old_session_id": old_session.session_id,
-                    "replacement_agent_id": replacement_session.agent_id,
-                    "replacement_session_id": replacement_session.session_id,
-                    "context_packet_id": packet.packet_id,
-                    "invalidated_packet_ids": invalidated_packet_id_list,
-                },
             )
-        )
-        self._reassign_task_to_replacement(
-            recommendation,
-            replacement_session,
-            approved_by,
-            causation_id=approval_event.event_id,
-            context_packet_id=packet.packet_id,
-        )
-        approval = ReplacementApproval(
-            recommendation_id=recommendation.recommendation_id,
-            task_id=recommendation.task_id,
-            old_session=old_session,
-            replacement_session=replacement_session,
-            context_packet=packet,
-            approved_by=approved_by,
-        )
-        return approval
+            approval = ReplacementApproval(
+                recommendation_id=recommendation.recommendation_id,
+                task_id=recommendation.task_id,
+                old_session=old_session,
+                replacement_session=replacement_session,
+                context_packet=packet,
+                approved_by=approved_by,
+            )
+            return approval
+        except Exception:
+            self._rollback_partial_replacement_approval(recommendation, snapshot)
+            raise
 
     def _reassign_task_to_replacement(
         self,
@@ -554,6 +559,288 @@ class ReplacementCoordinator:
                 """,
                 (SessionRole.REPLACED.value, replacement_session_id, utc_now_iso(), old_session_id),
             )
+
+    def _snapshot_replacement_approval(
+        self,
+        recommendation: ReplacementRecommendation,
+        old_session: AgentSession,
+        replacement_session: AgentSession,
+    ) -> dict[str, Any] | None:
+        if self.db_path is None:
+            return None
+        with UnitOfWork(self.db_path) as uow:
+            conn = uow.conn
+            if conn is None:
+                return None
+            binding_rows = [
+                dict(row)
+                for row in conn.execute(
+                    """
+                    select * from task_context_bindings
+                     where task_id = ?
+                       and agent_id = ?
+                       and session_id = ?
+                    """,
+                    (recommendation.task_id, old_session.agent_id, old_session.session_id),
+                ).fetchall()
+            ]
+            binding_packet_ids = [row["context_packet_id"] for row in binding_rows]
+            return {
+                "max_event_seq": self._max_event_seq(conn),
+                "task": self._fetch_row(conn, "tasks", "task_id", recommendation.task_id),
+                "old_session": self._fetch_row(conn, "agent_sessions", "session_id", old_session.session_id),
+                "replacement_session": self._fetch_row(
+                    conn,
+                    "agent_sessions",
+                    "session_id",
+                    replacement_session.session_id,
+                ),
+                "old_fence": self._fetch_row(conn, "session_fences", "session_id", old_session.session_id),
+                "replacement_fence": self._fetch_row(
+                    conn,
+                    "session_fences",
+                    "session_id",
+                    replacement_session.session_id,
+                ),
+                "old_bindings": binding_rows,
+                "old_context_packets": self._fetch_rows_by_ids(
+                    conn,
+                    "context_packets",
+                    "packet_id",
+                    binding_packet_ids,
+                ),
+                "rehydration_packet_ids": self._matching_ids(
+                    conn,
+                    "context_packets",
+                    "packet_id",
+                    """
+                    packet_kind = ?
+                    and agent_id = ?
+                    and task_id = ?
+                    """,
+                    (PacketKind.REHYDRATION.value, replacement_session.agent_id, recommendation.task_id),
+                ),
+                "replacement_notice_ids": self._matching_ids(
+                    conn,
+                    "inbox_items",
+                    "inbox_id",
+                    "kind = ? and agent_id = ? and payload_json like ?",
+                    (
+                        "replacement_notice",
+                        replacement_session.agent_id,
+                        f"%{recommendation.recommendation_id}%",
+                    ),
+                ),
+            }
+
+    def _rollback_partial_replacement_approval(
+        self,
+        recommendation: ReplacementRecommendation,
+        snapshot: dict[str, Any] | None,
+    ) -> None:
+        if self.db_path is None or snapshot is None:
+            return
+        with UnitOfWork(self.db_path) as uow:
+            conn = uow.conn
+            if conn is None:
+                return
+            event_ids = self._replacement_event_ids_after_snapshot(
+                conn,
+                recommendation.recommendation_id,
+                snapshot["max_event_seq"],
+            )
+            self._delete_protocol_records_for_events(conn, event_ids)
+            self._delete_new_rehydration_packets(conn, recommendation, snapshot)
+            self._delete_new_replacement_notices(conn, recommendation, snapshot)
+            self._restore_row(conn, "tasks", "task_id", snapshot.get("task"))
+            self._restore_row(conn, "agent_sessions", "session_id", snapshot.get("old_session"))
+            self._restore_row(conn, "agent_sessions", "session_id", snapshot.get("replacement_session"))
+            self._restore_row(conn, "session_fences", "session_id", snapshot.get("old_fence"))
+            self._restore_row(conn, "session_fences", "session_id", snapshot.get("replacement_fence"))
+            for row in snapshot.get("old_context_packets", []):
+                self._restore_row(conn, "context_packets", "packet_id", row)
+            for row in snapshot.get("old_bindings", []):
+                self._restore_row(conn, "task_context_bindings", "binding_id", row)
+
+    def _replacement_event_ids_after_snapshot(
+        self,
+        conn: Any,
+        recommendation_id: str,
+        max_event_seq: int,
+    ) -> list[str]:
+        return [
+            row["event_id"]
+            for row in conn.execute(
+                """
+                select event_id from event_log
+                 where seq > ?
+                   and (
+                       correlation_id = ?
+                       or payload_json like ?
+                   )
+                """,
+                (max_event_seq, recommendation_id, f"%{recommendation_id}%"),
+            ).fetchall()
+        ]
+
+    def _delete_protocol_records_for_events(self, conn: Any, event_ids: list[str]) -> None:
+        if not event_ids:
+            return
+        placeholders = ", ".join("?" for _ in event_ids)
+        for table, column in (
+            ("projection_effects", "event_id"),
+            ("kernel_write_guards", "event_id"),
+        ):
+            if self._has_table(conn, table):
+                conn.execute(f"delete from {table} where {column} in ({placeholders})", event_ids)
+        if self._has_table(conn, "projection_effects"):
+            conn.execute(f"delete from projection_effects where attempted_event_id in ({placeholders})", event_ids)
+        conn.execute(f"delete from event_log where event_id in ({placeholders})", event_ids)
+
+    def _delete_new_rehydration_packets(
+        self,
+        conn: Any,
+        recommendation: ReplacementRecommendation,
+        snapshot: dict[str, Any],
+    ) -> None:
+        replacement_session = snapshot.get("replacement_session")
+        if replacement_session is None:
+            return
+        existing_packet_ids = set(snapshot.get("rehydration_packet_ids", []))
+        packet_ids = [
+            packet_id
+            for packet_id in self._matching_ids(
+                conn,
+                "context_packets",
+                "packet_id",
+                """
+                packet_kind = ?
+                and agent_id = ?
+                and task_id = ?
+                """,
+                (
+                    PacketKind.REHYDRATION.value,
+                    replacement_session["agent_id"],
+                    recommendation.task_id,
+                ),
+            )
+            if packet_id not in existing_packet_ids
+        ]
+        if not packet_ids:
+            return
+        placeholders = ", ".join("?" for _ in packet_ids)
+        if self._has_table(conn, "task_context_bindings"):
+            conn.execute(f"delete from task_context_bindings where context_packet_id in ({placeholders})", packet_ids)
+        conn.execute(f"delete from context_packets where packet_id in ({placeholders})", packet_ids)
+
+    def _delete_new_replacement_notices(
+        self,
+        conn: Any,
+        recommendation: ReplacementRecommendation,
+        snapshot: dict[str, Any],
+    ) -> None:
+        replacement_session = snapshot.get("replacement_session")
+        if replacement_session is None:
+            return
+        existing_notice_ids = set(snapshot.get("replacement_notice_ids", []))
+        notice_ids = [
+            notice_id
+            for notice_id in self._matching_ids(
+                conn,
+                "inbox_items",
+                "inbox_id",
+                "kind = ? and agent_id = ? and payload_json like ?",
+                (
+                    "replacement_notice",
+                    replacement_session["agent_id"],
+                    f"%{recommendation.recommendation_id}%",
+                ),
+            )
+            if notice_id not in existing_notice_ids
+        ]
+        if not notice_ids:
+            return
+        placeholders = ", ".join("?" for _ in notice_ids)
+        conn.execute(f"delete from inbox_items where inbox_id in ({placeholders})", notice_ids)
+
+    def _fetch_row(self, conn: Any, table: str, key_column: str, key: str) -> dict[str, Any] | None:
+        row = conn.execute(f"select * from {table} where {key_column} = ?", (key,)).fetchone()
+        return dict(row) if row is not None else None
+
+    def _fetch_rows_by_ids(
+        self,
+        conn: Any,
+        table: str,
+        key_column: str,
+        keys: list[str],
+    ) -> list[dict[str, Any]]:
+        if not keys:
+            return []
+        placeholders = ", ".join("?" for _ in keys)
+        return [
+            dict(row)
+            for row in conn.execute(
+                f"select * from {table} where {key_column} in ({placeholders})",
+                keys,
+            ).fetchall()
+        ]
+
+    def _matching_ids(
+        self,
+        conn: Any,
+        table: str,
+        id_column: str,
+        where_clause: str,
+        params: tuple[Any, ...],
+    ) -> list[str]:
+        if not self._has_table(conn, table):
+            return []
+        return [
+            row[id_column]
+            for row in conn.execute(
+                f"select {id_column} from {table} where {where_clause}",
+                params,
+            ).fetchall()
+        ]
+
+    def _restore_row(self, conn: Any, table: str, key_column: str, row: dict[str, Any] | None) -> None:
+        if row is None or not self._has_table(conn, table):
+            return
+        columns = [column for column in row if column in self._table_columns(conn, table)]
+        if key_column not in columns:
+            return
+        key = row[key_column]
+        existing = conn.execute(f"select 1 from {table} where {key_column} = ?", (key,)).fetchone()
+        if existing is None:
+            placeholders = ", ".join("?" for _ in columns)
+            column_sql = ", ".join(columns)
+            conn.execute(
+                f"insert into {table} ({column_sql}) values ({placeholders})",
+                [row[column] for column in columns],
+            )
+            return
+        update_columns = [column for column in columns if column != key_column]
+        if not update_columns:
+            return
+        update_sql = ", ".join(f"{column} = ?" for column in update_columns)
+        conn.execute(
+            f"update {table} set {update_sql} where {key_column} = ?",
+            [row[column] for column in update_columns] + [key],
+        )
+
+    def _max_event_seq(self, conn: Any) -> int:
+        row = conn.execute("select coalesce(max(seq), 0) as max_seq from event_log").fetchone()
+        return int(row["max_seq"])
+
+    def _has_table(self, conn: Any, table: str) -> bool:
+        row = conn.execute(
+            "select 1 from sqlite_master where type = 'table' and name = ?",
+            (table,),
+        ).fetchone()
+        return row is not None
+
+    def _table_columns(self, conn: Any, table: str) -> set[str]:
+        return {row["name"] for row in conn.execute(f"pragma table_info({table})").fetchall()}
 
     def _ensure_replacement_session(self, recommendation: ReplacementRecommendation) -> AgentSession:
         if recommendation.candidate.session_id:

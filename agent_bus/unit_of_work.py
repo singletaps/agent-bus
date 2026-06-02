@@ -9,8 +9,8 @@ from typing import Any, Iterable
 from pydantic import BaseModel
 
 from .db import connect, initialize_database
-from .models import BusEvent, new_id
-from .protocol_models import ProjectionEffect, ProjectionEffectRecord, ProtocolViolation, TaskClaimRecord
+from .models import BusEvent, ContextPacket, InboxItem, TaskRecord, new_id
+from .protocol_models import BindingStatus, ProjectionEffect, ProjectionEffectRecord, ProtocolViolation, TaskClaimRecord
 
 
 class UnitOfWork:
@@ -224,6 +224,133 @@ class UnitOfWork:
             ),
         )
         return claim
+
+    def upsert_task(self, task: TaskRecord) -> None:
+        self._require_conn().execute(
+            """
+            insert into tasks (
+                task_id, run_id, title, owner_agent_id, assignee_agent_id, status,
+                priority, parent_task_id, supersedes_task_id, blocked_reason,
+                created_at, updated_at, completed_at, failed_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            on conflict(task_id) do update set
+                run_id = excluded.run_id,
+                title = excluded.title,
+                owner_agent_id = excluded.owner_agent_id,
+                assignee_agent_id = excluded.assignee_agent_id,
+                status = excluded.status,
+                priority = excluded.priority,
+                parent_task_id = excluded.parent_task_id,
+                supersedes_task_id = excluded.supersedes_task_id,
+                blocked_reason = excluded.blocked_reason,
+                updated_at = excluded.updated_at,
+                completed_at = excluded.completed_at,
+                failed_at = excluded.failed_at
+            """,
+            (
+                task.task_id,
+                task.run_id,
+                task.title,
+                task.owner_agent_id,
+                task.assignee_agent_id,
+                _enum_value(task.status),
+                task.priority,
+                task.parent_task_id,
+                task.supersedes_task_id,
+                task.blocked_reason,
+                task.created_at,
+                task.updated_at,
+                task.completed_at,
+                task.failed_at,
+            ),
+        )
+
+    def insert_context_packet_and_binding(
+        self,
+        packet: ContextPacket,
+        event: BusEvent,
+        *,
+        session_id: str | None,
+        session_epoch: int | None,
+    ) -> None:
+        self._require_conn().execute(
+            """
+            insert into context_packets (
+                packet_id, version, packet_kind, agent_id, task_id, run_id, status, summary,
+                instructions_json, artifact_refs_json, created_from_event_id,
+                supersedes_packet_id, superseded_by_packet_id,
+                invalidated_by_event_id, created_at, updated_at, invalidated_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                packet.packet_id,
+                packet.version,
+                _enum_value(packet.packet_kind),
+                packet.agent_id,
+                packet.task_id,
+                packet.run_id,
+                packet.status,
+                packet.summary,
+                _json(packet.instructions),
+                _json(packet.artifact_refs),
+                packet.created_from_event_id,
+                packet.supersedes_packet_id,
+                packet.superseded_by_packet_id,
+                packet.invalidated_by_event_id,
+                packet.created_at,
+                packet.updated_at,
+                packet.invalidated_at,
+            ),
+        )
+        if packet.task_id is None:
+            return
+        self._require_conn().execute(
+            """
+            insert into task_context_bindings (
+                binding_id, task_id, agent_id, session_id, session_epoch,
+                context_packet_id, binding_kind, status, created_from_event_id, created_at, ended_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                new_id("bind"),
+                packet.task_id,
+                packet.agent_id,
+                session_id,
+                session_epoch,
+                packet.packet_id,
+                _enum_value(packet.packet_kind),
+                BindingStatus.ACTIVE.value,
+                event.event_id,
+                packet.created_at,
+                None,
+            ),
+        )
+
+    def insert_inbox_item(self, item: InboxItem) -> None:
+        self._require_conn().execute(
+            """
+            insert into inbox_items (
+                inbox_id, agent_id, priority, kind, status, payload_json,
+                context_packet_id, dedupe_key, visible_at, delivered_at,
+                acked_at, expires_at, created_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                item.inbox_id,
+                item.agent_id,
+                item.priority,
+                item.kind,
+                item.status,
+                _json(item.payload),
+                item.context_packet_id,
+                item.dedupe_key,
+                item.visible_at,
+                item.delivered_at,
+                item.acked_at,
+                item.expires_at,
+                item.created_at,
+            ),
+        )
 
     def update_task_claim(
         self,

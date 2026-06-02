@@ -9,6 +9,47 @@ from .db import connect, initialize_database
 from .protocol_models import BindingStatus, PolicyDecision
 
 
+WORKER_CONTEXT_REQUIRED_ACTIONS = frozenset(
+    {
+        "task.ack_claimed",
+        "task.progress_reported",
+        "task.blocker_reported",
+        "task.completion_claimed",
+        "task.failure_claimed",
+        "artifact.produced",
+        "handoff.proposed",
+        "context.replan_requested",
+    }
+)
+
+CONTEXT_OPTIONAL_ACTIONS = frozenset(
+    {
+        "context.created",
+        "context.superseded",
+        "run.created",
+        "task.created",
+        "task.assigned",
+        "task.reassigned",
+        "task.acknowledged",
+        "task.progress",
+        "task.blocked",
+        "task.completed",
+        "task.failed",
+        "task.claim_rejected",
+        "artifact.created",
+        "coordination.recorded",
+        "inbox.enqueued",
+        "gate.opened",
+        "gate.approved",
+        "gate.rejected",
+        "gate.escalated",
+        "replacement.approved",
+        "replacement.reassignment_committed",
+        "adapter.deprecated_path_used",
+    }
+)
+
+
 class PolicyService:
     """Context-sensitive protocol checks that sit after static authority."""
 
@@ -37,11 +78,31 @@ class PolicyService:
         reviewed_agent_id: str | None = None,
     ) -> PolicyDecision:
         checks: list[str] = []
-        if action not in {"context.created", "context.superseded"}:
-            context = self.validate_context_active(context_packet_id, task_id=task_id, session_id=session_id)
+        if action in WORKER_CONTEXT_REQUIRED_ACTIONS:
+            context = self.validate_context_active(
+                context_packet_id,
+                task_id=task_id,
+                agent_id=agent_id,
+                session_id=session_id,
+                require_binding=True,
+            )
             checks.extend(context.checks)
             if not context.allowed:
                 return context
+        elif action in {"context.created", "context.superseded"}:
+            checks.append(f"context optional for {action}")
+        elif context_packet_id is not None:
+            context = self.validate_context_active(
+                context_packet_id,
+                task_id=task_id,
+                agent_id=agent_id,
+                session_id=session_id,
+            )
+            checks.extend(context.checks)
+            if not context.allowed:
+                return context
+        elif action not in CONTEXT_OPTIONAL_ACTIONS:
+            checks.append(f"context optional for {action}")
 
         review = self.validate_no_self_review(reviewer_agent_id, reviewed_agent_id)
         checks.extend(review.checks)
@@ -60,9 +121,17 @@ class PolicyService:
         context_packet_id: str | None,
         *,
         task_id: str | None = None,
+        agent_id: str | None = None,
         session_id: str | None = None,
+        require_binding: bool = False,
     ) -> PolicyDecision:
         if context_packet_id is None:
+            if require_binding:
+                return PolicyDecision(
+                    allowed=False,
+                    reason="active task context binding is required",
+                    checks=["context binding required"],
+                )
             return PolicyDecision(allowed=True, checks=["no context packet required"])
         conn = self.conn or connect(self.db_path)
         try:
@@ -73,6 +142,7 @@ class PolicyService:
                     where context_packet_id = ?
                       and status = ?
                       and (? is null or task_id = ?)
+                      and (? is null or agent_id = ?)
                       and (? is null or session_id is null or session_id = ?)
                     order by created_at desc
                     limit 1
@@ -82,12 +152,20 @@ class PolicyService:
                         BindingStatus.ACTIVE.value,
                         task_id,
                         task_id,
+                        agent_id,
+                        agent_id,
                         session_id,
                         session_id,
                     ),
                 ).fetchone()
                 if row is not None:
                     return PolicyDecision(allowed=True, checks=["active task context binding"])
+                if require_binding:
+                    return PolicyDecision(
+                        allowed=False,
+                        reason="active task context binding does not match task, agent, and session",
+                        checks=["context binding check failed"],
+                    )
             if _has_table(conn, "context_packets"):
                 row = conn.execute(
                     "select status from context_packets where packet_id = ?",
