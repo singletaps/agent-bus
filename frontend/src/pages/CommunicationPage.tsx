@@ -556,7 +556,34 @@ function isOperatorLikeIdentity(value: string | undefined): boolean {
 }
 
 function classifyMessageSpace(message: BusMessageRow): SpaceKey {
-  const text = `${message.priority} ${message.messageType} ${message.body} ${message.spaceId}`.toLowerCase();
+  const explicitSpace = normalizeSpaceKey(message.spaceId);
+  if (explicitSpace) {
+    return explicitSpace;
+  }
+
+  const priority = message.priority.toLowerCase();
+  const messageType = message.messageType.toLowerCase();
+  const delivery = `${message.deliveryState} ${message.ackState} ${message.replyState}`.toLowerCase();
+  const linkedChange =
+    message.links.gateIds.length > 0 || message.links.artifactIds.length > 0;
+
+  if (
+    priority === "high" ||
+    /interrupt|blocked|failed|reject|stuck|fencing|violation/.test(messageType) ||
+    /waiting_reply|failed|blocked|reject/.test(delivery)
+  ) {
+    return "urgent";
+  }
+  if (
+    linkedChange ||
+    /gate|artifact|release|change|ready|pass|verification|review/.test(messageType)
+  ) {
+    return "release";
+  }
+  if (/cost|optimi[sz]e|compress|budget|token/.test(messageType)) {
+    return "cost";
+  }
+  const text = `${message.body} ${message.threadId}`.toLowerCase();
   if (/high|urgent|fail|error|block|reject|stuck|interrupt/.test(text)) {
     return "urgent";
   }
@@ -567,6 +594,23 @@ function classifyMessageSpace(message: BusMessageRow): SpaceKey {
     return "cost";
   }
   return "daily";
+}
+
+function normalizeSpaceKey(value: string): SpaceKey | null {
+  const normalized = value.toLowerCase().replace(/[_\s-]+/g, "");
+  if (["urgent", "incident", "blocker", "critical"].includes(normalized)) {
+    return "urgent";
+  }
+  if (["daily", "runtime", "coordination", "default"].includes(normalized)) {
+    return "daily";
+  }
+  if (["release", "gate", "artifact", "change"].includes(normalized)) {
+    return "release";
+  }
+  if (["cost", "budget", "token", "efficiency"].includes(normalized)) {
+    return "cost";
+  }
+  return null;
 }
 
 function buildSpaceCounts(messages: BusMessageRow[]): Record<SpaceKey, number> {

@@ -10,7 +10,10 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
-from .models import InboxItem, new_id, utc_now_iso
+from .authority import actor_role_for_principal
+from .db import initialize_database
+from .models import BusEvent, EventType, InboxItem, new_id, utc_now_iso
+from .protocol_models import FencingResult, Principal, ProjectionEffect
 
 
 DEFAULT_DB_PATH = Path.home() / ".codex-agent-bus" / "agent-bus.sqlite3"
@@ -71,7 +74,15 @@ def migrate(conn: sqlite3.Connection) -> None:
             dedupe_key text,
             visible_at text not null,
             delivered_at text,
+            delivered_to_session_id text,
+            delivery_epoch integer,
+            lease_expires_at text,
+            delivery_attempts integer not null default 0,
             acked_at text,
+            acked_by_session_id text,
+            ack_fencing_result text,
+            revoked_at text,
+            revoked_reason text,
             expires_at text,
             created_at text not null
         )
@@ -90,6 +101,17 @@ def migrate(conn: sqlite3.Connection) -> None:
         where dedupe_key is not null and status != 'acked'
         """
     )
+    for definition in (
+        "delivered_to_session_id text",
+        "delivery_epoch integer",
+        "lease_expires_at text",
+        "delivery_attempts integer not null default 0",
+        "acked_by_session_id text",
+        "ack_fencing_result text",
+        "revoked_at text",
+        "revoked_reason text",
+    ):
+        _add_column_if_missing(conn, "inbox_items", definition)
 
 
 class InboxStore:
@@ -97,10 +119,17 @@ class InboxStore:
         self,
         db_path: str | os.PathLike[str] | None = None,
         conn: sqlite3.Connection | None = None,
+        trusted_compatibility: bool = False,
+        principal: Principal | None = None,
     ) -> None:
+        self.db_path = db_path
+        if conn is None:
+            initialize_database(db_path)
         self.conn = conn if conn is not None else connect(db_path)
         self._owns_connection = conn is None
         self._lock = RLock()
+        self.trusted_compatibility = trusted_compatibility
+        self.principal = principal
         migrate(self.conn)
 
     def close(self) -> None:
@@ -119,7 +148,13 @@ class InboxStore:
         visible_at: str | None = None,
         expires_at: str | None = None,
         inbox_id: str | None = None,
+        actor: str | None = None,
+        principal: Principal | None = None,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
     ) -> InboxItem:
+        principal = principal or self.principal
         item = InboxItem(
             inbox_id=inbox_id or new_id("inbox"),
             agent_id=agent_id,
@@ -134,30 +169,55 @@ class InboxStore:
         )
         with self._lock:
             try:
-                self.conn.execute(
-                    """
-                    insert into inbox_items (
-                        inbox_id, agent_id, priority, kind, status, payload_json,
-                        context_packet_id, dedupe_key, visible_at, delivered_at,
-                        acked_at, expires_at, created_at
-                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        item.inbox_id,
-                        item.agent_id,
-                        item.priority,
-                        item.kind,
-                        item.status,
-                        json.dumps(item.payload, sort_keys=True),
-                        item.context_packet_id,
-                        item.dedupe_key,
-                        item.visible_at,
-                        item.delivered_at,
-                        item.acked_at,
-                        item.expires_at,
-                        item.created_at,
+                event = BusEvent(
+                    type=EventType.INBOX_ENQUEUED,
+                    actor=actor,
+                    actor_role=actor_role_for_principal(principal),
+                    agent_id=item.agent_id,
+                    context_packet_id=item.context_packet_id,
+                    projection_effect=ProjectionEffect.COMMIT,
+                    fencing_result=FencingResult.NOT_REQUIRED,
+                    payload=item.model_dump(mode="json"),
+                )
+                from .protocol import ProtocolKernel
+
+                result = ProtocolKernel(self.db_path, conn=self.conn).commit_event(
+                    event,
+                    principal=principal,
+                    session_id=session_id,
+                    session_epoch=session_epoch,
+                    fencing_token=fencing_token,
+                    guard_targets=(("inbox_items", item.inbox_id, EventType.INBOX_ENQUEUED.value),),
+                    target_table="inbox_items",
+                    target_id=item.inbox_id,
+                    reason="inbox item enqueued through ProtocolKernel command",
+                    mutation=lambda conn, _event: conn.execute(
+                        """
+                        insert into inbox_items (
+                            inbox_id, agent_id, priority, kind, status, payload_json,
+                            context_packet_id, dedupe_key, visible_at, delivered_at,
+                            acked_at, expires_at, created_at
+                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            item.inbox_id,
+                            item.agent_id,
+                            item.priority,
+                            item.kind,
+                            item.status,
+                            json.dumps(item.payload, sort_keys=True),
+                            item.context_packet_id,
+                            item.dedupe_key,
+                            item.visible_at,
+                            item.delivered_at,
+                            item.acked_at,
+                            item.expires_at,
+                            item.created_at,
+                        ),
                     ),
                 )
+                if not result.accepted:
+                    raise PermissionError(result.reason or "protocol rejected inbox enqueue")
             except sqlite3.IntegrityError:
                 if dedupe_key is None:
                     raise
@@ -175,36 +235,105 @@ class InboxStore:
         busy: bool = False,
         visibility_timeout: float = 30.0,
         poll_interval: float = 0.05,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
+        require_fence: bool = False,
     ) -> InboxWaitResult:
+        if require_fence or session_id is not None or fencing_token is not None:
+            allowed, reason = self._validate_session_fence(
+                agent_id,
+                action="inbox.wait",
+                session_id=session_id,
+                session_epoch=session_epoch,
+                fencing_token=fencing_token,
+            )
+            if not allowed:
+                raise PermissionError(reason)
         deadline = time.monotonic() + max(timeout, 0)
         while True:
-            item = self._try_deliver(agent_id, busy=busy, visibility_timeout=visibility_timeout)
+            item = self._try_deliver(
+                agent_id,
+                busy=busy,
+                visibility_timeout=visibility_timeout,
+                session_id=session_id,
+                session_epoch=session_epoch,
+            )
             if item is not None:
                 return InboxWaitResult(kind=item.kind, item=item)
             if time.monotonic() >= deadline:
                 return InboxWaitResult.timeout()
             time.sleep(min(poll_interval, max(deadline - time.monotonic(), 0)))
 
-    def ack(self, inbox_id: str, *, agent_id: str | None = None) -> bool:
+    def ack(
+        self,
+        inbox_id: str,
+        *,
+        agent_id: str | None = None,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
+        require_fence: bool = False,
+    ) -> bool:
         now = utc_now_iso()
+        if require_fence or session_id is not None or fencing_token is not None:
+            item = self.get(inbox_id)
+            expected_agent = agent_id or (item.agent_id if item is not None else None)
+            if expected_agent is None:
+                return False
+            allowed, _reason = self._validate_session_fence(
+                expected_agent,
+                action="inbox.acked",
+                session_id=session_id,
+                session_epoch=session_epoch,
+                fencing_token=fencing_token,
+            )
+            if not allowed:
+                return False
+            if item.delivered_to_session_id is not None and item.delivered_to_session_id != session_id:
+                self._record_inbox_reject(
+                    action="inbox.acked",
+                    actor=expected_agent,
+                    reason="inbox item was delivered to a different fenced session",
+                    session_id=session_id,
+                    payload={"inbox_id": inbox_id, "delivered_to_session_id": item.delivered_to_session_id},
+                )
+                return False
         with self._lock:
             if agent_id is None:
                 cursor = self.conn.execute(
                     """
                     update inbox_items
-                    set status = ?, acked_at = ?
+                    set status = ?, acked_at = ?, acked_by_session_id = coalesce(?, acked_by_session_id),
+                        ack_fencing_result = coalesce(?, ack_fencing_result)
                     where inbox_id = ? and status != ?
                     """,
-                    (ACKED, now, inbox_id, ACKED),
+                    (
+                        ACKED,
+                        now,
+                        session_id,
+                        "VALID" if session_id is not None else None,
+                        inbox_id,
+                        ACKED,
+                    ),
                 )
             else:
                 cursor = self.conn.execute(
                     """
                     update inbox_items
-                    set status = ?, acked_at = ?
+                    set status = ?, acked_at = ?, acked_by_session_id = coalesce(?, acked_by_session_id),
+                        ack_fencing_result = coalesce(?, ack_fencing_result)
                     where inbox_id = ? and agent_id = ? and status != ?
                     """,
-                    (ACKED, now, inbox_id, agent_id, ACKED),
+                    (
+                        ACKED,
+                        now,
+                        session_id,
+                        "VALID" if session_id is not None else None,
+                        inbox_id,
+                        agent_id,
+                        ACKED,
+                    ),
                 )
         return cursor.rowcount > 0
 
@@ -243,9 +372,13 @@ class InboxStore:
         *,
         busy: bool,
         visibility_timeout: float,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
     ) -> InboxItem | None:
         now = utc_now_iso()
-        cutoff = iso_from_datetime(datetime.now(timezone.utc) - timedelta(seconds=visibility_timeout))
+        now_dt = datetime.now(timezone.utc)
+        cutoff = iso_from_datetime(now_dt - timedelta(seconds=visibility_timeout))
+        lease_expires_at = iso_from_datetime(now_dt + timedelta(seconds=visibility_timeout))
         busy_filter = ""
         busy_kind_params: list[str] = []
         if busy:
@@ -258,7 +391,8 @@ class InboxStore:
                 self.conn.execute(
                     """
                     update inbox_items
-                    set status = ?, delivered_at = null, visible_at = ?
+                    set status = ?, delivered_at = null, visible_at = ?,
+                        delivered_to_session_id = null, delivery_epoch = null, lease_expires_at = null
                     where agent_id = ?
                       and status = ?
                       and acked_at is null
@@ -286,10 +420,12 @@ class InboxStore:
                 self.conn.execute(
                     """
                     update inbox_items
-                    set status = ?, delivered_at = ?
+                    set status = ?, delivered_at = ?, delivered_to_session_id = ?,
+                        delivery_epoch = ?, lease_expires_at = ?,
+                        delivery_attempts = delivery_attempts + 1
                     where inbox_id = ?
                     """,
-                    (DELIVERED, delivered_at, row["inbox_id"]),
+                    (DELIVERED, delivered_at, session_id, session_epoch, lease_expires_at, row["inbox_id"]),
                 )
                 self.conn.execute("commit")
             except Exception:
@@ -333,6 +469,69 @@ class InboxStore:
             ),
         ]
 
+    def _validate_session_fence(
+        self,
+        agent_id: str,
+        *,
+        action: str,
+        session_id: str | None,
+        session_epoch: int | None,
+        fencing_token: str | None,
+    ) -> tuple[bool, str | None]:
+        from .fencing import FencingService
+
+        check = FencingService(self.db_path, conn=self.conn).validate(
+            session_id,
+            session_epoch,
+            fencing_token,
+            required=True,
+        )
+        if not check.allowed:
+            self._record_inbox_reject(
+                action=action,
+                actor=agent_id,
+                reason=check.reason or "inbox fencing rejected",
+                fencing_result=check.result,
+                session_id=session_id,
+                payload={"agent_id": agent_id},
+            )
+            return False, check.reason
+        if check.agent_id != agent_id:
+            reason = "fenced session does not belong to inbox agent"
+            self._record_inbox_reject(
+                action=action,
+                actor=agent_id,
+                reason=reason,
+                fencing_result=FencingResult.WRONG_SESSION,
+                session_id=session_id,
+                payload={"agent_id": agent_id, "fenced_agent_id": check.agent_id},
+            )
+            return False, reason
+        return True, None
+
+    def _record_inbox_reject(
+        self,
+        *,
+        action: str,
+        actor: str | None,
+        reason: str,
+        fencing_result: FencingResult | str = FencingResult.NOT_REQUIRED,
+        session_id: str | None,
+        payload: dict[str, Any],
+    ) -> None:
+        from .protocol import ProtocolKernel
+
+        ProtocolKernel(self.db_path, conn=self.conn).reject_action(
+            action=action,
+            actor=actor,
+            actor_role="worker",
+            reason=reason,
+            fencing_result=fencing_result,
+            payload=payload,
+            agent_id=actor,
+            session_id=session_id,
+        )
+
 
 def enqueue(
     agent_id: str,
@@ -368,10 +567,11 @@ def ack(
     *,
     agent_id: str | None = None,
     db_path: str | os.PathLike[str] | None = None,
+    **kwargs: Any,
 ) -> bool:
     store = InboxStore(db_path=db_path)
     try:
-        return store.ack(inbox_id, agent_id=agent_id)
+        return store.ack(inbox_id, agent_id=agent_id, **kwargs)
     finally:
         store.close()
 
@@ -408,7 +608,15 @@ def row_to_item(row: sqlite3.Row) -> InboxItem:
         dedupe_key=row["dedupe_key"],
         visible_at=row["visible_at"],
         delivered_at=row["delivered_at"],
+        delivered_to_session_id=row["delivered_to_session_id"],
+        delivery_epoch=row["delivery_epoch"],
+        lease_expires_at=row["lease_expires_at"],
+        delivery_attempts=row["delivery_attempts"],
         acked_at=row["acked_at"],
+        acked_by_session_id=row["acked_by_session_id"],
+        ack_fencing_result=row["ack_fencing_result"],
+        revoked_at=row["revoked_at"],
+        revoked_reason=row["revoked_reason"],
         expires_at=row["expires_at"],
         created_at=row["created_at"],
     )
@@ -416,3 +624,10 @@ def row_to_item(row: sqlite3.Row) -> InboxItem:
 
 def iso_from_datetime(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column_definition: str) -> None:
+    column = column_definition.split()[0]
+    columns = {row[1] for row in conn.execute(f"pragma table_info({table})").fetchall()}
+    if column not in columns:
+        conn.execute(f"alter table {table} add column {column_definition}")

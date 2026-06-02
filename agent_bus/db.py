@@ -4,6 +4,8 @@ import os
 import sqlite3
 from pathlib import Path
 
+from .migrations import MigrationRunner
+
 DEFAULT_DB_PATH = Path.home() / ".codex-agent-bus" / "agent-bus.sqlite3"
 SCHEMA_VERSION = 1
 
@@ -65,10 +67,10 @@ def migrate(conn: sqlite3.Connection) -> None:
         "insert or ignore into schema_migrations(version) values (?)",
         (SCHEMA_VERSION,),
     )
+    MigrationRunner(conn).run()
 
 
 def _remove_sqlite_files(path: Path) -> None:
     for candidate in (path, path.with_name(path.name + "-wal"), path.with_name(path.name + "-shm")):
         if candidate.exists():
             candidate.unlink()
-

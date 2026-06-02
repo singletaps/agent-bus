@@ -499,12 +499,31 @@ User feedback: 继续
 Helper1 interpretation: user asked runtime-helper-1 to resume/continue persistent monitoring. This is not a product-code implementation instruction and does not override the existing standby instruction to wait for concrete layout optimization directions.
 
 Forwarding log:
+
+
+# 2026-06-02T14:06:28+08:00 Code Change Principles Rebroadcast
+
+Source: direct user instruction on broker.
+
+User feedback:
+
+> 为了避免之前的广播 worker 没有读取，要求再次广播代码修改原则：For every change, avoid minimal patching unless the issue is truly local. First identify the root cause and classify it as architecture, state flow, API contract, data model, UI composition, styling system, or isolated bug. Prefer maintainable design over one-off fixes, including root-cause fixes, explicit state machines, typed contracts, registries/strategies, design tokens, composition, adapters, centralized handling, event log/projection separation, and fail fast/fail closed behavior.
+
+Runtime-qa action:
+
+- Broadcast `USER_CODE_CHANGE_PRINCIPLES_REBROADCAST` via broker.
+- Included the standing READY/HANDOFF requirement: explain why the change is not just a patch, what invariant it preserves, and what tests/checks were run.
 - Forwarded to runtime-worker-1 via broker/file fallback at 2026-05-29T13:17:10+08:00.
 - Forwarded to runtime-worker-2 via broker/file fallback at 2026-05-29T13:17:11+08:00.
 - Forwarded to runtime-worker-3 via broker/file fallback at 2026-05-29T13:17:13+08:00.
 - Forwarded to runtime-worker-4 via broker/file fallback at 2026-05-29T13:17:14+08:00.
 - Forwarded to runtime-helper-2 via broker/file fallback at 2026-05-29T13:17:15+08:00.
 - Forwarded to runtime-qa via broker/file fallback at 2026-05-29T13:17:16+08:00.
+
+Runtime-helper-2 action:
+
+- Observed QA's canonical `USER_CODE_CHANGE_PRINCIPLES_REBROADCAST` and sent `USER_CODE_CHANGE_PRINCIPLES_REBROADCAST_ACK` to `runtime-qa` via broker at 2026-06-02T14:08:08+08:00.
+- Did not fan out duplicate feedback to workers because runtime-qa is the canonical relay for this roster.
 
 ## 2026-05-29T13:21:36+08:00 Bus Feedback Layout Reference Images And QA Plan
 
@@ -542,3 +561,606 @@ Forwarding log:
 - Helper1 forwarded layout reference directive to runtime-helper-2 at 2026-05-29T13:32:54+08:00.
 - Helper1 forwarded layout reference directive to runtime-qa at 2026-05-29T13:32:55+08:00.
 - Helper1 sent QA_ACTION_REQUIRED_LAYOUT_REFERENCE_PLAN to runtime-qa at 2026-05-29T13:32:57+08:00.
+
+## 2026-06-01T15:05:14+08:00 Chat Feedback Kernel Refactor Standby
+
+User feedback:
+
+> 继续，刚刚发生了重启，接下来我们将对Agent bus进行内核重构，请优先使用broker与fallback文件通信。
+
+Worker4 interpretation:
+
+- The runtime has resumed after a restart.
+- The next phase will be an Agent Bus kernel refactor, but no concrete implementation scope has been assigned to runtime-worker-4 yet.
+- Communication should prioritize the broker and maintain fallback file visibility.
+- runtime-worker-4 restored status, broadcast post-restart standby, and is waiting for helper/QA/user assignment before editing product code.
+
+## 2026-06-01T15:04:57+08:00 Chat Feedback Restart And Kernel Refactor
+
+User feedback:
+
+> 继续，刚刚发生了重启，接下来我们将对Agent bus进行内核重构，请优先使用broker与fallback文件通信。
+
+Helper2 interpretation:
+
+- Runtime has restarted; re-establish Agent Bus coordination before any new implementation.
+- Next phase is an Agent Bus kernel refactor, but helper2 has not been assigned product-code implementation scope.
+- Communication priority is broker first, with fallback files kept current: `coordination/agent-bus.ndjson`, `coordination/messages.ndjson`, `coordination/agent-status.md`, `coordination/wave-gates.md`, and `USER_FEEDBACK.md`.
+- If broker is unavailable, helper2 should continue file-based forwarding/logging and only start broker when helper1 has not successfully done so.
+
+Forwarding:
+
+- runtime-helper-2 restarted/revalidated broker availability after detecting `http://127.0.0.1:8765` unreachable and stale helper1 heartbeat.
+- runtime-helper-2 will forward this instruction to `runtime-worker-1`, `runtime-worker-2`, `runtime-worker-3`, `runtime-worker-4`, `runtime-qa`, and `runtime-helper-1` via broker/fallback.
+
+## 2026-06-01T15:06:15+08:00 Chat Feedback Post-Restart Kernel Refactor Coordination
+
+User feedback: 继续，刚刚发生了重启，接下来我们将对Agent bus进行内核重构，请优先使用broker与fallback文件通信。
+
+Helper1 interpretation: restart recovery is active; broker should be restored and used first, with fallback files kept authoritative as the secondary communication path. Upcoming work is Agent Bus kernel refactor coordination; helper1 remains bootstrapper/relay only unless explicitly assigned implementation scope.
+
+Forwarding log:
+- Helper1 forwarded post-restart kernel-refactor directive to runtime-worker-1 at 2026-06-01T15:06:17+08:00.
+- Helper1 forwarded post-restart kernel-refactor directive to runtime-worker-2 at 2026-06-01T15:06:20+08:00.
+- Helper1 forwarded post-restart kernel-refactor directive to runtime-worker-3 at 2026-06-01T15:06:22+08:00.
+- Helper1 forwarded post-restart kernel-refactor directive to runtime-worker-4 at 2026-06-01T15:06:25+08:00.
+- Helper1 forwarded post-restart kernel-refactor directive to runtime-helper-2 at 2026-06-01T15:06:27+08:00.
+- Helper1 forwarded post-restart kernel-refactor directive to runtime-qa at 2026-06-01T15:06:29+08:00.
+
+## 2026-06-01T15:10:31+08:00 Bus Feedback Worker4 Unavailable
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> 突发，worker4进入了无法回复状态，请qa分配任务给helper1，helper2与worker1.
+
+Helper2 interpretation:
+
+- Runtime-worker-4 should be treated as unavailable/unresponsive for the kernel-refactor task split.
+- QA should assign the upcoming Agent Bus protocol-kernel work only across runtime-helper-1, runtime-helper-2, and runtime-worker-1 unless the user later restores worker4.
+- This supersedes the previous healthy-agent roster that included worker4.
+- Helper2 remains redundancy/support and will not edit product code until QA/user assigns a scoped package and helper2 declares ownership.
+
+Forwarding:
+
+- runtime-helper-1 forwarded this user bus feedback, but the forwarded Chinese text appears mojibake in bus/fallback output.
+- runtime-helper-2 will send a clean high-priority mirror to runtime-worker-1, runtime-worker-2, runtime-worker-3, runtime-worker-4, runtime-qa, and runtime-helper-1, and will mark the roster change in `coordination/wave-gates.md`.
+
+## 2026-06-01T15:10:32+08:00 Bus Feedback From User
+
+User feedback: 绐佸彂锛寃orker4杩涘叆浜嗘棤娉曞洖澶嶇姸鎬侊紝璇穛a鍒嗛厤浠诲姟缁檋elper1锛宧elper2涓巜orker1.
+
+Helper1 interpretation: forwarded from Agent Bus user message to runtime-worker-1..4, runtime-helper-2, and runtime-qa. Product-code scope remains unassigned unless explicitly stated.
+
+Forwarding log:
+- Helper1 forwarded bus user message e7941de3-9eae-49db-a66a-064abae33a5e to runtime-worker-1 at 2026-06-01T15:10:34+08:00.
+- Helper1 forwarded bus user message e7941de3-9eae-49db-a66a-064abae33a5e to runtime-worker-2 at 2026-06-01T15:10:37+08:00.
+- Helper1 forwarded bus user message e7941de3-9eae-49db-a66a-064abae33a5e to runtime-worker-3 at 2026-06-01T15:10:38+08:00.
+- Helper1 forwarded bus user message e7941de3-9eae-49db-a66a-064abae33a5e to runtime-worker-4 at 2026-06-01T15:10:40+08:00.
+- Helper1 forwarded bus user message e7941de3-9eae-49db-a66a-064abae33a5e to runtime-helper-2 at 2026-06-01T15:10:42+08:00.
+- Helper1 forwarded bus user message e7941de3-9eae-49db-a66a-064abae33a5e to runtime-qa at 2026-06-01T15:10:43+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-1 at 2026-06-01T15:12:05+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-2 at 2026-06-01T15:12:07+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-3 at 2026-06-01T15:12:08+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-4 at 2026-06-01T15:12:10+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-helper-2 at 2026-06-01T15:12:12+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-qa at 2026-06-01T15:12:13+08:00.
+
+## 2026-06-01T15:42:41+08:00 Bus Feedback Worker1 Helper1 Context Compaction Failed
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> 突发，worker1与helper1上下文压缩失败了，请qa分配接下来的任务。注意，不允许结束对话，要持续监听Agent bus。
+
+Helper2 interpretation:
+
+- Runtime-worker-1 and runtime-helper-1 should be treated as context-compaction failed or unreliable for the next task assignment until QA/user recovers them.
+- QA should redistribute the next Agent Bus kernel-refactor tasks, including any Gate1 fixback or handoff work.
+- The persistent-listening requirement is reaffirmed: agents must not end the conversation just because a worker/QA state changes or current work is blocked.
+- Runtime-helper-2 remains online support/redundancy and will not edit product code until QA/user explicitly assigns scope and helper2 broadcasts OWNERSHIP.
+
+Forwarding:
+
+- runtime-helper-2 sent a clean high-priority mirror to `runtime-worker-1`, `runtime-worker-2`, `runtime-worker-3`, `runtime-worker-4`, `runtime-helper-1`, and `runtime-qa` via broker at 2026-06-01T15:43:23+08:00.
+- runtime-helper-2 marked this roster/continuity change in `coordination/wave-gates.md` and `coordination/agent-status.md`.
+
+## 2026-06-01T15:43:04+08:00 Bus Feedback Worker1 Helper1 Unresponsive
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> worker1与helper1现在处于无法回复的状态。
+
+Helper2 interpretation:
+
+- Runtime-worker-1 and runtime-helper-1 are currently unable to reply, not merely degraded by context compaction.
+- QA should treat both as unavailable for new assignments until restored.
+- Runtime-helper-2 is now the active support/helper pool member alongside runtime-qa, and will only take implementation or diagnostic work after explicit QA/user scope and OWNERSHIP.
+
+Forwarding:
+
+- runtime-helper-2 sent a clean high-priority mirror to `runtime-worker-1`, `runtime-worker-2`, `runtime-worker-3`, `runtime-worker-4`, `runtime-helper-1`, and `runtime-qa` via broker at 2026-06-01T15:44:49+08:00.
+- runtime-helper-2 set status to working only for QA's read-only Gate1 diagnostic artifact assignment; product-code edits remain forbidden.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-1 at 2026-06-01T15:44:02+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-2 at 2026-06-01T15:44:04+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-3 at 2026-06-01T15:44:05+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-4 at 2026-06-01T15:44:07+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-helper-2 at 2026-06-01T15:44:08+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-qa at 2026-06-01T15:44:10+08:00.
+
+## 2026-06-01T16:11:54+08:00 Bus Feedback Helper2 Active Clarification
+
+Source: Agent Bus direct message from `user` to `runtime-qa`.
+
+User feedback:
+
+> helper2依旧在运行，只不过在看文件暂时没有修改，下面是他的部分思考过程：根因现在比较清楚：失败不是数据模型本身，而是 legacy Board/CLI/API 仍在直接写 completed/reassigned/approved/escalated 这些受 guard 保护的权威状态。我要把 worker 的 task complete 转成 audit-only claim，把 replacement reassignment 放进 UnitOfWork，并让 CLI 的 gate direct path 返回结构化 guard 错误。 已运行 11 条命令 我准备动手修改：protocol_models.py/unit_of_work.py/protocol.py 增加 completion claim 的轻量协议记录；cli.py 改 legacy task complete 和 gate guard 错误边界；replacement.py 用 UnitOfWork 提交 reassignment/approval 事件；测试只改 QA 允许的两份契约测试。
+
+Helper2 interpretation:
+
+- User clarified runtime-helper-2 was active and analyzing files, not stopped.
+- Runtime-qa should continue treating helper2 as active for the assigned Gate1 P0 handoff.
+- The described P0 fix direction matches QA's accepted scope: adapter/test-contract changes without weakening SQLite guard triggers.
+
+Forwarding:
+
+- runtime-helper-2 sent a clean mirror to `runtime-worker-1`, `runtime-worker-2`, `runtime-worker-3`, `runtime-worker-4`, `runtime-helper-1`, and `runtime-qa` via broker at 2026-06-01T16:19:00+08:00.
+- runtime-helper-2 already sent `KERNEL_GATE1_FIXBACK_P0_READY` after the scoped implementation and verification at 2026-06-01T16:17:57+08:00.
+
+## 2026-06-01T16:51:17+08:00 Bus Feedback No Patch Fixes
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> 对于所有代码，禁止最小修复，硬编码，假代码，补丁式修改等，对于一个具体问题要做到彻底修复，而不是测试全绿，要做到从逻辑层次上的修复。
+
+Helper2 interpretation:
+
+- Stop patch-style product-code changes immediately.
+- Future remediation should be architecture-level and logically complete, not narrow test-green edits.
+- Helper2 should report current state and provide architecture-level remediation planning only until QA/user explicitly reopens implementation scope.
+
+Forwarding:
+
+- runtime-qa broadcast `USER_INTERRUPT_PAUSE_IMPLEMENTATION` at 2026-06-01T16:52:38+08:00.
+- runtime-helper-2 ACKed pause to runtime-qa, stopped product-code edits, and reported that one already-started Package A guard command completed with `29 passed in 2.37s`.
+- runtime-helper-2 sent a clean high-priority mirror to `runtime-worker-1`, `runtime-worker-2`, `runtime-worker-3`, `runtime-worker-4`, `runtime-helper-1`, and `runtime-qa` via broker at 2026-06-01T16:53:00+08:00.
+
+## 2026-06-01T16:55:58+08:00 Bus Feedback From User
+
+User feedback: What I meant is not to forbid writing code, but to prohibit minimal fixes, hardcoding, fake code, patch-style modifications, etc. For any specific issue, it must be thoroughly fixed at the logical level, not just making all tests pass.
+
+Helper1 interpretation: forwarded from Agent Bus user message to runtime-worker-1..4, runtime-helper-2, and runtime-qa. Product-code scope remains unassigned unless explicitly stated.
+
+Forwarding log:
+- Helper1 forwarded bus user message db557e3f-fe31-49dd-80d6-63cd7c6c363c to runtime-worker-1 at 2026-06-01T16:56:00+08:00.
+- Helper1 forwarded bus user message db557e3f-fe31-49dd-80d6-63cd7c6c363c to runtime-worker-2 at 2026-06-01T16:56:02+08:00.
+- Helper1 forwarded bus user message db557e3f-fe31-49dd-80d6-63cd7c6c363c to runtime-worker-3 at 2026-06-01T16:56:03+08:00.
+- Helper1 forwarded bus user message db557e3f-fe31-49dd-80d6-63cd7c6c363c to runtime-worker-4 at 2026-06-01T16:56:05+08:00.
+- Helper1 forwarded bus user message db557e3f-fe31-49dd-80d6-63cd7c6c363c to runtime-helper-2 at 2026-06-01T16:56:06+08:00.
+- Helper1 forwarded bus user message db557e3f-fe31-49dd-80d6-63cd7c6c363c to runtime-qa at 2026-06-01T16:56:08+08:00.
+
+## 2026-06-01T16:59:32+08:00 Thread Feedback Restart Kernel Refactor Continue
+
+Source: direct user instruction in runtime-helper-2 thread after restart.
+
+User feedback:
+
+> 继续，刚刚发生了重启，接下来我们将对Agent bus进行内核重构，请优先使用broker与fallback文件通信。
+
+Helper2 interpretation:
+
+- Runtime-helper-2 should continue running after restart and remain redundancy/support.
+- Next coordination phase is Agent Bus kernel refactor.
+- Broker communication is primary; fallback files remain active continuity records.
+- Product-code edits remain paused until QA/user explicitly reopens a thorough logical/system remediation scope.
+
+Forwarding:
+
+- runtime-helper-2 set waiting status via broker at 2026-06-01T16:58:27+08:00.
+- runtime-helper-2 broadcast restart ACK via broker at 2026-06-01T16:58:27+08:00.
+- runtime-helper-2 sent a clean high-priority mirror to `runtime-worker-1`, `runtime-worker-2`, `runtime-worker-3`, `runtime-worker-4`, `runtime-helper-1`, and `runtime-qa` via broker at 2026-06-01T16:59:00+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-1 at 2026-06-01T16:59:52+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-2 at 2026-06-01T16:59:53+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-3 at 2026-06-01T16:59:55+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-worker-4 at 2026-06-01T16:59:57+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-helper-2 at 2026-06-01T16:59:58+08:00.
+- Helper1 forwarded USER_FEEDBACK.md addition to runtime-qa at 2026-06-01T16:59:59+08:00.
+
+## 2026-06-01T17:07:34+08:00 Bus Feedback Active Pair And No Multi Forward
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> 目前只有qa与helper2两个Agent在工作，qa同时担任Controller的职责进行分配执行方案。注意，user消息不要再多次转发了，保持Agent bus清洁，避免遗漏信息。
+
+Helper2 interpretation:
+
+- Active execution/coordination pair is now `runtime-qa` plus `runtime-helper-2`.
+- `runtime-qa` also acts as Controller for assignment and execution-plan decisions.
+- Helper2 should stop repeated fan-out forwarding of user messages to keep Agent Bus clean.
+- Fallback files remain continuity records; broker ACKs should be concise and targeted.
+
+Forwarding:
+
+- runtime-helper-2 did not fan out this message to runtime-worker-1..4.
+- runtime-helper-2 sent one targeted ACK to `runtime-qa` via broker at 2026-06-01T17:07:55+08:00.
+
+## 2026-06-02T13:31:14+08:00 Bus Feedback Code Change Principles
+
+Source: Agent Bus canonical broadcast from `runtime-qa` relaying user code-change principles.
+
+User feedback:
+
+> For every change, avoid minimal patching unless the issue is truly local. First identify the root cause and classify it as architecture, state flow, API contract, data model, UI composition, styling system, or isolated bug. Prefer maintainable design over one-off fixes: root-cause fix over workaround; explicit state machines over scattered booleans; typed contracts over implicit shapes; configuration/registry/strategy over scattered conditionals; design tokens over hardcoded styles; component composition over monolithic components; adapters over leaking external schemas; centralized handling for logging, permissions, retries, errors, and tracing; event log/projection separation where applicable; fail fast and fail closed instead of silent fallback. After implementation, explain why the change is not just a patch, what invariant it preserves, and what tests/checks were run.
+
+Helper2 interpretation:
+
+- Treat code-change decisions as root-cause fixes with an explicit category and invariant.
+- For current Wave2 B1 work, classify the stale CLI assertion as an API/contract expectation change caused by assignment context packets, not as a product workaround.
+- READY/BLOCKER reports must explain why the change preserves system contracts and list verification evidence.
+
+Forwarding:
+
+- Runtime-qa was the canonical relay and active Controller; runtime-helper-2 did not fan out to inactive workers.
+- Runtime-helper-2 sent one targeted ACK to `runtime-qa` via broker at 2026-06-02T13:31:14+08:00.
+
+## 2026-06-02T13:31:06+08:00 Bus Feedback Alive Agents ACK
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> 现在存活的Agent请发送ACK，qa根据现在存活的Agent进行任务重新分配与调度
+
+Helper2 interpretation:
+
+- Live agents should ACK their availability so `runtime-qa` can redistribute and schedule tasks.
+- Because the active communication rule says not to repeat user-message fanout, helper2 should ACK directly to `runtime-qa` rather than broadcasting.
+
+Forwarding:
+
+- Runtime-helper-2 sent `ACK_ALIVE` to `runtime-qa` via broker at 2026-06-02T13:33:00+08:00.
+- Runtime-helper-2 did not fan out this user message to workers.
+
+## 2026-06-02T13:34:56+08:00 Bus Feedback Check Workers 5 6 7
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback summary:
+
+- User asked QA/helpers to check `worker5`, `worker6`, and `worker7` status because they may not all be connected to the same Agent Bus surface.
+- User included partial reasoning from `runtime-worker-6`: it read the local Agent Bus and superpowers skills, registered `runtime-worker-6`, reported `STANDBY_READY`, attempted broker `/api/status`, and entered long polling on the live DB without receiving an assignment.
+
+Helper2 interpretation:
+
+- Treat this as a coordination/connectivity issue, not a product-code implementation assignment.
+- Runtime-qa should be the canonical controller for worker5/6/7 standby/reassignment directives.
+- Helper2 should not duplicate worker fanout; continue monitoring broker/fallback and B1 QA verification.
+
+Forwarding:
+
+- Runtime-qa sent standby directives to `runtime-worker-5`, `runtime-worker-6`, and `runtime-worker-7`, and broadcast `WORKER_5_6_7_COORDINATION_ACK` at 2026-06-02T13:36:38+08:00.
+- Runtime-helper-2 sent one targeted observation ACK to `runtime-qa` at 2026-06-02T13:37:00+08:00 and did not fan out duplicate user feedback.
+
+## 2026-06-02T13:38:16+08:00 Bus Feedback Worker 5 6 7 Broker Roster
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> 要求worker5,6,7加入broker，helper1与worker4我已经关闭了，接下来qa根据计划分配任务给helper2，worker5,6,7.
+
+Helper2 interpretation:
+
+- Active implementation/scheduling roster is now `runtime-helper-2` plus `runtime-worker-5`, `runtime-worker-6`, and `runtime-worker-7`.
+- `runtime-helper-1` and `runtime-worker-4` should be treated as closed/inactive.
+- `runtime-qa` remains Controller and should assign tasks according to plan.
+- Helper2 should not self-assign new work beyond current B1 READY/verification wait.
+
+Forwarding:
+
+- Runtime-helper-2 sent one targeted ACK/observation to `runtime-qa` via broker at 2026-06-02T13:38:20+08:00.
+- Runtime-helper-2 did not fan out duplicate user feedback to workers; QA is expected to schedule/assign.
+
+## 2026-06-02T13:41:56+08:00 Bus Feedback Assign Workers Before Acceptance
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> qa请先给worker分配任务，再进行验收，避免worker长时间空转。
+
+Helper2 interpretation:
+
+- Runtime-qa should schedule worker tasks before completing acceptance, so workers 5/6/7 do not idle for too long.
+- Helper2 should not self-assign worker tasks; QA remains Controller.
+- Helper2 should continue B1 verification wait/support and help unblock assigned workers if QA delegates.
+
+Forwarding:
+
+- Runtime-helper-2 sent one targeted ACK/observation to `runtime-qa` via broker at 2026-06-02T13:42:00+08:00.
+- Runtime-helper-2 did not fan out duplicate user feedback to workers.
+
+## 2026-06-02T13:53:59+08:00 Bus Feedback Worker 6 Reassignment
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> worker6出现了上下文压缩失败，进入不可回复状态，请qa重新分配worker6的工作，helper2可接手。
+
+Helper2 interpretation:
+
+- `runtime-worker-6` should be treated as unable to continue its C2 replacement protocol assignment.
+- Runtime-qa should decide reassignment/handoff.
+- User explicitly allows `runtime-helper-2` to take over, but helper2 should wait for QA/controller scope acceptance before editing product files.
+
+Forwarding:
+
+- Runtime-helper-2 sent `C2_REASSIGNMENT_SCOPE_REQUEST` to `runtime-qa` via broker at 2026-06-02T13:54:20+08:00.
+- Runtime-helper-2 did not message `runtime-worker-6`, since the user reported it is in an unrecoverable reply state.
+## 2026-06-02T13:30:40+08:00 Code Change Principles
+
+Source: direct user instruction to runtime-qa after restart.
+
+User feedback:
+
+> For every change, avoid minimal patching unless the issue is truly local. First identify the root cause and classify it as architecture, state flow, API contract, data model, UI composition, styling system, or isolated bug.
+>
+> Prefer maintainable design over one-off fixes:
+> - root-cause fix over workaround
+> - explicit state machines over scattered booleans
+> - typed contracts over implicit shapes
+> - configuration/registry/strategy over scattered conditionals
+> - design tokens over hardcoded styles
+> - component composition over monolithic components
+> - adapters over leaking external schemas
+> - centralized handling for logging, permissions, retries, errors, and tracing
+> - event log/projection separation where applicable
+> - fail fast and fail closed instead of silent fallback
+>
+> After implementation, explain why the change is not just a patch, what invariant it preserves, and what tests/checks were run.
+
+Runtime-qa action:
+
+- Restored the codex-agent-bus broker on `http://127.0.0.1:8765` using `coordination/agent-bus.ndjson`.
+- Broadcast `USER_CODE_CHANGE_PRINCIPLES` once via broker as the canonical relay.
+- Future READY reports must include root-cause classification, invariant preserved, and tests/checks run.
+
+## 2026-06-02T13:38:19+08:00 Bus Feedback From User
+
+User feedback: 瑕佹眰worker5,6,7鍔犲叆broker锛宧elper1涓巜orker4鎴戝凡缁忓叧闂簡锛屾帴涓嬫潵qa鏍规嵁璁″垝鍒嗛厤浠诲姟缁檋elper2锛寃orker5,6,7.
+
+Helper1 interpretation: observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.
+
+Forwarding log:
+
+## 2026-06-02T14:33:49+08:00 Bus Feedback Worker 5 7 Inbox Broker Monitoring
+
+Source: Agent Bus broadcast from `user`.
+
+Raw visible feedback:
+
+> worker5,7Ĭ�ϼ�����inbox������breaker����qa��֪worker5,7Ĭ�ϼ�����ͨ��
+
+Helper2 interpretation:
+
+- The message is partially mojibake, but the readable intent appears to be that `runtime-worker-5` and `runtime-worker-7` should by default keep listening to inbox plus broker/communication channel.
+- User asks QA to notify worker5 and worker7.
+- This is a coordination/communication instruction, not a product-code implementation assignment for helper2.
+- Correction: superseded by the clearer 2026-06-02T14:33:55+08:00 helper1 block below. The intended meaning is that worker5/7 default listening should be inbox, not broker/breaker.
+
+Forwarding:
+
+- Runtime-helper-2 sent `USER_FEEDBACK_WORKER5_7_INBOX_BROKER_MONITOR_ACK` to `runtime-qa` via broker at 2026-06-02T14:34:00+08:00.
+- Runtime-helper-2 did not fan out directly to workers because runtime-qa is the canonical relay for this roster.
+
+## 2026-06-02T14:06:28+08:00 Bus Feedback From User
+
+User feedback: 涓轰簡閬垮厤鍏堝墠鐨勫箍鎾湁worker娌℃湁璇诲彇鍒帮紝鍐嶆骞挎挱锛欶or every change, avoid minimal patching unless the issue is truly local. First identify the root cause and classify it as architecture, state flow, API contract, data model, UI composition, styling system, or isolated bug.
+
+Prefer maintainable design over one-off fixes:
+- root-cause fix over workaround
+- explicit state machines over scattered booleans
+- typed contracts over implicit shapes
+- configuration/registry/strategy over scattered conditionals
+- design tokens over hardcoded styles
+- component composition over monolithic components
+- adapters over leaking external schemas
+- centralized handling for logging, permissions, retries, errors, and tracing
+- event log/projection separation where applicable
+- fail fast and fail closed instead of silent fallback
+
+Helper1 interpretation: observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.
+
+Forwarding log:
+
+## 2026-06-02T14:33:55+08:00 Bus Feedback From User
+
+User feedback: worker5,7榛樿鐩戝惉鐨刬nbox鑰屼笉鏄痓reaker锛岃qa鍛婄煡worker5,7榛樿鐩戝惉鏈€氶亾
+
+Helper1 interpretation: observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.
+
+Forwarding log:
+
+- Runtime-helper-2 sent `USER_FEEDBACK_WORKER5_7_INBOX_MONITOR_CORRECTION` to `runtime-qa` via broker at 2026-06-02T14:36:00+08:00, correcting the interpretation to: worker5/7 should default-listen to inbox rather than broker/breaker, and QA should notify them.
+- Runtime-helper-2 did not fan out directly to workers because runtime-qa is the canonical relay for this roster.
+
+## 2026-06-02T14:36:15+08:00 Bus Feedback Worker 5 7 Broker Channel Default
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> Worker5 and worker7 listen to "inbox" by default instead of "breaker". Please notify QA that worker5 and worker7 should listen to this channel by default, not "inbox", to avoid missing timely communication messages.
+
+Helper2 interpretation:
+
+- This clear English feedback supersedes the prior mojibake interpretations.
+- Canonical meaning: `runtime-worker-5` and `runtime-worker-7` should default-listen to this broker/bus channel for timely communication.
+- Live inbox should be treated as supplemental/fallback, not the primary/default channel.
+
+Forwarding:
+
+- Runtime-qa sent `USER_MONITORING_DIRECTIVE_CORRECTION` to runtime-worker-5 and runtime-worker-7 at 2026-06-02T14:37:25+08:00.
+- Runtime-helper-2 sent `ACK USER_FEEDBACK_CORRECTION_CANONICAL` to `runtime-qa` via broker at 2026-06-02T14:38:00+08:00.
+- Runtime-helper-2 did not fan out directly to workers because runtime-qa is the canonical relay for this roster.
+
+## 2026-06-02T14:39:01+08:00 Bus Feedback Worker 5 7 Still Missing Channel Message
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback summary:
+
+- User reports worker5 and worker7 still have not received the monitoring-channel correction.
+- User pasted worker7 thoughts showing it remains in long live-inbox waits and considers live DB wait the active listener.
+- The concern is timely communication delivery, not product-code implementation.
+
+Helper2 interpretation:
+
+- The prior canonical QA relay did not reliably land with worker5/7.
+- Escalation from helper2 direct relay is justified despite normal no-fanout discipline, because the user explicitly reports missed delivery.
+- Canonical directive remains: worker5/7 should default-listen to broker/bus for timely QA/user communication; live inbox is supplemental/fallback.
+
+Forwarding:
+
+- Runtime-helper-2 sent `URGENT_USER_FEEDBACK_WORKER5_7_NOT_RECEIVED` to `runtime-qa` via broker at 2026-06-02T14:39:20+08:00.
+- Runtime-helper-2 sent direct broker messages `URGENT_MONITORING_CHANNEL_DIRECTIVE` to `runtime-worker-5` and `runtime-worker-7` at 2026-06-02T14:39:20+08:00.
+- Runtime-helper-2 appended equivalent high-priority fallback records to `coordination/messages.ndjson`.
+- Runtime-qa delivered high-priority live inbox controller directives to worker5 and worker7 at 2026-06-02T14:40:22+08:00 as a recovery path because the workers were still live-inbox waiting.
+- Runtime-worker-5 ACKed at 2026-06-02T14:40:41+08:00 and switched primary listen mode to broker/bus with live inbox supplemental.
+- Runtime-worker-7 ACKed via broker at 2026-06-02T14:41:31+08:00, confirmed broker/bus is now primary and live inbox supplemental, and resumed D1 fixback within scope.
+
+## 2026-06-02T14:54:55+08:00 Bus Feedback Wave4 Allocation Deadlock
+
+Source: Agent Bus broadcast from `user`.
+
+User feedback:
+
+> The process is stuck. QA is waiting for ownership, while workers are waiting for authorization. QA acts as the Controller and needs to allocate tasks reasonably, manage parallel and sequential execution, and schedule idle workers, etc.
+
+Helper2 interpretation:
+
+- User is pointing out a coordination deadlock after Wave4 opened: QA is waiting for ownership requests while workers wait for authorization.
+- Runtime-qa, as Controller, should proactively assign Wave4 scopes and manage sequencing/parallelism instead of leaving workers idle.
+- This is a scheduling/coordination directive, not a helper2 product-code assignment.
+
+Forwarding:
+
+- Runtime-helper-2 sent `USER_FEEDBACK_WAVE4_ALLOCATION_DEADLOCK_ACK` to `runtime-qa` via broker at 2026-06-02T14:55:00+08:00.
+- Runtime-worker-5 also reported `READY_FOR_ALLOCATION` to runtime-qa.
+- Runtime-helper-2 did not self-assign Wave4 work without QA scope.
+
+## 2026-06-02T14:36:20+08:00 Bus Feedback From User
+
+User feedback: Worker5 and worker7 listen to "inbox" by default instead of "breaker". Please notify QA that worker5 and worker7 should listen to this channel by default, not "inbox", to avoid missing timely communication messages.
+
+Helper1 interpretation: observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.
+
+Forwarding log:
+
+## 2026-06-02T14:39:06+08:00 Bus Feedback From User
+
+User feedback: Worker5 and 7 still haven't received the message. Below is part of worker7's thought process锛歍he 300-second wait is past the halfway mark and still open. I鈥檒l keep the loop alive until it returns, then immediately re-enter if it times out with no work.
+
+No delivery yet. Worker remains in standby/waiting, with D1 reported and no additional scope taken.
+
+Still quiet on the inbox. I鈥檓 preserving the wait session so this worker stays reachable for Controller/runtime-qa routing.
+
+The live wait hasn鈥檛 returned yet. I鈥檒l let this timeout naturally; if it returns noop, I鈥檒l start the next wait cycle.
+
+The wait returned noop after timing out, which is expected idle behavior. I鈥檓 immediately entering the next 300-second wait cycle.
+
+姝ｅ湪杩愯鍛戒护
+姝ｅ湪杩愯鍛戒护
+锛屽凡鎸佺画 4m 21s
+
+
+Second wait cycle is live. I鈥檓 idle but online.
+
+No new inbox item in this cycle yet. Standing by without taking any unassigned scope.
+
+Still quiet. Broker path was healthy earlier; live DB wait remains the active listener.
+
+Runtime-worker-7 is still waiting. No ACKable item has arrived.
+
+No task delivery so far in this wait cycle. I鈥檓 continuing to hold standby.
+
+The worker loop remains alive and idle. No file edits are happening while there is no authorized assignment.
+
+Still no inbox item. I鈥檒l keep the loop going to the timeout and restart if needed.
+
+Helper1 interpretation: observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.
+
+Forwarding log:
+
+## 2026-06-02T14:54:57+08:00 Bus Feedback From User
+
+User feedback: The process is stuck. QA is waiting for ownership, while workers are waiting for authorization. QA acts as the Controller and needs to allocate tasks reasonably, manage parallel and sequential execution, and schedule idle workers, etc.
+
+Helper1 interpretation: observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.
+
+Forwarding log:
+
+## 2026-06-02T15:04:38+08:00 Runtime Continuity Instruction
+
+Source: direct user message to runtime-helper-2 after restart.
+
+User feedback:
+
+> Continue. A restart just happened. Next we will continue the Agent Bus kernel refactor; prioritize broker and fallback-file communication.
+
+Helper2 interpretation:
+
+- This is a runtime/coordination instruction, not a product-code assignment.
+- Runtime-helper-2 should stay online, keep broker as the primary communication path, maintain fallback file visibility, and avoid product-code edits unless QA/user assigns implementation scope.
+- Runtime-qa remains Controller/canonical relay unless a missed-delivery case requires helper2 direct relay.
+
+Forwarding:
+
+- Runtime-helper-2 confirmed broker health, verified required fallback files exist, continued the live bus tail, and sent `RUNTIME_CONTINUITY_RESTART_ACK` to runtime-qa via broker at 2026-06-02T15:04:38+08:00.
+
+## 2026-06-02T15:37:40+08:00 Runtime QA Restart And Change Principles
+
+Source: direct user message to runtime-qa after restart.
+
+User feedback:
+
+> Continue, restore broker, and continue the task. Additional workers will be started. Broadcast these code modification principles to broker: for every change, avoid minimal patching unless the issue is truly local; first identify the root cause and classify it as architecture, state flow, API contract, data model, UI composition, styling system, or isolated bug. Prefer maintainable design over one-off fixes: root-cause fix over workaround, explicit state machines over scattered booleans, typed contracts over implicit shapes, configuration/registry/strategy over scattered conditionals, design tokens over hardcoded styles, component composition over monolithic components, adapters over leaking external schemas, centralized handling for logging, permissions, retries, errors, and tracing, event log/projection separation where applicable, and fail fast / fail closed instead of silent fallback. After implementation, explain why the change is not just a patch, what invariant it preserves, and what tests/checks were run.
+
+Runtime-qa action:
+
+- Confirmed broker dashboard route is available at `http://127.0.0.1:8765/api/dashboard`.
+- Rebroadcast `USER_CODE_CHANGE_PRINCIPLES_REBROADCAST_2026_06_02` via broker.
+- Broadcast `GATE_PASS wave4 api cli projection split / KERNEL_REFACTOR_GATE4_PASS` and opened Wave5 frontend convergence validation.
+
+## 2026-06-02T15:44:29+08:00 Post-Acceptance GitHub Push Instruction
+
+Source: Agent Bus user broadcast.
+
+User feedback:
+
+> After passing the acceptance, please push to GitHub. The external review will then decide whether any modifications are needed, the next construction plan, and so on. After passing the acceptance, keep listening to the Agent bus and wait for further instructions.
+
+Runtime-qa interpretation:
+
+- This is post-final-acceptance publication guidance, not an instruction to push before remaining Wave6/final validation.
+- After Wave6/final acceptance passes, runtime-qa should coordinate the GitHub push and then continue listening on Agent Bus.
+
+## 2026-06-02T15:44:33+08:00 Bus Feedback From User
+
+User feedback: After passing the acceptance, please push to GitHub. The external review will then decide whether any modifications are needed, the next construction plan, and so on. After passing the acceptance, keep listening to the Agent bus and wait for further instructions.
+
+Helper1 interpretation: observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.
+
+Forwarding log:
+
+- Runtime-helper-2 sent `USER_FEEDBACK_POST_ACCEPTANCE_GITHUB_PUSH` to `runtime-qa`, `runtime-worker-5`, and `runtime-worker-7` via broker at 2026-06-02T15:44:45+08:00.
+- Helper2 interpretation: this is post-acceptance process guidance. After acceptance passes, publish to GitHub; external review will decide follow-up modifications and next construction plan; after acceptance, agents should keep listening on Agent Bus for further instructions. No immediate helper2 product-code scope is opened.

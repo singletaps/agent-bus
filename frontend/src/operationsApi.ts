@@ -54,6 +54,8 @@ export type EventRow = {
   affectedAgents: string[];
   runId: string;
   taskId: string;
+  projectionEffect: string;
+  fencingResult: string;
 };
 
 export type ReplacementRow = {
@@ -161,7 +163,7 @@ export type UiActiveRunProjection = {
 
 export type UiMetroNode = {
   id: string;
-  kind: "start" | "task" | "gate" | "artifact" | string;
+  kind: "start" | "task" | "context" | "claim" | "gate" | "artifact" | "replacement" | "terminal" | string;
   title: string;
   subtitle: string;
   state: string;
@@ -170,6 +172,9 @@ export type UiMetroNode = {
   taskId: string;
   gateId: string;
   artifactId: string;
+  contextPacketId: string;
+  claimId: string;
+  recommendationId: string;
   agentId: string;
   route: ViewName;
   priority: number;
@@ -179,8 +184,19 @@ export type UiMetroEdge = {
   id: string;
   source: string;
   target: string;
-  kind: "main" | "gate" | "artifact" | string;
+  kind: "main" | "context" | "claim" | "gate" | "artifact" | "replacement" | "terminal" | string;
   tone: UiTone;
+  taskId: string;
+};
+
+export type UiWorkflowDiagnostic = {
+  kind: string;
+  title: string;
+  detail: string;
+  tone: UiTone;
+  eventId: string;
+  runId: string;
+  taskId: string;
 };
 
 export type UiMetroProjection = {
@@ -189,6 +205,31 @@ export type UiMetroProjection = {
   mainPathNodeIds: string[];
   currentNodeId: string;
   branchGroups: Record<string, string[]>;
+  taskIds: string[];
+  diagnostics: UiWorkflowDiagnostic[];
+};
+
+export type UiTaskWorkflowProjection = UiMetroProjection;
+
+export type UiDiagnosticRecord = {
+  kind: string;
+  title: string;
+  detail: string;
+  tone: UiTone;
+  effect: string;
+  fencingResult: string;
+  eventId: string;
+  attemptedEventId: string;
+  runId: string;
+  taskId: string;
+  createdAt: string;
+};
+
+export type UiDiagnosticsProjection = {
+  projectionEffects: UiDiagnosticRecord[];
+  fencingRejects: UiDiagnosticRecord[];
+  protocolViolations: UiDiagnosticRecord[];
+  deprecatedAdapterEvents: UiDiagnosticRecord[];
 };
 
 export type UiActionItem = {
@@ -248,11 +289,13 @@ export type UiArtifactSummary = {
 
 export type UiOperationsProjection = {
   activeRun: UiActiveRunProjection;
-  metro: UiMetroProjection;
+  taskWorkflow: UiTaskWorkflowProjection;
+  metro: UiTaskWorkflowProjection;
   actionItems: UiActionItem[];
   agentSummaries: UiAgentSummary[];
   gateDecisions: UiGateDecision[];
   artifactSummary: UiArtifactSummary;
+  diagnostics: UiDiagnosticsProjection;
 };
 
 export type OperationsMetrics = {
@@ -304,6 +347,7 @@ export function emptyOperationsProjection(): OperationsProjection {
 }
 
 export function emptyUiProjection(): UiOperationsProjection {
+  const emptyWorkflow = emptyUiTaskWorkflow();
   return {
     activeRun: {
       runId: "",
@@ -314,13 +358,8 @@ export function emptyUiProjection(): UiOperationsProjection {
       updatedAt: "",
       progress: {},
     },
-    metro: {
-      nodes: [],
-      edges: [],
-      mainPathNodeIds: [],
-      currentNodeId: "",
-      branchGroups: {},
-    },
+    taskWorkflow: emptyWorkflow,
+    metro: emptyUiTaskWorkflow(),
     actionItems: [],
     agentSummaries: [],
     gateDecisions: [],
@@ -332,6 +371,24 @@ export function emptyUiProjection(): UiOperationsProjection {
       latestUri: "",
       latestCreatedAt: "",
     },
+    diagnostics: {
+      projectionEffects: [],
+      fencingRejects: [],
+      protocolViolations: [],
+      deprecatedAdapterEvents: [],
+    },
+  };
+}
+
+function emptyUiTaskWorkflow(): UiTaskWorkflowProjection {
+  return {
+    nodes: [],
+    edges: [],
+    mainPathNodeIds: [],
+    currentNodeId: "",
+    branchGroups: {},
+    taskIds: [],
+    diagnostics: [],
   };
 }
 
@@ -646,7 +703,13 @@ function normalizeEvent(event: UnknownRecord): EventRow {
       "runtime",
     type,
     text,
-    tone: deriveTone(type, text, pickString(event, ["state", "status"])),
+    tone: deriveTone(
+      type,
+      text,
+      pickString(event, ["state", "status"]) ||
+        pickString(event, ["projection_effect", "projectionEffect"]) ||
+        pickString(event, ["fencing_result", "fencingResult"]),
+    ),
     affectedAgents: toStringArray(
       firstValue(event, [
         "affected_agents",
@@ -668,6 +731,14 @@ function normalizeEvent(event: UnknownRecord): EventRow {
     taskId:
       pickString(event, ["task_id", "taskId"]) ||
       pickString(payload, ["task_id", "taskId"]) ||
+      "",
+    projectionEffect:
+      pickString(event, ["projection_effect", "projectionEffect"]) ||
+      pickString(payload, ["projection_effect", "projectionEffect"]) ||
+      "",
+    fencingResult:
+      pickString(event, ["fencing_result", "fencingResult"]) ||
+      pickString(payload, ["fencing_result", "fencingResult"]) ||
       "",
   };
 }
@@ -848,9 +919,13 @@ function normalizeUiProjection(ui: UnknownRecord): UiOperationsProjection {
   if (!Object.keys(ui).length) {
     return emptyUiProjection();
   }
+  const taskWorkflow = normalizeUiTaskWorkflow(
+    firstRecord(ui.task_workflow, ui.taskWorkflow, ui.metro),
+  );
   return {
     activeRun: normalizeUiActiveRun(firstRecord(ui.active_run, ui.activeRun)),
-    metro: normalizeUiMetro(firstRecord(ui.metro)),
+    taskWorkflow,
+    metro: normalizeUiTaskWorkflow(firstRecord(ui.metro, ui.task_workflow, ui.taskWorkflow)),
     actionItems: toArray(firstValue(ui, ["action_items", "actionItems"])).map(
       normalizeUiActionItem,
     ),
@@ -862,6 +937,9 @@ function normalizeUiProjection(ui: UnknownRecord): UiOperationsProjection {
     ).map(normalizeUiGateDecision),
     artifactSummary: normalizeUiArtifactSummary(
       firstRecord(ui.artifact_summary, ui.artifactSummary),
+    ),
+    diagnostics: normalizeUiDiagnostics(
+      firstRecord(ui.diagnostics, ui.diagnostic_summary, ui.diagnosticSummary),
     ),
   };
 }
@@ -879,6 +957,10 @@ function normalizeUiActiveRun(run: UnknownRecord): UiActiveRunProjection {
 }
 
 function normalizeUiMetro(metro: UnknownRecord): UiMetroProjection {
+  return normalizeUiTaskWorkflow(metro);
+}
+
+function normalizeUiTaskWorkflow(metro: UnknownRecord): UiTaskWorkflowProjection {
   const branchRecord = firstRecord(
     firstValue(metro, ["branch_groups", "branchGroups"]),
   );
@@ -896,6 +978,8 @@ function normalizeUiMetro(metro: UnknownRecord): UiMetroProjection {
         toStringArray(value),
       ]),
     ),
+    taskIds: toStringArray(firstValue(metro, ["task_ids", "taskIds"])),
+    diagnostics: toArray(metro.diagnostics).map(normalizeUiWorkflowDiagnostic),
   };
 }
 
@@ -911,6 +995,11 @@ function normalizeUiMetroNode(node: UnknownRecord): UiMetroNode {
     taskId: pickString(node, ["task_id", "taskId"]) || "",
     gateId: pickString(node, ["gate_id", "gateId"]) || "",
     artifactId: pickString(node, ["artifact_id", "artifactId"]) || "",
+    contextPacketId:
+      pickString(node, ["context_packet_id", "contextPacketId"]) || "",
+    claimId: pickString(node, ["claim_id", "claimId"]) || "",
+    recommendationId:
+      pickString(node, ["recommendation_id", "recommendationId"]) || "",
     agentId: pickString(node, ["agent_id", "agentId"]) || "",
     route: normalizeViewName(pickString(node, ["route"])),
     priority: Math.round(pickNumber(node, ["priority"]) ?? 0),
@@ -924,6 +1013,57 @@ function normalizeUiMetroEdge(edge: UnknownRecord): UiMetroEdge {
     target: pickString(edge, ["target"]) || "",
     kind: pickString(edge, ["kind"]) || "main",
     tone: normalizeUiTone(pickString(edge, ["tone"])),
+    taskId: pickString(edge, ["task_id", "taskId"]) || "",
+  };
+}
+
+function normalizeUiWorkflowDiagnostic(item: UnknownRecord): UiWorkflowDiagnostic {
+  return {
+    kind: pickString(item, ["kind"]) || "diagnostic",
+    title: pickString(item, ["title"]) || "诊断",
+    detail: pickString(item, ["detail", "reason"]) || "",
+    tone: normalizeUiTone(pickString(item, ["tone"])),
+    eventId: pickString(item, ["event_id", "eventId"]) || "",
+    runId: pickString(item, ["run_id", "runId"]) || "",
+    taskId: pickString(item, ["task_id", "taskId"]) || "",
+  };
+}
+
+function normalizeUiDiagnostics(diagnostics: UnknownRecord): UiDiagnosticsProjection {
+  return {
+    projectionEffects: toArray(
+      firstValue(diagnostics, ["projection_effects", "projectionEffects"]),
+    ).map(normalizeUiDiagnosticRecord),
+    fencingRejects: toArray(
+      firstValue(diagnostics, ["fencing_rejects", "fencingRejects"]),
+    ).map(normalizeUiDiagnosticRecord),
+    protocolViolations: toArray(
+      firstValue(diagnostics, ["protocol_violations", "protocolViolations"]),
+    ).map(normalizeUiDiagnosticRecord),
+    deprecatedAdapterEvents: toArray(
+      firstValue(diagnostics, [
+        "deprecated_adapter_events",
+        "deprecatedAdapterEvents",
+      ]),
+    ).map(normalizeUiDiagnosticRecord),
+  };
+}
+
+function normalizeUiDiagnosticRecord(item: UnknownRecord): UiDiagnosticRecord {
+  return {
+    kind: pickString(item, ["kind"]) || "diagnostic",
+    title: pickString(item, ["title", "action", "effect"]) || "诊断",
+    detail: pickString(item, ["detail", "reason", "summary"]) || "",
+    tone: normalizeUiTone(pickString(item, ["tone"])),
+    effect: pickString(item, ["effect", "projection_effect", "projectionEffect"]) || "",
+    fencingResult:
+      pickString(item, ["fencing_result", "fencingResult"]) || "",
+    eventId: pickString(item, ["event_id", "eventId"]) || "",
+    attemptedEventId:
+      pickString(item, ["attempted_event_id", "attemptedEventId"]) || "",
+    runId: pickString(item, ["run_id", "runId"]) || "",
+    taskId: pickString(item, ["task_id", "taskId"]) || "",
+    createdAt: pickString(item, ["created_at", "createdAt"]) || "",
   };
 }
 
@@ -1110,7 +1250,11 @@ function deriveTone(type: string, text: string, state?: string): Tone {
     haystack.includes("fail") ||
     haystack.includes("error") ||
     haystack.includes("blocked") ||
-    haystack.includes("invalid")
+    haystack.includes("invalid") ||
+    haystack.includes("reject") ||
+    haystack.includes("wrong_session") ||
+    haystack.includes("stale_epoch") ||
+    haystack.includes("missing")
   ) {
     return "bad";
   }

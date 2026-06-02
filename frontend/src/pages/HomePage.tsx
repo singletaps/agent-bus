@@ -22,7 +22,7 @@ import type {
   Tone,
   UiActionItem,
   UiMetroNode,
-  UiMetroProjection,
+  UiTaskWorkflowProjection,
   UiTone,
   ViewName,
 } from "../operationsApi";
@@ -73,7 +73,7 @@ export function HomePage({
   const progress = activeRun.progress;
   const actionItems = projection.ui.actionItems.slice(0, 5);
   const currentState = activeRun.state || projection.runs[0]?.state || "none";
-  const metro = projection.ui.metro;
+  const taskWorkflow = projection.ui.taskWorkflow;
 
   function openAction(item: UiActionItem) {
     onViewChange(item.route);
@@ -136,9 +136,9 @@ export function HomePage({
         <header className="panelHeader">
           <h3>
             <span className="sectionNumber">2</span>
-            任务流地铁图
+            任务工作流
           </h3>
-          <span>{metro.nodes.length} 个真实节点</span>
+          <span>{taskWorkflow.nodes.length} 个真实节点</span>
         </header>
         <div className="laneSummaryStrip" aria-label="任务状态汇总">
           {laneOrder.map((lane) => (
@@ -149,7 +149,7 @@ export function HomePage({
             </div>
           ))}
         </div>
-        <MetroGraph metro={metro} onNodeSelect={openNode} />
+        <MetroGraph metro={taskWorkflow} onNodeSelect={openNode} />
       </section>
 
       <section className="panel actionQueuePanel">
@@ -182,7 +182,7 @@ export function HomePage({
                 </div>
                 <ActionWorkflowStrip
                   item={item}
-                  metro={metro}
+                  metro={taskWorkflow}
                   onNodeSelect={openNode}
                 />
                 <button
@@ -228,7 +228,7 @@ function ActionWorkflowStrip({
   onNodeSelect,
 }: {
   item: UiActionItem;
-  metro: UiMetroProjection;
+  metro: UiTaskWorkflowProjection;
   onNodeSelect: (node: UiMetroNode) => void;
 }) {
   const steps = workflowStepsForAction(item, metro);
@@ -270,7 +270,7 @@ function ActionWorkflowStrip({
 
 function workflowStepsForAction(
   item: UiActionItem,
-  metro: UiMetroProjection,
+  metro: UiTaskWorkflowProjection,
 ): WorkflowStep[] {
   const nodeById = new Map(metro.nodes.map((node) => [node.id, node]));
   const start = metro.mainPathNodeIds
@@ -323,13 +323,25 @@ function nodeTitle(node: UiMetroNode): string {
   if (node.kind === "start") {
     return "Run";
   }
+  if (node.kind === "context") {
+    return "上下文";
+  }
+  if (node.kind === "claim") {
+    return "声明";
+  }
   if (node.kind === "gate") {
-    return "Gate";
+    return "门禁";
   }
   if (node.kind === "artifact") {
-    return "Artifact";
+    return "产物";
   }
-  return "Task";
+  if (node.kind === "replacement") {
+    return "替换";
+  }
+  if (node.kind === "terminal") {
+    return "终点";
+  }
+  return "任务";
 }
 
 function drawerItemFromAction(item: UiActionItem): ActionDrawerItem | null {

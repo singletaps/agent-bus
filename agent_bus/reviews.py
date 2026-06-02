@@ -5,6 +5,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Iterable
 
+from .authority import actor_role_for_principal, controller_principal
 from .db import connect, initialize_database
 from .inbox import InboxStore
 from .models import (
@@ -15,6 +16,7 @@ from .models import (
     new_id,
     utc_now_iso,
 )
+from .protocol_models import FencingResult, Principal
 from .store import EventStore
 from .tasks import RuntimeRecordError, StateTransitionError, migrate_runtime_schema
 
@@ -27,6 +29,7 @@ class ReviewBoard:
         conn: sqlite3.Connection | None = None,
         event_store: EventStore | None = None,
         inbox_store: InboxStore | None = None,
+        principal: Principal | None = None,
     ) -> None:
         self.db_path = Path(db_path) if db_path is not None else None
         if conn is None:
@@ -39,6 +42,7 @@ class ReviewBoard:
         migrate_runtime_schema(self.conn)
         self.event_store = event_store or EventStore(self.db_path)
         self.inbox_store = inbox_store
+        self.principal = principal or controller_principal("review-board")
 
     def close(self) -> None:
         if self._owns_connection:
@@ -58,6 +62,10 @@ class ReviewBoard:
         finding_id: str | None = None,
         actor: str | None = None,
     ) -> ReviewFinding:
+        if not evidence.strip():
+            raise ValueError("review finding evidence is required")
+        if not requested_change.strip():
+            raise ValueError("review finding requested_change is required")
         now = utc_now_iso()
         finding = ReviewFinding(
             finding_id=finding_id or new_id("finding"),
@@ -116,6 +124,21 @@ class ReviewBoard:
         run_id: str | None = None,
         reviewer_agent_id: str | None = None,
     ) -> list[ReviewFinding]:
+        if reviewer_agent_id is not None and reviewer_agent_id == worker_agent_id:
+            from .protocol import ProtocolKernel
+
+            result = ProtocolKernel(self.db_path, conn=self.conn).reject_action(
+                action=EventType.REVIEW_CHANGES_REQUESTED.value,
+                actor=reviewer_agent_id,
+                actor_role=actor_role_for_principal(self.principal),
+                reason="reviewer cannot request changes on their own work",
+                fencing_result=FencingResult.NOT_REQUIRED,
+                payload={"task_id": task_id, "worker_agent_id": worker_agent_id},
+                run_id=run_id,
+                task_id=task_id,
+                agent_id=worker_agent_id,
+            )
+            raise PermissionError(result.reason or "reviewer cannot request changes on their own work")
         created = [
             self.create_finding(
                 run_id=run_id,
@@ -220,10 +243,18 @@ class ReviewBoard:
         priority: int,
         dedupe_key: str,
     ) -> None:
-        inbox = self.inbox_store or InboxStore(db_path=self.db_path)
+        inbox = self.inbox_store or InboxStore(db_path=self.db_path, principal=self.principal)
         owns_inbox = self.inbox_store is None
         try:
-            inbox.enqueue(agent_id, kind, payload, priority=priority, dedupe_key=dedupe_key)
+            inbox.enqueue(
+                agent_id,
+                kind,
+                payload,
+                priority=priority,
+                dedupe_key=dedupe_key,
+                actor="review-board",
+                principal=self.principal,
+            )
         finally:
             if owns_inbox:
                 inbox.close()
@@ -257,4 +288,3 @@ def _row_to_finding(row: sqlite3.Row) -> ReviewFinding:
         updated_at=row["updated_at"],
         resolved_at=row["resolved_at"],
     )
-

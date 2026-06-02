@@ -3,48 +3,52 @@ from __future__ import annotations
 import pytest
 
 from agent_bus.agents import AgentDirectory
+from agent_bus.authority import controller_principal
 from agent_bus.gates import GateBoard
 from agent_bus.inbox import InboxStore
 from agent_bus.models import AgentRuntimeState, GateState, ReviewFindingStatus, TaskState
 from agent_bus.reviews import ReviewBoard
 from agent_bus.store import EventStore
-from agent_bus.tasks import StateTransitionError, TaskBoard
+from agent_bus.tasks import TaskBoard
 
 
-def test_task_state_machine_completion_returns_agent_to_standby_and_records_events(tmp_path):
+def test_direct_task_completion_is_guarded_and_records_only_non_terminal_progress(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
     directory = AgentDirectory(db_path=db_path)
     directory.register_identity("worker.backend")
     directory.start_session("worker.backend", session_id="session-backend")
-    board = TaskBoard(db_path=db_path, agent_directory=directory)
+    board = TaskBoard(db_path=db_path, agent_directory=directory, principal=controller_principal())
 
     run = board.create_run("Wave B runtime semantics", created_by="controller")
     task = board.create_task("Implement task state machine", run_id=run.run_id, owner_agent_id="controller")
     assigned = board.assign_task(task.task_id, "worker.backend", actor="controller")
     acknowledged = board.acknowledge_task(assigned.task_id, actor="worker.backend")
     working = board.start_task(acknowledged.task_id, actor="worker.backend")
-    completed = board.complete_task(working.task_id, actor="worker.backend")
 
-    assert [state.status for state in [assigned, acknowledged, working, completed]] == [
+    with pytest.raises(PermissionError, match="direct authoritative mutator is forbidden"):
+        board.complete_task(working.task_id, actor="worker.backend")
+
+    guarded = board.get_task(working.task_id)
+    assert [state.status for state in [assigned, acknowledged, working, guarded]] == [
         TaskState.ASSIGNED,
         TaskState.ACKNOWLEDGED,
         TaskState.WORKING,
-        TaskState.COMPLETED,
+        TaskState.WORKING,
     ]
-    assert completed.completed_at is not None
-    assert directory.get_health("session-backend").runtime_state is AgentRuntimeState.STANDBY_READY
+    assert guarded.completed_at is None
+    assert directory.get_health("session-backend").runtime_state is AgentRuntimeState.WORKING
 
     events = EventStore(db_path).query_events(task_id=task.task_id)
     assert [event.type for event in events] == [
         "task.created",
         "task.assigned",
+        "context.created",
         "task.acknowledged",
         "task.progress",
-        "task.completed",
     ]
 
-    with pytest.raises(StateTransitionError):
-        board.block_task(task.task_id, "too late", actor="worker.backend")
+    blocked = board.block_task(task.task_id, "guard leaves non-terminal work blockable", actor="worker.backend")
+    assert blocked.status is TaskState.BLOCKED
 
 
 def test_changes_requested_creates_worker_inbox_item_and_findings_resolve_one_by_one(tmp_path):
@@ -94,9 +98,9 @@ def test_changes_requested_creates_worker_inbox_item_and_findings_resolve_one_by
     assert len(reviews.list_findings(task_id="task-1", status=ReviewFindingStatus.OPEN)) == 1
 
 
-def test_high_risk_gate_escalates_and_enqueues_controller_action_instead_of_auto_approving(tmp_path):
+def test_high_risk_gate_escalates_and_enqueues_controller_action_before_approval(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    gates = GateBoard(db_path=db_path)
+    gates = GateBoard(db_path=db_path, principal=controller_principal())
     gate = gates.create_gate(
         "Replacement approval",
         run_id="run-1",
@@ -122,7 +126,7 @@ def test_high_risk_gate_escalates_and_enqueues_controller_action_instead_of_auto
 
 def test_lease_and_intent_are_coordination_records_not_permission_enforcement(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    board = TaskBoard(db_path=db_path)
+    board = TaskBoard(db_path=db_path, principal=controller_principal())
     task = board.create_task("Write docs", owner_agent_id="controller")
 
     lease = board.record_coordination(
@@ -141,9 +145,10 @@ def test_lease_and_intent_are_coordination_records_not_permission_enforcement(tm
     assigned = board.assign_task(task.task_id, "worker.frontend", actor="controller")
     board.acknowledge_task(assigned.task_id, actor="worker.frontend")
     board.start_task(assigned.task_id, actor="worker.frontend")
-    completed = board.complete_task(assigned.task_id, actor="worker.frontend")
+    with pytest.raises(PermissionError, match="direct authoritative mutator is forbidden"):
+        board.complete_task(assigned.task_id, actor="worker.frontend")
 
-    assert completed.status is TaskState.COMPLETED
+    assert board.get_task(assigned.task_id).status is TaskState.WORKING
     assert [record.record_id for record in board.list_coordination_records(task.task_id)] == [
         lease.record_id,
         intent.record_id,
@@ -152,7 +157,7 @@ def test_lease_and_intent_are_coordination_records_not_permission_enforcement(tm
 
 def test_artifacts_are_durable_and_linked_to_task_events(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    board = TaskBoard(db_path=db_path)
+    board = TaskBoard(db_path=db_path, principal=controller_principal())
     artifact = board.create_artifact(
         "test-log",
         "coordination/test-output.txt",

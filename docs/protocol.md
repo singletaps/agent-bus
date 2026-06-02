@@ -209,3 +209,105 @@ Replacement is recommendation plus approval:
 3. Controller or user approval keeps the original `task_id` stable.
 4. The old session is marked `REPLACED` or degraded.
 5. The replacement receives a rehydration packet and continues the same task.
+
+## Protocol Kernel V2 Authority
+
+Every durable write resolves to an explicit `Principal`. Free-form `actor` strings are descriptive metadata, not authority. The accepted principal types are:
+
+```text
+system
+controller
+user
+agent
+```
+
+Controller and user principals can make control-plane decisions such as gate decisions, task-claim commits, replacement approval, and user interrupts. Agent principals can claim work and submit evidence, but they cannot directly mutate controller-owned task state. Unauthorized writes fail closed with `authority_reject` or `protocol_reject` and record `ProjectionEffect.REJECT` when the protocol path can record it.
+
+Protocol writes carry:
+
+```text
+projection_effect = COMMIT | AUDIT_ONLY | REJECT
+fencing_result = VALID | MISSING | INVALID | STALE_EPOCH | WRONG_SESSION | NOT_REQUIRED
+```
+
+`COMMIT` means the write mutated durable business state. `AUDIT_ONLY` means the event is preserved for audit/diagnostics without mutating the authoritative state. `REJECT` means the requested write was refused.
+
+## Worker Claims And Session Fencing
+
+Worker completion is a claim, not an automatic controller commit. The canonical worker API and CLI are:
+
+```powershell
+Invoke-RestMethod "$Base/api/worker/tasks/<task_id>/complete" -Method Post -Body ($Body | ConvertTo-Json) -ContentType 'application/json'
+python -m agent_bus worker task complete <task_id> --actor <worker_agent_id> --session-id <session_id> --session-epoch <epoch> --context-packet-id <packet_id> --json
+```
+
+When session fencing is missing, stale, or bound to the wrong session, the worker claim stays audit-only. The expected missing-fence result is:
+
+```text
+projection_effect = AUDIT_ONLY
+fencing_result = MISSING
+```
+
+Controller commit is a separate control-plane decision:
+
+```powershell
+Invoke-RestMethod "$Base/api/controller/task-claims/<claim_id>/commit" -Method Post -Body (@{actor='controller'} | ConvertTo-Json) -ContentType 'application/json'
+python -m agent_bus controller task-claim commit <claim_id> --json
+```
+
+This separation preserves the invariant that workers provide evidence and intent while controllers or users decide durable control-plane state.
+
+## Canonical And Legacy Adapters
+
+The canonical HTTP write groups are:
+
+```text
+/api/worker/*
+/api/controller/*
+/api/user/*
+/api/projections/*
+```
+
+The canonical CLI groups mirror those roles:
+
+```powershell
+python -m agent_bus worker ...
+python -m agent_bus controller ...
+python -m agent_bus user ...
+python -m agent_bus protocol events --type adapter.deprecated_path_used --json
+```
+
+Legacy mixed routes and CLI aliases remain compatibility adapters. They must emit `adapter.deprecated_path_used` audit events and must not bypass authority, fencing, or protocol enforcement. A compatibility adapter can be convenient for old consumers, but the canonical role-scoped path is the contract new agents should use.
+
+## Replacement Event Chain
+
+Replacement uses correlated protocol events rather than one opaque reassignment:
+
+```text
+replacement.recommended
+replacement.approval_requested
+replacement.approved
+replacement.reassignment_committed
+```
+
+The original `task_id` is preserved. The replacement path creates a `REHYDRATION` context packet for the replacement session, invalidates only the old task + old agent + old session active binding, and marks the old session fence inactive/replaced. Existing adapters may still expose `task.reassigned` as a compatibility projection, but `replacement.reassignment_committed` is the root replacement commit event.
+
+## UI Projections And Diagnostics
+
+Operations projections separate task workflow from compatibility metro:
+
+- `ui.task_workflow` is the task-scoped workflow projection. It can include context, claim, gate, artifact, replacement, terminal, start, and task nodes.
+- `ui.metro` is a legacy compatibility projection for old run/task/gate/artifact consumers. It preserves the old gate/artifact branch semantics.
+- Cross-task workflow edges are rejected or dropped and surfaced as diagnostics instead of silently connecting unrelated tasks.
+- Taskless or global events belong in timeline, communication, or diagnostics views, not in a task workflow unless an explicit task binding exists.
+
+Diagnostics expose real protocol records:
+
+```text
+projection_effects
+fencing_rejects
+protocol_violations
+deprecated_adapter_events
+```
+
+Raw replay remains an audit and diagnostics tool. Normal agents should work from inbox items and context packets, not from raw replay.

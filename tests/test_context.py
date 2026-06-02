@@ -4,6 +4,7 @@ import sqlite3
 
 import pytest
 
+from agent_bus.authority import controller_principal, user_principal
 from agent_bus.context import (
     ACTIVE,
     INVALIDATED,
@@ -44,7 +45,7 @@ def test_migrate_creates_context_packets_table(tmp_path):
 
 
 def test_create_and_get_packet_round_trips_structured_context(tmp_path):
-    store = ContextStore(tmp_path / "agent-bus.sqlite3")
+    store = ContextStore(tmp_path / "agent-bus.sqlite3", principal=controller_principal())
 
     packet = store.create_packet(
         agent_id="runtime-worker-1",
@@ -54,7 +55,7 @@ def test_create_and_get_packet_round_trips_structured_context(tmp_path):
         instructions={"next": "implement tests", "constraints": ["minimal actionable context"]},
         artifact_refs=["README.md"],
         created_from_event_id="evt-source",
-        actor="runtime-worker-1",
+        actor="controller",
     )
     loaded = store.get_packet(packet.packet_id)
     events = EventStore(store.db_path).query_events(event_type="context.created")
@@ -67,7 +68,7 @@ def test_create_and_get_packet_round_trips_structured_context(tmp_path):
 
 
 def test_invalidate_packet_returns_structured_invalidated_error(tmp_path):
-    store = ContextStore(tmp_path / "agent-bus.sqlite3")
+    store = ContextStore(tmp_path / "agent-bus.sqlite3", principal=user_principal())
     packet = store.create_packet(agent_id="worker", summary="old context")
 
     invalidated = store.invalidate_packet(
@@ -90,7 +91,7 @@ def test_invalidate_packet_returns_structured_invalidated_error(tmp_path):
 
 
 def test_supersede_packet_links_old_and_replacement(tmp_path):
-    store = ContextStore(tmp_path / "agent-bus.sqlite3")
+    store = ContextStore(tmp_path / "agent-bus.sqlite3", principal=controller_principal())
     old = store.create_packet(
         agent_id="worker",
         task_id="task-1",
@@ -116,11 +117,12 @@ def test_supersede_packet_links_old_and_replacement(tmp_path):
 
 def test_rehydration_packet_contains_required_actionable_fields(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    inbox = InboxStore(db_path=db_path)
-    item = inbox.enqueue("replacement-worker", "task_assigned", {"task_id": "task-1"})
+    controller = controller_principal()
+    inbox = InboxStore(db_path=db_path, principal=controller)
+    item = inbox.enqueue("replacement-worker", "task_assigned", {"task_id": "task-1"}, actor="controller")
     inbox.close()
 
-    store = ContextStore(db_path)
+    store = ContextStore(db_path, principal=controller)
     packet = store.create_rehydration_packet(
         agent_id="replacement-worker",
         task_id="task-1",
@@ -149,15 +151,17 @@ def test_rehydration_packet_contains_required_actionable_fields(tmp_path):
 
 def test_wait_item_can_reference_context_packet(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    context = ContextStore(db_path)
-    packet = context.create_packet(agent_id="worker", summary="Use this packet")
-    inbox = InboxStore(db_path=db_path)
+    controller = controller_principal()
+    context = ContextStore(db_path, principal=controller)
+    packet = context.create_packet(agent_id="worker", summary="Use this packet", actor="controller")
+    inbox = InboxStore(db_path=db_path, principal=controller)
 
     item = inbox.enqueue(
         "worker",
         "task_assigned",
         {"task_id": "task-1"},
         context_packet_id=packet.packet_id,
+        actor="controller",
     )
     delivered = inbox.wait("worker", timeout=0.01)
 
@@ -168,7 +172,7 @@ def test_wait_item_can_reference_context_packet(tmp_path):
 
 
 def test_list_active_packets_and_invalidate_agent_contexts_for_router_hooks(tmp_path):
-    store = ContextStore(tmp_path / "agent-bus.sqlite3")
+    store = ContextStore(tmp_path / "agent-bus.sqlite3", principal=controller_principal())
     first = store.create_packet(agent_id="worker", task_id="task-1", run_id="run-1", summary="first")
     second = store.create_packet(agent_id="worker", task_id="task-2", run_id="run-1", summary="second")
     store.create_packet(agent_id="other", task_id="task-1", run_id="run-1", summary="other")
@@ -191,7 +195,7 @@ def test_list_active_packets_and_invalidate_agent_contexts_for_router_hooks(tmp_
 
 
 def test_rehydration_packet_without_inbox_table_uses_empty_open_items(tmp_path):
-    store = ContextStore(tmp_path / "agent-bus.sqlite3")
+    store = ContextStore(tmp_path / "agent-bus.sqlite3", principal=controller_principal())
 
     packet = store.create_rehydration_packet(
         agent_id="worker",
@@ -206,8 +210,9 @@ def test_rehydration_packet_without_inbox_table_uses_empty_open_items(tmp_path):
 
 def test_user_interrupt_invalidates_affected_context_packets_only(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    context = ContextStore(db_path)
-    inbox = InboxStore(db_path)
+    principal = user_principal()
+    context = ContextStore(db_path, principal=principal)
+    inbox = InboxStore(db_path, principal=principal)
     affected = context.create_packet(
         agent_id="worker.owner",
         task_id="task-1",

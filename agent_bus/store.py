@@ -7,6 +7,7 @@ from typing import Iterable
 
 from .db import connect, initialize_database
 from .models import BusEvent
+from .protocol_models import FencingResult, ProjectionEffect
 
 
 class EventStore:
@@ -17,15 +18,19 @@ class EventStore:
     def append_event(self, event: BusEvent) -> BusEvent:
         payload_json = json.dumps(event.payload, sort_keys=True, separators=(",", ":"))
         event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
+        projection_effect = _enum_value(event.projection_effect)
+        fencing_result = _enum_value(event.fencing_result)
 
         with connect(self.db_path) as conn:
             cursor = conn.execute(
                 """
                 insert into event_log (
                     event_id, type, ts, actor, run_id, task_id, agent_id,
-                    correlation_id, causation_id, payload_json
+                    actor_role, session_id, session_epoch, context_packet_id, gate_id,
+                    artifact_id, correlation_id, causation_id, projection_effect,
+                    fencing_result, payload_json
                 )
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     event.event_id,
@@ -35,14 +40,29 @@ class EventStore:
                     event.run_id,
                     event.task_id,
                     event.agent_id,
+                    event.actor_role,
+                    event.session_id,
+                    event.session_epoch,
+                    event.context_packet_id,
+                    event.gate_id,
+                    event.artifact_id,
                     event.correlation_id,
                     event.causation_id,
+                    projection_effect,
+                    fencing_result,
                     payload_json,
                 ),
             )
             seq = int(cursor.lastrowid)
 
-        return event.model_copy(update={"seq": seq, "type": event_type})
+        return event.model_copy(
+            update={
+                "seq": seq,
+                "type": event_type,
+                "projection_effect": projection_effect,
+                "fencing_result": fencing_result,
+            }
+        )
 
     def get_event(self, event_id: str) -> BusEvent | None:
         with connect(self.db_path) as conn:
@@ -125,17 +145,47 @@ def replay_all(db_path: str | Path | None = None) -> list[BusEvent]:
 
 
 def _row_to_event(row: sqlite3.Row) -> BusEvent:
+    columns = set(row.keys())
+
+    def value(column: str) -> object | None:
+        return row[column] if column in columns else None
+
     return BusEvent(
         seq=row["seq"],
         event_id=row["event_id"],
         type=row["type"],
         ts=row["ts"],
         actor=row["actor"],
+        actor_role=value("actor_role"),
         run_id=row["run_id"],
         task_id=row["task_id"],
         agent_id=row["agent_id"],
+        session_id=value("session_id"),
+        session_epoch=value("session_epoch"),
+        context_packet_id=value("context_packet_id"),
+        gate_id=value("gate_id"),
+        artifact_id=value("artifact_id"),
         correlation_id=row["correlation_id"],
         causation_id=row["causation_id"],
+        projection_effect=_parse_enum(value("projection_effect"), ProjectionEffect),
+        fencing_result=_parse_enum(value("fencing_result"), FencingResult),
         payload=json.loads(row["payload_json"]),
     )
+
+
+def _enum_value(value: object | None) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "value"):
+        return str(value.value)
+    return str(value)
+
+
+def _parse_enum(value: object | None, enum_type: type[ProjectionEffect] | type[FencingResult]) -> object | None:
+    if value is None:
+        return None
+    try:
+        return enum_type(str(value))
+    except ValueError:
+        return str(value)
 

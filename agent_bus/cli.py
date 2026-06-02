@@ -4,6 +4,7 @@ import argparse
 import dataclasses
 import json
 import os
+import sqlite3
 import sys
 from enum import Enum
 from pathlib import Path
@@ -163,6 +164,82 @@ def build_parser() -> argparse.ArgumentParser:
     _add_db(task_fail)
     _add_json(task_fail)
 
+    worker_parser = subparsers.add_parser("worker", help="worker-scoped runtime commands")
+    worker_subparsers = worker_parser.add_subparsers(
+        dest="worker_command",
+        metavar="WORKER_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    worker_task = worker_subparsers.add_parser("task", help="worker task claims")
+    worker_task_subparsers = worker_task.add_subparsers(
+        dest="worker_task_command",
+        metavar="WORKER_TASK_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    worker_task_complete = worker_task_subparsers.add_parser("complete", help="claim task completion")
+    worker_task_complete.add_argument("task_id")
+    worker_task_complete.add_argument("--actor", required=True, help="worker agent id")
+    worker_task_complete.add_argument("--session-id")
+    worker_task_complete.add_argument("--session-epoch", type=int)
+    worker_task_complete.add_argument("--context-packet-id")
+    _add_db(worker_task_complete)
+    _add_json(worker_task_complete)
+
+    controller_parser = subparsers.add_parser("controller", help="controller-scoped commands")
+    controller_subparsers = controller_parser.add_subparsers(
+        dest="controller_command",
+        metavar="CONTROLLER_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    controller_gate = controller_subparsers.add_parser("gate", help="controller gate decisions")
+    controller_gate_subparsers = controller_gate.add_subparsers(
+        dest="controller_gate_command",
+        metavar="CONTROLLER_GATE_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    for command_name in ("approve", "reject", "escalate"):
+        controller_gate_action = controller_gate_subparsers.add_parser(command_name, help=f"{command_name} a gate")
+        controller_gate_action.add_argument("gate_id")
+        controller_gate_action.add_argument("--reason")
+        if command_name == "approve":
+            controller_gate_action.add_argument("--allow-high-risk", action="store_true")
+            controller_gate_action.add_argument("--action-agent", default="controller")
+            controller_gate_action.add_argument("--evidence-artifact-id", action="append", default=[])
+        _add_db(controller_gate_action)
+        _add_json(controller_gate_action)
+    controller_claim = controller_subparsers.add_parser("task-claim", help="controller task claim decisions")
+    controller_claim_subparsers = controller_claim.add_subparsers(
+        dest="controller_claim_command",
+        metavar="CONTROLLER_CLAIM_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    controller_claim_commit = controller_claim_subparsers.add_parser("commit", help="commit a worker task claim")
+    controller_claim_commit.add_argument("claim_id")
+    _add_db(controller_claim_commit)
+    _add_json(controller_claim_commit)
+
+    user_parser = subparsers.add_parser("user", help="user-scoped commands")
+    user_subparsers = user_parser.add_subparsers(
+        dest="user_command",
+        metavar="USER_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    user_interrupt = user_subparsers.add_parser("interrupt", help="user interrupts")
+    user_interrupt_subparsers = user_interrupt.add_subparsers(
+        dest="user_interrupt_command",
+        metavar="USER_INTERRUPT_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    user_interrupt_create = user_interrupt_subparsers.add_parser("create", help="create and route a user interrupt")
+    _add_interrupt_create_arguments(user_interrupt_create)
+
     review_parser = subparsers.add_parser("review", help="request and submit code review findings")
     _add_json(review_parser)
     review_subparsers = review_parser.add_subparsers(
@@ -212,6 +289,9 @@ def build_parser() -> argparse.ArgumentParser:
     gate_create.add_argument("--owner")
     gate_create.add_argument("--requested-by")
     gate_create.add_argument("--risk", default="normal")
+    gate_create.add_argument("--gate-kind", default="approval")
+    gate_create.add_argument("--checklist", action="append", default=[])
+    gate_create.add_argument("--required-evidence", action="append", default=[])
     _add_db(gate_create)
     _add_json(gate_create)
     for command_name in ("approve", "reject", "escalate"):
@@ -219,9 +299,15 @@ def build_parser() -> argparse.ArgumentParser:
         gate_action.add_argument("gate_id")
         gate_action.add_argument("--actor", default="controller")
         gate_action.add_argument("--reason")
+        gate_action.add_argument("--as-controller", action="store_true")
         if command_name == "approve":
             gate_action.add_argument("--allow-high-risk", action="store_true")
             gate_action.add_argument("--action-agent", default="controller")
+            gate_action.add_argument("--evidence-artifact-id", action="append", default=[])
+        gate_action.set_defaults(
+            deprecated_adapter_path=f"cli.gate.{command_name}",
+            deprecated_adapter_replacement=f"cli.controller.gate.{command_name}",
+        )
         _add_db(gate_action)
         _add_json(gate_action)
 
@@ -233,22 +319,11 @@ def build_parser() -> argparse.ArgumentParser:
         parser_class=AgentBusArgumentParser,
     )
     interrupt_create = interrupt_subparsers.add_parser("create", help="create and route an interrupt")
-    interrupt_create.add_argument("--actor", default="user")
-    interrupt_create.add_argument("--text", default="")
-    interrupt_create.add_argument("--run-id")
-    interrupt_create.add_argument("--task-id")
-    interrupt_create.add_argument("--controller", default="controller")
-    interrupt_create.add_argument("--observer", default="observer")
-    interrupt_create.add_argument("--task-owner")
-    interrupt_create.add_argument("--task-assignee")
-    interrupt_create.add_argument("--helper-agent", action="append", default=[])
-    interrupt_create.add_argument("--qa-agent", default="qa")
-    interrupt_create.add_argument("--gate-owner")
-    interrupt_create.add_argument("--downstream-owner", action="append", default=[])
-    interrupt_create.add_argument("--agent", action="append", default=[], help="additional affected agent")
-    interrupt_create.add_argument("--payload-json", help="additional JSON object payload")
-    _add_db(interrupt_create)
-    _add_json(interrupt_create)
+    _add_interrupt_create_arguments(interrupt_create)
+    interrupt_create.set_defaults(
+        deprecated_adapter_path="cli.interrupt.create",
+        deprecated_adapter_replacement="cli.user.interrupt.create",
+    )
 
     replacement_parser = subparsers.add_parser("replacement", help="approve replacement handoffs")
     _add_json(replacement_parser)
@@ -288,6 +363,19 @@ def build_parser() -> argparse.ArgumentParser:
     artifact_create.add_argument("--metadata-json", help="metadata JSON object, or @path to a JSON object file")
     _add_db(artifact_create)
     _add_json(artifact_create)
+
+    protocol_parser = subparsers.add_parser("protocol", help="inspect protocol/audit events")
+    protocol_subparsers = protocol_parser.add_subparsers(
+        dest="protocol_command",
+        metavar="PROTOCOL_COMMAND",
+        parser_class=AgentBusArgumentParser,
+        required=True,
+    )
+    protocol_events = protocol_subparsers.add_parser("events", help="list protocol events")
+    protocol_events.add_argument("--type")
+    protocol_events.add_argument("--limit", type=int)
+    _add_db(protocol_events)
+    _add_json(protocol_events)
 
     models_parser = subparsers.add_parser("models", help="print model availability diagnostics")
     _add_json(models_parser)
@@ -339,6 +427,12 @@ def _dispatch(args: argparse.Namespace) -> int:
         raise CliUsageError("context requires a subcommand")
     if command == "task":
         return _dispatch_task(args)
+    if command == "worker":
+        return _dispatch_worker(args)
+    if command == "controller":
+        return _dispatch_controller(args)
+    if command == "user":
+        return _dispatch_user(args)
     if command == "review":
         return _dispatch_review(args)
     if command == "gate":
@@ -355,6 +449,10 @@ def _dispatch(args: argparse.Namespace) -> int:
         if args.artifact_command == "create":
             return _handle_artifact_create(args)
         raise CliUsageError("artifact requires a subcommand")
+    if command == "protocol":
+        if args.protocol_command == "events":
+            return _handle_protocol_events(args)
+        raise CliUsageError("protocol requires a subcommand")
     if command == "models":
         return _handle_models(args)
     raise CliUsageError(f"unknown command: {command}")
@@ -372,6 +470,34 @@ def _dispatch_task(args: argparse.Namespace) -> int:
     if args.task_command == "fail":
         return _handle_task_fail(args)
     raise CliUsageError("task requires a subcommand")
+
+
+def _dispatch_worker(args: argparse.Namespace) -> int:
+    if args.worker_command == "task" and args.worker_task_command == "complete":
+        return _handle_worker_task_complete(args)
+    raise CliUsageError("worker requires a subcommand")
+
+
+def _dispatch_controller(args: argparse.Namespace) -> int:
+    if args.controller_command == "gate":
+        if args.controller_gate_command == "approve":
+            args.actor = "controller"
+            return _handle_gate_approve(args)
+        if args.controller_gate_command == "reject":
+            args.actor = "controller"
+            return _handle_gate_reject(args)
+        if args.controller_gate_command == "escalate":
+            args.actor = "controller"
+            return _handle_gate_escalate(args)
+    if args.controller_command == "task-claim" and args.controller_claim_command == "commit":
+        return _handle_controller_task_claim_commit(args)
+    raise CliUsageError("controller requires a subcommand")
+
+
+def _dispatch_user(args: argparse.Namespace) -> int:
+    if args.user_command == "interrupt" and args.user_interrupt_command == "create":
+        return _handle_interrupt_create(args)
+    raise CliUsageError("user requires a subcommand")
 
 
 def _dispatch_review(args: argparse.Namespace) -> int:
@@ -433,15 +559,17 @@ def _handle_serve(args: argparse.Namespace) -> int:
 def _handle_seed(args: argparse.Namespace) -> int:
     db_path = _ensure_operational_schema(args.db, reset=args.reset)
     from .agents import AgentDirectory
+    from .authority import system_principal
     from .context import ContextStore
     from .gates import GateBoard
     from .inbox import InboxStore
     from .tasks import TaskBoard
 
     directory = AgentDirectory(db_path=db_path)
-    board = TaskBoard(db_path=db_path, agent_directory=directory)
-    context = ContextStore(db_path)
-    inbox = InboxStore(db_path)
+    principal = system_principal("cli-seed")
+    board = TaskBoard(db_path=db_path, agent_directory=directory, principal=principal)
+    context = ContextStore(db_path, principal=principal)
+    inbox = InboxStore(db_path, principal=principal)
     gates = GateBoard(db_path=db_path)
     try:
         sessions = {}
@@ -663,9 +791,10 @@ def _handle_context_get(args: argparse.Namespace) -> int:
 
 
 def _handle_task_create(args: argparse.Namespace) -> int:
+    from .authority import controller_principal
     from .tasks import TaskBoard
 
-    board = TaskBoard(db_path=args.db)
+    board = TaskBoard(db_path=args.db, principal=controller_principal("cli-controller"))
     try:
         run = None
         run_id = args.run_id
@@ -687,9 +816,10 @@ def _handle_task_create(args: argparse.Namespace) -> int:
 
 
 def _handle_task_ack(args: argparse.Namespace) -> int:
+    from .authority import controller_principal
     from .tasks import TaskBoard
 
-    board = TaskBoard(db_path=args.db)
+    board = TaskBoard(db_path=args.db, principal=controller_principal("cli-controller"))
     try:
         task = board.acknowledge_task(args.task_id, actor=args.actor)
         _emit({"ok": True, "task": task}, as_json=_as_json(args))
@@ -699,9 +829,10 @@ def _handle_task_ack(args: argparse.Namespace) -> int:
 
 
 def _handle_task_progress(args: argparse.Namespace) -> int:
+    from .authority import controller_principal
     from .tasks import TaskBoard
 
-    board = TaskBoard(db_path=args.db)
+    board = TaskBoard(db_path=args.db, principal=controller_principal("cli-controller"))
     try:
         task = board.start_task(args.task_id, actor=args.actor)
         _emit({"ok": True, "task": task}, as_json=_as_json(args))
@@ -711,12 +842,42 @@ def _handle_task_progress(args: argparse.Namespace) -> int:
 
 
 def _handle_task_complete(args: argparse.Namespace) -> int:
+    payload = _task_completion_claim_payload(args.db, args.task_id, actor=args.actor)
+    payload["deprecated_adapter"] = _record_deprecated_adapter_use(
+        args.db,
+        path="cli.task.complete",
+        replacement="cli.worker.task.complete",
+        actor=args.actor,
+    )
+    _emit(payload, as_json=_as_json(args))
+    return EXIT_OK
+
+
+def _handle_worker_task_complete(args: argparse.Namespace) -> int:
+    _assert_cli_worker_actor(args.actor)
+    _emit(
+        _task_completion_claim_payload(
+            args.db,
+            args.task_id,
+            actor=args.actor,
+            session_id=args.session_id,
+            session_epoch=args.session_epoch,
+            context_packet_id=args.context_packet_id,
+        ),
+        as_json=_as_json(args),
+    )
+    return EXIT_OK
+
+
+def _handle_controller_task_claim_commit(args: argparse.Namespace) -> int:
+    from .authority import controller_principal
     from .tasks import TaskBoard
 
-    board = TaskBoard(db_path=args.db)
+    principal = controller_principal("cli-controller")
+    board = TaskBoard(db_path=args.db, principal=principal)
     try:
-        task = board.complete_task(args.task_id, actor=args.actor)
-        _emit({"ok": True, "task": task}, as_json=_as_json(args))
+        task = board.commit_task_claim(args.claim_id, actor="controller", principal=principal)
+        _emit({"ok": True, "task": task, "claim": _task_claim_snapshot(args.db, args.claim_id)}, as_json=_as_json(args))
         return EXIT_OK
     finally:
         board.close()
@@ -735,9 +896,10 @@ def _handle_task_fail(args: argparse.Namespace) -> int:
 
 
 def _handle_review_request(args: argparse.Namespace) -> int:
+    from .authority import controller_principal
     from .inbox import InboxStore
 
-    inbox = InboxStore(args.db)
+    inbox = InboxStore(args.db, principal=controller_principal("cli-controller"))
     try:
         payload = {
             "task_id": args.task_id,
@@ -753,6 +915,7 @@ def _handle_review_request(args: argparse.Namespace) -> int:
             priority=args.priority,
             context_packet_id=args.context_packet_id,
             dedupe_key=f"review_requested:{args.task_id}:{args.reviewer}",
+            actor=args.requester,
         )
         _emit({"ok": True, "item": item}, as_json=_as_json(args))
         return EXIT_OK
@@ -792,9 +955,10 @@ def _handle_review_resolve(args: argparse.Namespace) -> int:
 
 
 def _handle_gate_create(args: argparse.Namespace) -> int:
+    from .authority import controller_principal
     from .gates import GateBoard
 
-    gates = GateBoard(db_path=args.db)
+    gates = GateBoard(db_path=args.db, principal=controller_principal("cli-controller"))
     try:
         gate = gates.create_gate(
             args.name,
@@ -803,8 +967,15 @@ def _handle_gate_create(args: argparse.Namespace) -> int:
             owner_agent_id=args.owner,
             requested_by=args.requested_by,
             risk=args.risk,
+            gate_kind=args.gate_kind,
+            checklist=args.checklist,
+            required_evidence=args.required_evidence,
         )
-        _emit({"ok": True, "gate": gate}, as_json=_as_json(args))
+        output: dict[str, Any] = {"ok": True, "gate": gate}
+        deprecated = _deprecated_adapter_from_args(args)
+        if deprecated is not None:
+            output["deprecated_adapter"] = deprecated
+        _emit(output, as_json=_as_json(args))
         return EXIT_OK
     finally:
         gates.close()
@@ -813,7 +984,8 @@ def _handle_gate_create(args: argparse.Namespace) -> int:
 def _handle_gate_approve(args: argparse.Namespace) -> int:
     from .gates import GateBoard
 
-    gates = GateBoard(db_path=args.db)
+    principal = _control_principal_for_actor(args.actor, source="cli")
+    gates = GateBoard(db_path=args.db, principal=principal)
     try:
         gate = gates.approve_gate(
             args.gate_id,
@@ -821,9 +993,27 @@ def _handle_gate_approve(args: argparse.Namespace) -> int:
             reason=args.reason,
             allow_high_risk=args.allow_high_risk,
             action_agent_id=args.action_agent,
+            evidence_artifact_ids=args.evidence_artifact_id,
+            principal=principal,
         )
         _emit({"ok": True, "gate": gate}, as_json=_as_json(args))
         return EXIT_OK
+    except PermissionError as exc:
+        raise CliError(
+            str(exc),
+            payload=_protocol_reject_payload(args.db, action="gate.approved"),
+        ) from exc
+    except sqlite3.IntegrityError as exc:
+        if "ProtocolKernel UnitOfWork" not in str(exc):
+            raise
+        raise CliError(
+            "direct gate approval requires ProtocolKernel UnitOfWork",
+            payload={
+                "error": "protocol_guard",
+                "gate_id": args.gate_id,
+                "projection_effect": "REJECT",
+            },
+        ) from exc
     finally:
         gates.close()
 
@@ -831,11 +1021,21 @@ def _handle_gate_approve(args: argparse.Namespace) -> int:
 def _handle_gate_reject(args: argparse.Namespace) -> int:
     from .gates import GateBoard
 
-    gates = GateBoard(db_path=args.db)
+    principal = _control_principal_for_actor(args.actor, source="cli")
+    gates = GateBoard(db_path=args.db, principal=principal)
     try:
-        gate = gates.reject_gate(args.gate_id, actor=args.actor, reason=args.reason)
-        _emit({"ok": True, "gate": gate}, as_json=_as_json(args))
+        gate = gates.reject_gate(args.gate_id, actor=args.actor, reason=args.reason, principal=principal)
+        output: dict[str, Any] = {"ok": True, "gate": gate}
+        deprecated = _deprecated_adapter_from_args(args)
+        if deprecated is not None:
+            output["deprecated_adapter"] = deprecated
+        _emit(output, as_json=_as_json(args))
         return EXIT_OK
+    except PermissionError as exc:
+        raise CliError(
+            str(exc),
+            payload=_protocol_reject_payload(args.db, action="gate.rejected"),
+        ) from exc
     finally:
         gates.close()
 
@@ -843,22 +1043,34 @@ def _handle_gate_reject(args: argparse.Namespace) -> int:
 def _handle_gate_escalate(args: argparse.Namespace) -> int:
     from .gates import GateBoard
 
-    gates = GateBoard(db_path=args.db)
+    principal = _control_principal_for_actor(args.actor, source="cli")
+    gates = GateBoard(db_path=args.db, principal=principal)
     try:
-        gate = gates.escalate_gate(args.gate_id, actor=args.actor, reason=args.reason)
-        _emit({"ok": True, "gate": gate}, as_json=_as_json(args))
+        gate = gates.escalate_gate(args.gate_id, actor=args.actor, reason=args.reason, principal=principal)
+        output: dict[str, Any] = {"ok": True, "gate": gate}
+        deprecated = _deprecated_adapter_from_args(args)
+        if deprecated is not None:
+            output["deprecated_adapter"] = deprecated
+        _emit(output, as_json=_as_json(args))
         return EXIT_OK
+    except PermissionError as exc:
+        raise CliError(
+            str(exc),
+            payload=_protocol_reject_payload(args.db, action="gate.escalated"),
+        ) from exc
     finally:
         gates.close()
 
 
 def _handle_interrupt_create(args: argparse.Namespace) -> int:
+    from .authority import user_principal
     from .context import ContextStore
     from .inbox import InboxStore
     from .router import InterruptRoutingTarget, create_user_interrupt
 
-    context = ContextStore(args.db)
-    inbox = InboxStore(args.db)
+    principal = user_principal("cli-user")
+    context = ContextStore(args.db, principal=principal)
+    inbox = InboxStore(args.db, principal=principal)
     try:
         target = InterruptRoutingTarget(
             controller=args.controller,
@@ -882,7 +1094,11 @@ def _handle_interrupt_create(args: argparse.Namespace) -> int:
             inbox_store=inbox,
             context_store=context,
         )
-        _emit({"ok": True, "result": result}, as_json=_as_json(args))
+        output: dict[str, Any] = {"ok": True, "result": result}
+        deprecated = _deprecated_adapter_from_args(args)
+        if deprecated is not None:
+            output["deprecated_adapter"] = deprecated
+        _emit(output, as_json=_as_json(args))
         return EXIT_OK
     finally:
         inbox.close()
@@ -893,6 +1109,7 @@ def _handle_replacement_approve(args: argparse.Namespace) -> int:
     from dataclasses import replace
 
     from .agents import AgentDirectory
+    from .authority import controller_principal
     from .context import ContextStore
     from .inbox import InboxStore
     from .replacement import ReplacementCoordinator, ReplacementRecommendation, ReplacementTrigger
@@ -900,8 +1117,9 @@ def _handle_replacement_approve(args: argparse.Namespace) -> int:
     from .store import EventStore
 
     directory = AgentDirectory(db_path=args.db)
-    context = ContextStore(args.db)
-    inbox = InboxStore(args.db)
+    principal = controller_principal("cli-controller")
+    context = ContextStore(args.db, principal=principal)
+    inbox = InboxStore(args.db, principal=principal)
     coordinator = ReplacementCoordinator(
         directory=directory,
         context_sink=context,
@@ -955,7 +1173,14 @@ def _handle_replacement_approve(args: argparse.Namespace) -> int:
             invalidated_packet_ids=tuple(args.invalidated_packet_id),
         )
         _emit(
-            {"ok": True, "recommendation": recommendation, "approval": approval},
+            {
+                "ok": True,
+                "recommendation": recommendation,
+                "approval": approval,
+                "context_packet_id": approval.context_packet.packet_id,
+                "invalidated_packet_ids": _context_invalidated_packet_ids(approval.context_packet),
+                "event_chain": _replacement_event_chain(args.db, recommendation.recommendation_id),
+            },
             as_json=_as_json(args),
         )
         return EXIT_OK
@@ -966,9 +1191,10 @@ def _handle_replacement_approve(args: argparse.Namespace) -> int:
 
 
 def _handle_artifact_create(args: argparse.Namespace) -> int:
+    from .authority import controller_principal
     from .tasks import TaskBoard
 
-    board = TaskBoard(db_path=args.db)
+    board = TaskBoard(db_path=args.db, principal=controller_principal("cli-controller"))
     try:
         artifact = board.create_artifact(
             args.kind,
@@ -1007,6 +1233,14 @@ def _handle_models(args: argparse.Namespace) -> int:
         _emit({"ok": True, "models": available}, as_json=True)
     else:
         print("\n".join(available))
+    return EXIT_OK
+
+
+def _handle_protocol_events(args: argparse.Namespace) -> int:
+    from .store import EventStore
+
+    events = EventStore(args.db).query_events(event_type=args.type, limit=args.limit)
+    _emit({"ok": True, "events": events}, as_json=_as_json(args))
     return EXIT_OK
 
 
@@ -1049,6 +1283,193 @@ def _select_replacement_candidate(
         "requested replacement candidate is not eligible",
         payload={"candidate_agent": candidate_agent, "candidate_session_id": candidate_session_id},
     )
+
+
+def _task_completion_claim_payload(
+    db_path: str | os.PathLike[str] | None,
+    task_id: str,
+    *,
+    actor: str | None,
+    session_id: str | None = None,
+    session_epoch: int | None = None,
+    context_packet_id: str | None = None,
+) -> dict[str, Any]:
+    from .protocol import ProtocolKernel
+    from .tasks import TaskBoard
+
+    result = ProtocolKernel(db_path).record_task_completion_claim(
+        task_id,
+        actor=actor,
+        agent_id=actor,
+        session_id=session_id,
+        session_epoch=session_epoch,
+        context_packet_id=context_packet_id,
+    )
+    board = TaskBoard(db_path=db_path)
+    try:
+        task = board.get_task(task_id)
+    finally:
+        board.close()
+    return {
+        "ok": True,
+        "task": task,
+        "claim": _task_claim_snapshot(db_path, result.claim_id),
+        "event_id": result.event_id,
+        "projection_effect": result.projection_effect,
+        "fencing_result": result.fencing_result,
+    }
+
+
+def _task_claim_snapshot(db_path: str | os.PathLike[str] | None, claim_id: str | None) -> dict[str, Any]:
+    if not claim_id:
+        return {}
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("select * from task_claims where claim_id = ?", (claim_id,)).fetchone()
+    if row is None:
+        return {}
+    return {
+        "claim_id": row["claim_id"],
+        "claim_kind": row["claim_kind"],
+        "status": row["status"],
+        "task_id": row["task_id"],
+        "run_id": row["run_id"],
+        "agent_id": row["agent_id"],
+        "session_id": row["session_id"],
+        "session_epoch": row["session_epoch"],
+        "context_packet_id": row["context_packet_id"],
+        "created_from_event_id": row["created_from_event_id"],
+        "committed_by_event_id": row["committed_by_event_id"],
+        "payload": json.loads(row["payload_json"] or "{}"),
+    }
+
+
+def _assert_cli_worker_actor(actor: str | None) -> None:
+    normalized = (actor or "").strip().lower()
+    if not normalized or normalized in {"controller", "user"}:
+        raise CliError(
+            "worker actor is required for worker CLI writes",
+            payload={"error": "authority_reject", "actor": actor, "projection_effect": "REJECT"},
+        )
+
+
+def _deprecated_adapter_from_args(args: argparse.Namespace) -> dict[str, Any] | None:
+    path = getattr(args, "deprecated_adapter_path", None)
+    replacement = getattr(args, "deprecated_adapter_replacement", None)
+    if path is None or replacement is None:
+        return None
+    return _record_deprecated_adapter_use(
+        args.db,
+        path=path,
+        replacement=replacement,
+        actor=getattr(args, "actor", None),
+        explicit_compatibility_mode=bool(getattr(args, "as_controller", False)),
+    )
+
+
+def _record_deprecated_adapter_use(
+    db_path: str | os.PathLike[str] | None,
+    *,
+    path: str,
+    replacement: str,
+    actor: str | None,
+    explicit_compatibility_mode: bool = False,
+) -> dict[str, Any]:
+    from .models import BusEvent, EventType
+    from .protocol_models import FencingResult, ProjectionEffect
+    from .store import EventStore
+
+    event = EventStore(db_path).append_event(
+        BusEvent(
+            type=EventType.ADAPTER_DEPRECATED_PATH_USED,
+            actor=actor,
+            actor_role="adapter",
+            projection_effect=ProjectionEffect.AUDIT_ONLY,
+            fencing_result=FencingResult.NOT_REQUIRED,
+            payload={
+                "path": path,
+                "replacement": replacement,
+                "explicit_compatibility_mode": explicit_compatibility_mode,
+            },
+        )
+    )
+    return event.model_dump(mode="json")
+
+
+def _control_principal_for_actor(actor: str, *, source: str) -> Any:
+    from .authority import controller_principal, user_principal
+
+    normalized = actor.strip().lower()
+    if normalized == "controller":
+        return controller_principal(f"{source}-controller")
+    if normalized == "user":
+        return user_principal(f"{source}-user")
+    raise CliError(
+        f"unsupported gate decision actor '{actor}'; expected controller or user",
+        payload={"error": "authority_reject", "actor": actor, "projection_effect": "REJECT"},
+    )
+
+
+def _protocol_reject_payload(db_path: str | os.PathLike[str] | None, *, action: str) -> dict[str, Any]:
+    payload: dict[str, Any] = {"error": "protocol_reject", "projection_effect": "REJECT"}
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            """
+            select violation_id, projection_effect, fencing_result
+              from protocol_violations
+             where action = ?
+             order by created_at desc
+             limit 1
+            """,
+            (action,),
+        ).fetchone()
+    if row is not None:
+        payload.update(
+            {
+                "violation_id": row["violation_id"],
+                "projection_effect": row["projection_effect"],
+                "fencing_result": row["fencing_result"],
+            }
+        )
+    return payload
+
+
+def _context_invalidated_packet_ids(packet: Any) -> list[str]:
+    instructions = getattr(packet, "instructions", None)
+    if isinstance(instructions, dict):
+        values = instructions.get("invalidated_packet_ids", [])
+        if isinstance(values, list):
+            return [str(value) for value in values]
+    return []
+
+
+def _replacement_event_chain(db_path: str | os.PathLike[str] | None, recommendation_id: str) -> list[dict[str, Any]]:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            select event_id, type, causation_id, correlation_id, projection_effect, fencing_result, payload_json
+              from event_log
+             where correlation_id = ?
+             order by seq asc
+            """,
+            (recommendation_id,),
+        ).fetchall()
+    events: list[dict[str, Any]] = []
+    for row in rows:
+        events.append(
+            {
+                "event_id": row["event_id"],
+                "type": row["type"],
+                "causation_id": row["causation_id"],
+                "correlation_id": row["correlation_id"],
+                "projection_effect": row["projection_effect"],
+                "fencing_result": row["fencing_result"],
+                "payload": json.loads(row["payload_json"] or "{}"),
+            }
+        )
+    return events
 
 
 def _ensure_operational_schema(db_path: str | os.PathLike[str] | None, *, reset: bool = False) -> Path:
@@ -1189,6 +1610,25 @@ def _add_db(parser: argparse.ArgumentParser) -> None:
 
 def _add_json(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="print structured JSON output")
+
+
+def _add_interrupt_create_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--actor", default="user")
+    parser.add_argument("--text", default="")
+    parser.add_argument("--run-id")
+    parser.add_argument("--task-id")
+    parser.add_argument("--controller", default="controller")
+    parser.add_argument("--observer", default="observer")
+    parser.add_argument("--task-owner")
+    parser.add_argument("--task-assignee")
+    parser.add_argument("--helper-agent", action="append", default=[])
+    parser.add_argument("--qa-agent", default="qa")
+    parser.add_argument("--gate-owner")
+    parser.add_argument("--downstream-owner", action="append", default=[])
+    parser.add_argument("--agent", action="append", default=[], help="additional affected agent")
+    parser.add_argument("--payload-json", help="additional JSON object payload")
+    _add_db(parser)
+    _add_json(parser)
 
 
 def _add_finding_arguments(parser: argparse.ArgumentParser) -> None:
