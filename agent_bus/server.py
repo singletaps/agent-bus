@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 from .agents import AgentDirectory, AgentDirectoryError
 from .artifacts import ArtifactManifestItem, ArtifactPathError, read_artifact_manifests, resolve_artifact_file
-from .authority import ensure_local_bootstrap_principals, resolve_local_api_principal
+from .authority import agent_principal, ensure_local_bootstrap_principals, resolve_local_api_principal
 from .context import ContextPacketInvalidated, ContextPacketNotFound, ContextStore
 from .db import initialize_database
 from .gates import GateBoard
@@ -233,6 +233,15 @@ class WorkerTaskCompleteRequest(BaseModel):
     session_epoch: int | None = None
     context_packet_id: str | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkerTaskCompletionClaimRequest(BaseModel):
+    actor: str
+    session_id: str
+    session_epoch: int
+    fencing_token: str
+    context_packet_id: str
+    payload: dict[str, Any]
 
 
 class WorkerClaimResponse(ApiEnvelope):
@@ -554,6 +563,14 @@ def create_app(
         )
         return _user_interrupt(payload, request)
 
+    @app.post("/api/worker/tasks/{task_id}/completion-claim", response_model=WorkerClaimResponse)
+    def worker_task_completion_claim(
+        task_id: str,
+        payload: WorkerTaskCompletionClaimRequest,
+        request: Request,
+    ) -> WorkerClaimResponse | JSONResponse:
+        return _worker_task_completion_claim(task_id, payload, request)
+
     @app.post("/api/worker/tasks/{task_id}/complete", response_model=WorkerClaimResponse)
     def worker_task_complete(
         task_id: str,
@@ -762,6 +779,72 @@ def _worker_task_complete(
                 projection_effect=ProjectionEffect.REJECT.value,
             ),
         )
+
+
+def _worker_task_completion_claim(
+    task_id: str,
+    payload: WorkerTaskCompletionClaimRequest,
+    request: Request,
+) -> WorkerClaimResponse | JSONResponse:
+    db = _db_path(request)
+    try:
+        _assert_worker_actor(payload.actor)
+        result = ProtocolKernel(db).record_fenced_task_completion_claim(
+            task_id,
+            actor=payload.actor,
+            principal=agent_principal(payload.actor, session_id=payload.session_id),
+            agent_id=payload.actor,
+            session_id=payload.session_id,
+            session_epoch=payload.session_epoch,
+            fencing_token=payload.fencing_token,
+            context_packet_id=payload.context_packet_id,
+            payload=payload.payload,
+        )
+        if not result.accepted:
+            return _worker_claim_reject_response(result)
+        board = TaskBoard(db_path=db)
+        try:
+            task = board.get_task(task_id)
+        finally:
+            board.close()
+        return WorkerClaimResponse(
+            task=task,
+            claim=_task_claim_snapshot(db, result.claim_id),
+            event_id=result.event_id or "",
+            projection_effect=_enum_value(result.projection_effect),
+            fencing_result=_enum_value(result.fencing_result),
+        )
+    except RuntimeRecordError as exc:
+        return JSONResponse(status_code=404, content=_stable_error_payload("not_found", str(exc)))
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=403,
+            content=_stable_error_payload(
+                "authority_reject",
+                str(exc),
+                actor=payload.actor,
+                projection_effect=ProjectionEffect.REJECT.value,
+            ),
+        )
+
+
+def _worker_claim_reject_response(result) -> JSONResponse:
+    fencing_failed = result.fencing_result in {
+        FencingResult.MISSING,
+        FencingResult.INVALID,
+        FencingResult.STALE_EPOCH,
+        FencingResult.WRONG_SESSION,
+    }
+    return JSONResponse(
+        status_code=403 if fencing_failed else 409,
+        content=_stable_error_payload(
+            "fencing_reject" if fencing_failed else "protocol_reject",
+            result.reason or "worker completion claim rejected",
+            projection_effect=_enum_value(result.projection_effect),
+            fencing_result=_enum_value(result.fencing_result),
+            violation_id=result.violation_id,
+        ),
+    )
 
 
 def _controller_gate_decision(

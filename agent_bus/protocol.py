@@ -586,6 +586,73 @@ class ProtocolKernel:
             claim_status=ClaimStatus.NEEDS_FENCING,
         )
 
+    def record_fenced_task_completion_claim(
+        self,
+        task_id: str,
+        *,
+        actor: str | None,
+        principal: Principal | None,
+        actor_role: str | None = "worker",
+        run_id: str | None = None,
+        agent_id: str | None = None,
+        session_id: str,
+        session_epoch: int,
+        fencing_token: str,
+        context_packet_id: str,
+        payload: dict[str, Any] | None = None,
+    ) -> ProtocolWriteResult:
+        task_snapshot = self._task_snapshot(task_id)
+        if task_snapshot is not None:
+            run_id = run_id or task_snapshot.get("run_id")
+            agent_id = agent_id or actor or task_snapshot.get("assignee_agent_id")
+        else:
+            agent_id = agent_id or actor
+
+        event = BusEvent(
+            type=EventType.TASK_COMPLETION_CLAIMED,
+            actor=actor,
+            actor_role=actor_role,
+            run_id=run_id,
+            task_id=task_id,
+            agent_id=agent_id,
+            session_id=session_id,
+            session_epoch=session_epoch,
+            context_packet_id=context_packet_id,
+            projection_effect=ProjectionEffect.COMMIT,
+            payload={
+                "claim_kind": TaskClaimKind.COMPLETION,
+                "status": ClaimStatus.PENDING,
+                "task": task_snapshot,
+                **(payload or {}),
+            },
+        )
+        claim = TaskClaimRecord(
+            claim_kind=TaskClaimKind.COMPLETION,
+            task_id=task_id,
+            run_id=run_id,
+            agent_id=agent_id,
+            session_id=session_id,
+            session_epoch=session_epoch,
+            context_packet_id=context_packet_id,
+            status=ClaimStatus.PENDING,
+            payload={"task": task_snapshot, **(payload or {})},
+            created_from_event_id=event.event_id,
+        )
+        return self.commit_event(
+            event,
+            action=EventType.TASK_COMPLETION_CLAIMED.value,
+            principal=principal,
+            session_id=session_id,
+            session_epoch=session_epoch,
+            fencing_token=fencing_token,
+            required_fencing=True,
+            guard_targets=(("task_claims", claim.claim_id, EventType.TASK_COMPLETION_CLAIMED.value),),
+            target_table="task_claims",
+            target_id=claim.claim_id,
+            task_claim=claim,
+            reason="fenced worker completion claim recorded for controller commit",
+        )
+
     def _task_snapshot(self, task_id: str) -> dict[str, Any] | None:
         if self.db_path is None:
             return None

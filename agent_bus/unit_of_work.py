@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -26,11 +27,14 @@ class UnitOfWork:
         self._provided_conn = conn
         self.conn: sqlite3.Connection | None = conn
         self._owns_connection = conn is None
+        self.operation_id: str | None = None
+        self._target_guard_ttl_seconds = 300
 
     def __enter__(self) -> UnitOfWork:
         if self.conn is None:
             initialize_database(self.db_path)
             self.conn = connect(self.db_path)
+        self.operation_id = new_id("op")
         self.conn.execute("BEGIN")
         return self
 
@@ -38,12 +42,14 @@ class UnitOfWork:
         if self.conn is None:
             return
         if exc_type is None:
+            self._consume_remaining_target_guards()
             self.conn.commit()
         else:
             self.conn.rollback()
         if self._owns_connection:
             self.conn.close()
             self.conn = None
+        self.operation_id = None
 
     def append_event(
         self,
@@ -114,13 +120,15 @@ class UnitOfWork:
         target_id: str | None = None,
     ) -> str:
         guard_id = new_id("guard")
+        expires_at = _future_utc_iso(self._target_guard_ttl_seconds) if target_table and target_id else None
         self._require_conn().execute(
             """
             insert into kernel_write_guards (
-                guard_id, event_id, target_table, target_id, action
-            ) values (?, ?, ?, ?, ?)
+                guard_id, event_id, target_table, target_id, action,
+                operation_id, expires_at
+            ) values (?, ?, ?, ?, ?, ?, ?)
             """,
-            (guard_id, event_id, target_table, target_id, action),
+            (guard_id, event_id, target_table, target_id, action, self.operation_id, expires_at),
         )
         return guard_id
 
@@ -378,6 +386,21 @@ class UnitOfWork:
             raise RuntimeError("UnitOfWork is not active")
         return self.conn
 
+    def _consume_remaining_target_guards(self) -> None:
+        if self.operation_id is None:
+            return
+        self._require_conn().execute(
+            """
+            update kernel_write_guards
+            set consumed_at = coalesce(consumed_at, ?)
+            where operation_id = ?
+              and target_table is not null
+              and target_id is not null
+              and consumed_at is null
+            """,
+            (_utc_now_iso(), self.operation_id),
+        )
+
 
 def _enum_value(value: object | None) -> str | None:
     if value is None:
@@ -391,3 +414,14 @@ def _json(value: Any) -> str:
     if isinstance(value, BaseModel):
         value = value.model_dump(mode="json")
     return json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _future_utc_iso(seconds: int) -> str:
+    return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat(timespec="milliseconds").replace(
+        "+00:00",
+        "Z",
+    )

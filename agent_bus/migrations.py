@@ -280,11 +280,28 @@ class MigrationRunner:
                 target_table text,
                 target_id text,
                 action text not null,
+                operation_id text,
+                consumed_at text,
+                expires_at text,
                 created_at text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             );
             create index if not exists idx_kernel_write_guards_event on kernel_write_guards(event_id);
             create index if not exists idx_kernel_write_guards_target
             on kernel_write_guards(target_table, target_id, action);
+            """
+        )
+        for definition in (
+            "operation_id text",
+            "consumed_at text",
+            "expires_at text",
+        ):
+            self.add_column_if_missing("kernel_write_guards", definition)
+        self.conn.executescript(
+            """
+            create index if not exists idx_kernel_write_guards_active_target
+            on kernel_write_guards(target_table, target_id, action, consumed_at, expires_at);
+            create index if not exists idx_kernel_write_guards_operation
+            on kernel_write_guards(operation_id);
             """
         )
 
@@ -308,7 +325,10 @@ class MigrationRunner:
         if self.has_table("tasks"):
             self.conn.executescript(
                 """
-                create trigger if not exists trg_tasks_authoritative_status_guard
+                drop trigger if exists trg_tasks_authoritative_status_guard;
+                drop trigger if exists trg_tasks_authoritative_status_guard_consume;
+
+                create trigger trg_tasks_authoritative_status_guard
                 before update of status on tasks
                 when new.status in ('completed', 'failed', 'reassigned')
                      and old.status is not new.status
@@ -316,16 +336,55 @@ class MigrationRunner:
                          select 1 from kernel_write_guards
                          where target_table = 'tasks'
                            and target_id = new.task_id
+                           and consumed_at is null
+                           and (expires_at is null or expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                           and (
+                               (new.status = 'completed' and action = 'task.completed')
+                               or (new.status = 'failed' and action = 'task.failed')
+                               or (
+                                   new.status = 'reassigned'
+                                   and action in ('task.reassigned', 'replacement.reassignment_committed')
+                               )
+                           )
                      )
                 begin
-                    select raise(abort, 'authoritative task mutation requires ProtocolKernel UnitOfWork');
+                    select raise(abort, 'authoritative task mutation requires active ProtocolKernel guard');
+                end;
+
+                create trigger trg_tasks_authoritative_status_guard_consume
+                after update of status on tasks
+                when new.status in ('completed', 'failed', 'reassigned')
+                     and old.status is not new.status
+                begin
+                    update kernel_write_guards
+                    set consumed_at = coalesce(consumed_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                    where guard_id = (
+                        select guard_id from kernel_write_guards
+                        where target_table = 'tasks'
+                          and target_id = new.task_id
+                          and consumed_at is null
+                          and (expires_at is null or expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                          and (
+                              (new.status = 'completed' and action = 'task.completed')
+                              or (new.status = 'failed' and action = 'task.failed')
+                              or (
+                                  new.status = 'reassigned'
+                                  and action in ('task.reassigned', 'replacement.reassignment_committed')
+                              )
+                          )
+                        order by created_at desc, guard_id desc
+                        limit 1
+                    );
                 end;
                 """
             )
         if self.has_table("gates"):
             self.conn.executescript(
                 """
-                create trigger if not exists trg_gates_authoritative_state_guard
+                drop trigger if exists trg_gates_authoritative_state_guard;
+                drop trigger if exists trg_gates_authoritative_state_guard_consume;
+
+                create trigger trg_gates_authoritative_state_guard
                 before update of state on gates
                 when new.state in ('approved', 'rejected', 'escalated')
                      and old.state is not new.state
@@ -333,9 +392,39 @@ class MigrationRunner:
                          select 1 from kernel_write_guards
                          where target_table = 'gates'
                            and target_id = new.gate_id
+                           and consumed_at is null
+                           and (expires_at is null or expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                           and (
+                               (new.state = 'approved' and action = 'gate.approved')
+                               or (new.state = 'rejected' and action = 'gate.rejected')
+                               or (new.state = 'escalated' and action = 'gate.escalated')
+                           )
                      )
                 begin
-                    select raise(abort, 'authoritative gate mutation requires ProtocolKernel UnitOfWork');
+                    select raise(abort, 'authoritative gate mutation requires active ProtocolKernel guard');
+                end;
+
+                create trigger trg_gates_authoritative_state_guard_consume
+                after update of state on gates
+                when new.state in ('approved', 'rejected', 'escalated')
+                     and old.state is not new.state
+                begin
+                    update kernel_write_guards
+                    set consumed_at = coalesce(consumed_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                    where guard_id = (
+                        select guard_id from kernel_write_guards
+                        where target_table = 'gates'
+                          and target_id = new.gate_id
+                          and consumed_at is null
+                          and (expires_at is null or expires_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+                          and (
+                              (new.state = 'approved' and action = 'gate.approved')
+                              or (new.state = 'rejected' and action = 'gate.rejected')
+                              or (new.state = 'escalated' and action = 'gate.escalated')
+                          )
+                        order by created_at desc, guard_id desc
+                        limit 1
+                    );
                 end;
                 """
             )
