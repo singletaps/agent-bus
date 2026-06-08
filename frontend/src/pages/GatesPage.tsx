@@ -19,7 +19,7 @@ import {
 import { IdChip } from "../components/IdChip";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
-import type { EventRow, GateRow, OperationsProjection } from "../operationsApi";
+import type { EventRow, GateRow, OperationsProjection, UiGateDecision } from "../operationsApi";
 import { sendBusMessage } from "../operationsApi";
 import { statusFromState } from "../statusModel";
 
@@ -27,14 +27,15 @@ type GatesPageProps = {
   projection: OperationsProjection;
 };
 
-type GateFilter = "waiting" | "all" | "rejected" | "escalated";
+type GateFilter = "waiting" | "attention" | "escalated" | "history" | "all";
 type GateDetailTab = "facts" | "timeline" | "decisions";
 
 const filterLabels: Record<GateFilter, string> = {
   waiting: "待审批",
-  all: "全部",
-  rejected: "已拒绝",
+  attention: "需关注",
   escalated: "已升级",
+  history: "历史",
+  all: "全部",
 };
 
 const actionConfig: Array<{
@@ -83,17 +84,44 @@ export function GatesPage({ projection }: GatesPageProps) {
   const [drawerStatus, setDrawerStatus] = useState("");
 
   const qaOwner = projection.agents.find((agent) => agent.roles.includes("qa"))?.id || "";
-  const gates = projection.gates;
-  const counts = useMemo(() => buildGateCounts(gates), [gates]);
-  const visibleGates = useMemo(
-    () => gates.filter((gate) => isGateInFilter(gate, activeFilter)),
-    [activeFilter, gates],
+  const gateById = useMemo(
+    () => new Map(projection.gates.map((gate) => [gate.id, gate])),
+    [projection.gates],
   );
-  const displayGates = visibleGates.length ? visibleGates : gates;
+  const actionableGates = useMemo(
+    () => gateDecisionRows(projection.ui.actionableGates, gateById),
+    [gateById, projection.ui.actionableGates],
+  );
+  const attentionGates = useMemo(
+    () =>
+      gateDecisionRows(
+        projection.ui.gateDecisions.filter((gate) => gate.relevanceState === "waiting_owner"),
+        gateById,
+      ),
+    [gateById, projection.ui.gateDecisions],
+  );
+  const historicalGates = useMemo(
+    () => gateDecisionRows(projection.ui.historicalGates, gateById),
+    [gateById, projection.ui.historicalGates],
+  );
+  const gateGroups = useMemo<Record<GateFilter, GateRow[]>>(
+    () => ({
+      all: [...actionableGates, ...attentionGates, ...historicalGates],
+      attention: attentionGates,
+      escalated: actionableGates.filter((gate) => /escalat|qa|review/i.test(`${gate.state} ${gate.reason}`)),
+      history: historicalGates,
+      waiting: actionableGates,
+    }),
+    [actionableGates, attentionGates, historicalGates],
+  );
+  const attentionGateIds = useMemo(() => new Set(attentionGates.map((gate) => gate.id)), [attentionGates]);
+  const counts = useMemo(() => buildGateCounts(gateGroups), [gateGroups]);
+  const displayGates = gateGroups[activeFilter];
   const selectedGate =
-    gates.find((gate) => gate.id === selectedGateId) ||
+    projection.gates.find((gate) => gate.id === selectedGateId) ||
     displayGates[0] ||
-    gates[0];
+    actionableGates[0] ||
+    projection.gates[0];
   const selectedEvents = selectedGate
     ? projection.events.filter((event) => isGateRelatedEvent(event, selectedGate)).slice(0, 6)
     : [];
@@ -183,7 +211,10 @@ export function GatesPage({ projection }: GatesPageProps) {
                 >
                   <div style={styles.gateCardHeader}>
                     <strong>{gate.name}</strong>
-                    <RiskBadge risk={gate.risk} />
+                    <span style={styles.badgeCluster}>
+                      {attentionGateIds.has(gate.id) ? <span style={styles.attentionBadge}>waiting_owner</span> : null}
+                      <RiskBadge risk={gate.risk} />
+                    </span>
                   </div>
                   <div style={styles.contextChips}>
                     {gate.runId ? <IdChip label="Run" value={gate.runId} /> : null}
@@ -428,31 +459,14 @@ function RiskBadge({ risk }: { risk: string }) {
   return <span style={{ ...styles.riskBadge, color }}>{riskLabel(label)}</span>;
 }
 
-function buildGateCounts(gates: GateRow[]): Record<GateFilter, number> {
+function buildGateCounts(gates: Record<GateFilter, GateRow[]>): Record<GateFilter, number> {
   return {
-    all: gates.length,
-    waiting: gates.filter((gate) => isGateWaiting(gate)).length,
-    rejected: gates.filter((gate) => /reject|fail|denied/i.test(gate.state)).length,
-    escalated: gates.filter((gate) => /escalat|qa|review/i.test(`${gate.state} ${gate.reason}`)).length,
+    all: gates.all.length,
+    attention: gates.attention.length,
+    escalated: gates.escalated.length,
+    history: gates.history.length,
+    waiting: gates.waiting.length,
   };
-}
-
-function isGateInFilter(gate: GateRow, filter: GateFilter): boolean {
-  if (filter === "all") {
-    return true;
-  }
-  if (filter === "waiting") {
-    return isGateWaiting(gate);
-  }
-  if (filter === "rejected") {
-    return /reject|fail|denied/i.test(gate.state);
-  }
-  return /escalat|qa|review/i.test(`${gate.state} ${gate.reason}`);
-}
-
-function isGateWaiting(gate: GateRow): boolean {
-  const status = statusFromState(gate.state, "gate");
-  return status.isActionRequired || /open|wait|pending|review|gate/i.test(gate.state);
 }
 
 function isGateRelatedEvent(event: EventRow, gate: GateRow): boolean {
@@ -462,6 +476,34 @@ function isGateRelatedEvent(event: EventRow, gate: GateRow): boolean {
       event.text.includes(gate.id) ||
       event.text.includes(gate.name),
   );
+}
+
+function gateDecisionToRow(gate: UiGateDecision): GateRow {
+  return {
+    decisionBy: "",
+    id: gate.gateId,
+    name: gate.name || gate.gateId,
+    owner: gate.ownerAgentId,
+    reason: gate.reason,
+    requestedBy: gate.requestedBy,
+    risk: gate.risk,
+    runId: gate.runId,
+    state: gate.state,
+    taskId: gate.taskId,
+  };
+}
+
+function gateDecisionRows(
+  gates: UiGateDecision[],
+  gateById: Map<string, GateRow>,
+): GateRow[] {
+  return gates.map((gate) => {
+    const row = gateById.get(gate.gateId) || gateDecisionToRow(gate);
+    return {
+      ...row,
+      reason: gate.relevanceReason || gate.reason || row.reason,
+    };
+  });
 }
 
 function defaultGateRecipient(gate: GateRow, qaOwner: string): string {
@@ -560,6 +602,13 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     gap: 10,
     justifyContent: "space-between",
+  },
+  badgeCluster: {
+    alignItems: "center",
+    display: "inline-flex",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "flex-end",
   },
   contextChips: {
     display: "flex",
@@ -694,6 +743,19 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 850,
     lineHeight: 1,
     padding: "5px 9px",
+    whiteSpace: "nowrap",
+  },
+  attentionBadge: {
+    alignItems: "center",
+    background: "#fff7ed",
+    border: "1px solid #fed7aa",
+    borderRadius: 999,
+    color: "#c2410c",
+    display: "inline-flex",
+    fontSize: 11,
+    fontWeight: 850,
+    lineHeight: 1,
+    padding: "5px 8px",
     whiteSpace: "nowrap",
   },
   empty: {

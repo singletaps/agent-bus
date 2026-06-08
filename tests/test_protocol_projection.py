@@ -65,7 +65,8 @@ def test_task_workflow_contains_task_bound_protocol_nodes(tmp_path):
     assert nodes_by_kind["claim"].task_id == task.task_id
     assert nodes_by_kind["gate"].gate_id == gate.gate_id
     assert nodes_by_kind["artifact"].artifact_id == artifact.artifact_id
-    assert nodes_by_kind["replacement"].task_id == task.task_id
+    assert nodes_by_kind["cluster:replacement"].task_id == task.task_id
+    assert nodes_by_kind["cluster:replacement"].recommendation_id == "rec-1"
     assert all(edge.task_id in {"", task.task_id} for edge in workflow.edges)
 
 

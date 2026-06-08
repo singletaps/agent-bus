@@ -34,6 +34,7 @@ class MigrationRunner:
             """
         )
         self._migrate_event_log()
+        self._migrate_agent_identities()
         self._migrate_agent_sessions()
         self._migrate_context_packets()
         self._migrate_inbox_items()
@@ -94,6 +95,18 @@ class MigrationRunner:
             """
         )
 
+    def _migrate_agent_identities(self) -> None:
+        if not self.has_table("agent_identities"):
+            return
+        for definition in (
+            "canonical integer not null default 0",
+            "identity_origin text not null default 'runtime_discovered'",
+            "visibility_policy text not null default 'normal'",
+            "identity_lifecycle text not null default 'active'",
+            "archive_reason text",
+        ):
+            self.add_column_if_missing("agent_identities", definition)
+
     def _migrate_agent_sessions(self) -> None:
         if not self.has_table("agent_sessions"):
             return
@@ -104,6 +117,7 @@ class MigrationRunner:
             "max_concurrent_tasks integer not null default 1",
             "accepts_new_work integer not null default 1",
             "quarantined integer not null default 0",
+            "session_end_reason text",
         ):
             self.add_column_if_missing("agent_sessions", definition)
 

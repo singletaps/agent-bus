@@ -72,6 +72,15 @@ export function HomePage({
   const activeRun = projection.ui.activeRun;
   const progress = activeRun.progress;
   const actionItems = projection.ui.actionItems.slice(0, 5);
+  const actionableGateCount = projection.ui.actionableGates.length;
+  const hiddenCounts = projection.ui.hiddenCounts;
+  const hiddenTotal =
+    hiddenCounts.archivedAgents +
+    hiddenCounts.historicalGates +
+    hiddenCounts.supersededGates +
+    hiddenCounts.hiddenContextPackets +
+    hiddenCounts.collapsedReplacementEvents +
+    hiddenCounts.unboundArtifacts;
   const currentState = activeRun.state || projection.runs[0]?.state || "none";
   const workflowTaskIds = React.useMemo(
     () => Object.keys(projection.ui.taskWorkflows),
@@ -155,8 +164,8 @@ export function HomePage({
           <MetricTile
             icon={<ShieldCheck size={16} strokeWidth={2.2} />}
             label="开放门禁"
-            tone={projection.metrics.openGateCount ? "warn" : "good"}
-            value={projection.metrics.openGateCount}
+            tone={actionableGateCount ? "warn" : "good"}
+            value={actionableGateCount}
           />
           <MetricTile
             icon={<Inbox size={16} strokeWidth={2.2} />}
@@ -165,6 +174,17 @@ export function HomePage({
             value={actionItems.length}
           />
         </div>
+        {hiddenTotal ? (
+          <div className="hiddenCountsStrip" aria-label="隐藏的历史事实计数">
+            <span>Hidden historical facts</span>
+            <strong>{hiddenTotal}</strong>
+            <small>
+              {hiddenCounts.archivedAgents} agents · {hiddenCounts.historicalGates} historical gates ·{" "}
+              {hiddenCounts.supersededGates} superseded gates · {hiddenCounts.hiddenContextPackets} contexts ·{" "}
+              {hiddenCounts.collapsedReplacementEvents} replacement events · {hiddenCounts.unboundArtifacts} artifacts
+            </small>
+          </div>
+        ) : null}
       </section>
 
       <section className="panel workflowMapPanel">

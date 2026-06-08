@@ -151,6 +151,41 @@ export type ArtifactManifestRow = {
 
 export type UiTone = Tone | "neutral";
 
+export type RuntimeCondition = {
+  type: string;
+  status: "true" | "false" | "unknown" | string;
+  reason: string;
+  message: string | null;
+  severity: "info" | "warning" | "error" | "critical" | string;
+  source: string;
+  lastTransitionAt: string;
+  observedGeneration: number | null;
+};
+
+export type RuntimePresenceState = "online" | "stale" | "offline" | "unknown" | string;
+
+export type RuntimeWorkloadState =
+  | "free"
+  | "assigned"
+  | "working"
+  | "waiting_input"
+  | "claim_pending"
+  | "waiting_review"
+  | "waiting_gate"
+  | "blocked"
+  | "historical"
+  | string;
+
+export type RuntimeUiVisibilityState =
+  | "main"
+  | "secondary"
+  | "needs_attention"
+  | "approval_center"
+  | "diagnostics"
+  | "history"
+  | "hidden"
+  | string;
+
 export type UiActiveRunProjection = {
   runId: string;
   title: string;
@@ -254,6 +289,12 @@ export type UiAgentSummary = {
   displayName: string;
   role: string;
   runtimeState: string;
+  identityLifecycle: string;
+  presenceState: RuntimePresenceState;
+  workloadState: RuntimeWorkloadState;
+  uiVisibilityState: RuntimeUiVisibilityState;
+  conditions: RuntimeCondition[];
+  hiddenReason: string;
   tone: UiTone;
   healthScore: number | null;
   stale: boolean;
@@ -276,6 +317,9 @@ export type UiGateDecision = {
   requestedBy: string;
   reason: string;
   priority: number;
+  relevanceState: string;
+  uiVisibilityState: RuntimeUiVisibilityState;
+  relevanceReason: string;
 };
 
 export type UiArtifactSummary = {
@@ -287,6 +331,16 @@ export type UiArtifactSummary = {
   latestCreatedAt: string;
 };
 
+export type UiHiddenCounts = {
+  archivedAgents: number;
+  staleSessions: number;
+  historicalGates: number;
+  supersededGates: number;
+  hiddenContextPackets: number;
+  collapsedReplacementEvents: number;
+  unboundArtifacts: number;
+};
+
 export type UiOperationsProjection = {
   activeRun: UiActiveRunProjection;
   taskWorkflows: Record<string, UiTaskWorkflowProjection>;
@@ -296,8 +350,16 @@ export type UiOperationsProjection = {
   metro: UiTaskWorkflowProjection;
   actionItems: UiActionItem[];
   agentSummaries: UiAgentSummary[];
+  visibleAgents: UiAgentSummary[];
+  archivedAgents: UiAgentSummary[];
   gateDecisions: UiGateDecision[];
+  actionableGates: UiGateDecision[];
+  historicalGates: UiGateDecision[];
   artifactSummary: UiArtifactSummary;
+  currentTaskArtifacts: string[];
+  runArtifacts: string[];
+  legacyUnboundArtifacts: string[];
+  hiddenCounts: UiHiddenCounts;
   diagnostics: UiDiagnosticsProjection;
 };
 
@@ -368,7 +430,11 @@ export function emptyUiProjection(): UiOperationsProjection {
     metro: emptyUiTaskWorkflow(),
     actionItems: [],
     agentSummaries: [],
+    visibleAgents: [],
+    archivedAgents: [],
     gateDecisions: [],
+    actionableGates: [],
+    historicalGates: [],
     artifactSummary: {
       total: 0,
       byKind: {},
@@ -376,6 +442,18 @@ export function emptyUiProjection(): UiOperationsProjection {
       latestTitle: "",
       latestUri: "",
       latestCreatedAt: "",
+    },
+    currentTaskArtifacts: [],
+    runArtifacts: [],
+    legacyUnboundArtifacts: [],
+    hiddenCounts: {
+      archivedAgents: 0,
+      staleSessions: 0,
+      historicalGates: 0,
+      supersededGates: 0,
+      hiddenContextPackets: 0,
+      collapsedReplacementEvents: 0,
+      unboundArtifacts: 0,
     },
     diagnostics: {
       projectionEffects: [],
@@ -504,7 +582,7 @@ export function normalizeOperationsProjection(
   const artifacts = toArray(root.artifacts).map(normalizeArtifact);
   const runs = toArray(root.runs).map(normalizeRun);
   const interruptAffectedAgents = collectInterruptAffectedAgents(root, events);
-  const ui = normalizeUiProjection(firstRecord(root.ui));
+  const ui = normalizeUiProjection(firstRecord(root.ui), { agents, artifacts, gates });
 
   return {
     generatedAt:
@@ -921,7 +999,14 @@ function normalizeArtifactManifest(artifact: UnknownRecord): ArtifactManifestRow
   };
 }
 
-function normalizeUiProjection(ui: UnknownRecord): UiOperationsProjection {
+function normalizeUiProjection(
+  ui: UnknownRecord,
+  fallbacks: {
+    agents?: AgentRow[];
+    artifacts?: ArtifactRow[];
+    gates?: GateRow[];
+  } = {},
+): UiOperationsProjection {
   if (!Object.keys(ui).length) {
     return emptyUiProjection();
   }
@@ -946,6 +1031,15 @@ function normalizeUiProjection(ui: UnknownRecord): UiOperationsProjection {
     selectedTaskId,
     selectedTaskWorkflow,
   );
+  const agentSummaries = toArray(
+    firstValue(ui, ["agent_summaries", "agentSummaries"]),
+  ).map(normalizeUiAgentSummary);
+  const fallbackAgentSummaries = (fallbacks.agents || []).map(agentRowToUiAgentSummary);
+  const gateDecisions = toArray(
+    firstValue(ui, ["gate_decisions", "gateDecisions"]),
+  ).map(normalizeUiGateDecision);
+  const fallbackGateDecisions = (fallbacks.gates || []).map(gateRowToUiGateDecision);
+  const allGateDecisions = gateDecisions.length ? gateDecisions : fallbackGateDecisions;
   return {
     activeRun: normalizeUiActiveRun(firstRecord(ui.active_run, ui.activeRun)),
     taskWorkflows,
@@ -956,14 +1050,50 @@ function normalizeUiProjection(ui: UnknownRecord): UiOperationsProjection {
     actionItems: toArray(firstValue(ui, ["action_items", "actionItems"])).map(
       normalizeUiActionItem,
     ),
-    agentSummaries: toArray(
-      firstValue(ui, ["agent_summaries", "agentSummaries"]),
-    ).map(normalizeUiAgentSummary),
-    gateDecisions: toArray(
-      firstValue(ui, ["gate_decisions", "gateDecisions"]),
-    ).map(normalizeUiGateDecision),
+    agentSummaries,
+    visibleAgents: normalizeUiAgentSummaryList(
+      firstValue(ui, ["visible_agents", "visibleAgents"]),
+      agentSummaries.length ? agentSummaries : fallbackAgentSummaries,
+    ),
+    archivedAgents: normalizeUiAgentSummaryList(
+      firstValue(ui, ["archived_agents", "archivedAgents"]),
+    ),
+    gateDecisions,
+    actionableGates: normalizeUiGateDecisionList(
+      firstValue(ui, ["actionable_gates", "actionableGates"]),
+      allGateDecisions.filter((gate) => ["open", "escalated"].includes(gate.state.toLowerCase())),
+    ),
+    historicalGates: normalizeUiGateDecisionList(
+      firstValue(ui, ["historical_gates", "historicalGates"]),
+      allGateDecisions.filter((gate) => !["open", "escalated"].includes(gate.state.toLowerCase())),
+    ),
     artifactSummary: normalizeUiArtifactSummary(
       firstRecord(ui.artifact_summary, ui.artifactSummary),
+    ),
+    currentTaskArtifacts: normalizeStringList(
+      firstValue(ui, ["current_task_artifacts", "currentTaskArtifacts"]),
+      (fallbacks.artifacts || [])
+        .filter((artifact) => artifact.taskId && artifact.taskId !== "no-task")
+        .map((artifact) => artifact.id),
+    ),
+    runArtifacts: normalizeStringList(
+      firstValue(ui, ["run_artifacts", "runArtifacts"]),
+      (fallbacks.artifacts || [])
+        .filter((artifact) => artifact.runId && artifact.runId !== "no-run")
+        .map((artifact) => artifact.id),
+    ),
+    legacyUnboundArtifacts: normalizeStringList(
+      firstValue(ui, ["legacy_unbound_artifacts", "legacyUnboundArtifacts"]),
+      (fallbacks.artifacts || [])
+        .filter(
+          (artifact) =>
+            (!artifact.taskId || artifact.taskId === "no-task") &&
+            (!artifact.runId || artifact.runId === "no-run"),
+        )
+        .map((artifact) => artifact.id),
+    ),
+    hiddenCounts: normalizeUiHiddenCounts(
+      firstRecord(ui.hidden_counts, ui.hiddenCounts),
     ),
     diagnostics: normalizeUiDiagnostics(
       firstRecord(ui.diagnostics, ui.diagnostic_summary, ui.diagnosticSummary),
@@ -1132,6 +1262,59 @@ function normalizeUiActionItem(item: UnknownRecord): UiActionItem {
   };
 }
 
+function normalizeUiAgentSummaryList(
+  value: unknown,
+  fallback: UiAgentSummary[] = [],
+): UiAgentSummary[] {
+  if (value == null) {
+    return fallback;
+  }
+  const items = toArray(value).map(normalizeUiAgentSummary);
+  return items;
+}
+
+function normalizeUiGateDecisionList(
+  value: unknown,
+  fallback: UiGateDecision[] = [],
+): UiGateDecision[] {
+  if (value == null) {
+    return fallback;
+  }
+  const items = toArray(value).map(normalizeUiGateDecision);
+  return items;
+}
+
+function normalizeStringList(value: unknown, fallback: string[] = []): string[] {
+  if (value == null) {
+    return fallback;
+  }
+  const items = toStringArray(value).filter(Boolean);
+  return items;
+}
+
+function agentRowToUiAgentSummary(agent: AgentRow): UiAgentSummary {
+  return {
+    agentId: agent.id,
+    displayName: agent.name || agent.id,
+    role: agent.role,
+    runtimeState: agent.state,
+    identityLifecycle: "active",
+    presenceState: "unknown",
+    workloadState: "historical",
+    uiVisibilityState: "hidden",
+    conditions: [],
+    hiddenReason: "",
+    tone: normalizeUiTone(agent.state),
+    healthScore: null,
+    stale: /stale|offline/i.test(agent.state),
+    currentTaskId: "",
+    currentTaskTitle: "",
+    openGateId: "",
+    queuedInbox: agent.inboxCount,
+    nextAction: agent.inboxCount ? "inbox" : "",
+  };
+}
+
 function normalizeUiAgentSummary(agent: UnknownRecord): UiAgentSummary {
   return {
     agentId: pickString(agent, ["agent_id", "agentId"]) || "",
@@ -1140,6 +1323,16 @@ function normalizeUiAgentSummary(agent: UnknownRecord): UiAgentSummary {
     role: pickString(agent, ["role"]) || "",
     runtimeState:
       pickString(agent, ["runtime_state", "runtimeState", "state"]) || "",
+    identityLifecycle:
+      pickString(agent, ["identity_lifecycle", "identityLifecycle"]) || "active",
+    presenceState:
+      pickString(agent, ["presence_state", "presenceState"]) || "unknown",
+    workloadState:
+      pickString(agent, ["workload_state", "workloadState"]) || "historical",
+    uiVisibilityState:
+      pickString(agent, ["ui_visibility_state", "uiVisibilityState"]) || "hidden",
+    conditions: toArray(firstValue(agent, ["conditions"])).map(normalizeRuntimeCondition),
+    hiddenReason: pickString(agent, ["hidden_reason", "hiddenReason"]) || "",
     tone: normalizeUiTone(pickString(agent, ["tone"])),
     healthScore: pickNumber(agent, ["health_score", "healthScore"]) ?? null,
     stale: pickBoolean(agent, ["stale"]) ?? false,
@@ -1153,6 +1346,25 @@ function normalizeUiAgentSummary(agent: UnknownRecord): UiAgentSummary {
       Math.round(pickNumber(agent, ["queued_inbox", "queuedInbox"]) ?? 0),
     ),
     nextAction: pickString(agent, ["next_action", "nextAction"]) || "",
+  };
+}
+
+function gateRowToUiGateDecision(gate: GateRow): UiGateDecision {
+  return {
+    gateId: gate.id,
+    name: gate.name,
+    state: gate.state,
+    risk: gate.risk,
+    tone: normalizeUiTone(gate.state),
+    runId: gate.runId,
+    taskId: gate.taskId,
+    ownerAgentId: gate.owner,
+    requestedBy: gate.requestedBy,
+    reason: gate.reason,
+    priority: 0,
+    relevanceState: "",
+    uiVisibilityState: "hidden",
+    relevanceReason: "",
   };
 }
 
@@ -1170,6 +1382,67 @@ function normalizeUiGateDecision(gate: UnknownRecord): UiGateDecision {
     requestedBy: pickString(gate, ["requested_by", "requestedBy"]) || "",
     reason: pickString(gate, ["reason"]) || "",
     priority: Math.round(pickNumber(gate, ["priority"]) ?? 0),
+    relevanceState:
+      pickString(gate, ["relevance_state", "relevanceState"]) || "",
+    uiVisibilityState:
+      pickString(gate, ["ui_visibility_state", "uiVisibilityState"]) || "hidden",
+    relevanceReason:
+      pickString(gate, ["relevance_reason", "relevanceReason"]) || "",
+  };
+}
+
+function normalizeRuntimeCondition(condition: UnknownRecord): RuntimeCondition {
+  return {
+    type: pickString(condition, ["type"]) || "Unknown",
+    status: pickString(condition, ["status"]) || "unknown",
+    reason: pickString(condition, ["reason"]) || "unspecified",
+    message: pickString(condition, ["message"]) || null,
+    severity: pickString(condition, ["severity"]) || "info",
+    source: pickString(condition, ["source"]) || "projection",
+    lastTransitionAt:
+      pickString(condition, ["last_transition_at", "lastTransitionAt"]) || "",
+    observedGeneration:
+      pickNumber(condition, ["observed_generation", "observedGeneration"]) ?? null,
+  };
+}
+
+function normalizeUiHiddenCounts(counts: UnknownRecord): UiHiddenCounts {
+  return {
+    archivedAgents: Math.max(
+      0,
+      Math.round(pickNumber(counts, ["archived_agents", "archivedAgents"]) ?? 0),
+    ),
+    staleSessions: Math.max(
+      0,
+      Math.round(pickNumber(counts, ["stale_sessions", "staleSessions"]) ?? 0),
+    ),
+    historicalGates: Math.max(
+      0,
+      Math.round(pickNumber(counts, ["historical_gates", "historicalGates"]) ?? 0),
+    ),
+    supersededGates: Math.max(
+      0,
+      Math.round(pickNumber(counts, ["superseded_gates", "supersededGates"]) ?? 0),
+    ),
+    hiddenContextPackets: Math.max(
+      0,
+      Math.round(
+        pickNumber(counts, ["hidden_context_packets", "hiddenContextPackets"]) ?? 0,
+      ),
+    ),
+    collapsedReplacementEvents: Math.max(
+      0,
+      Math.round(
+        pickNumber(counts, [
+          "collapsed_replacement_events",
+          "collapsedReplacementEvents",
+        ]) ?? 0,
+      ),
+    ),
+    unboundArtifacts: Math.max(
+      0,
+      Math.round(pickNumber(counts, ["unbound_artifacts", "unboundArtifacts"]) ?? 0),
+    ),
   };
 }
 

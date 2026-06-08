@@ -8,6 +8,7 @@ import {
   FileText,
   Flag,
   GitBranch,
+  Layers3,
   Play,
   RefreshCw,
   ShieldAlert,
@@ -71,20 +72,22 @@ export function MetroGraph({ metro, onNodeSelect }: MetroGraphProps) {
           if (!point) {
             return null;
           }
+          const clusterNode = isClusterNode(node);
           return (
             <button
               aria-current={metro.currentNodeId === node.id ? "step" : undefined}
               className="metroGraphNode"
+              data-cluster={clusterNode ? "true" : undefined}
               data-current={metro.currentNodeId === node.id ? "true" : undefined}
               data-kind={node.kind}
               data-tone={node.tone}
               key={node.id}
               onClick={() => onNodeSelect(node)}
               style={{
-                left: point.x - nodeWidth / 2,
-                top: point.y - nodeHeight / 2,
-                width: nodeWidth,
-                minHeight: nodeHeight,
+                left: point.x - (clusterNode ? 124 : nodeWidth) / 2,
+                top: point.y - (clusterNode ? 64 : nodeHeight) / 2,
+                width: clusterNode ? 124 : nodeWidth,
+                minHeight: clusterNode ? 64 : nodeHeight,
               }}
               type="button"
             >
@@ -182,8 +185,15 @@ function edgePath(source: Point, target: Point, kind: string): string {
   return `M ${source.x} ${source.y} C ${controlX} ${source.y}, ${controlX} ${target.y}, ${target.x} ${target.y}`;
 }
 
+function isClusterNode(node: UiMetroNode) {
+  return node.kind.startsWith("cluster:");
+}
+
 function nodeIcon(node: UiMetroNode) {
   const size = 16;
+  if (isClusterNode(node)) {
+    return <Layers3 size={size} strokeWidth={2.2} />;
+  }
   if (node.kind === "start") {
     return <Play size={size} strokeWidth={2.2} />;
   }

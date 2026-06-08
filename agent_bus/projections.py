@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import json
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +17,6 @@ from .models import (
     AgentCapability,
     AgentHealth,
     AgentIdentity,
-    AgentRuntimeState,
     AgentSession,
     ArtifactRecord,
     BusEvent,
@@ -29,13 +27,16 @@ from .models import (
     GateRecord,
     InboxItem,
     ReviewFinding,
+    RuntimeCondition,
     RunRecord,
     RunState,
     TaskRecord,
     utc_now_iso,
 )
 from .replacement import InMemoryRehydrationContext, ReplacementCoordinator, ReplacementRecommendation
+from .relevance import RelevanceProjection, UiHiddenCounts, derive_relevance_projection
 from .reviews import _row_to_finding
+from .runtime_state import FreshnessThresholds, RuntimeFacts, derive_runtime_activity
 from .store import EventStore
 from .tasks import _row_to_run, _row_to_task, migrate_runtime_schema
 
@@ -51,16 +52,6 @@ MESSAGE_EVENT_TYPES = {
 }
 DEFAULT_SESSION_FRESHNESS_SECONDS = 300.0
 SESSION_FRESHNESS_ENV = "AGENT_BUS_SESSION_FRESHNESS_SECONDS"
-_FRESHNESS_DERIVED_STATES: dict[AgentRuntimeState, AgentRuntimeState] = {
-    AgentRuntimeState.STANDBY_READY: AgentRuntimeState.STANDBY_DEGRADED,
-    AgentRuntimeState.WAITING_ON_BUS: AgentRuntimeState.STANDBY_DEGRADED,
-    AgentRuntimeState.WAIT_RETURNED_NOOP: AgentRuntimeState.STANDBY_DEGRADED,
-    AgentRuntimeState.WORKING: AgentRuntimeState.SUSPECTED_STUCK,
-}
-_FRESHNESS_HEALTH_SCORES: dict[AgentRuntimeState, float] = {
-    AgentRuntimeState.STANDBY_DEGRADED: 0.55,
-    AgentRuntimeState.SUSPECTED_STUCK: 0.30,
-}
 
 
 class AgentProjection(BaseModel):
@@ -69,6 +60,7 @@ class AgentProjection(BaseModel):
     health: AgentHealth | None = None
     capabilities: list[AgentCapability] = Field(default_factory=list)
     inbox_counts: dict[str, int] = Field(default_factory=dict)
+    conditions: list[RuntimeCondition] = Field(default_factory=list)
 
 
 class SessionProjection(BaseModel):
@@ -220,6 +212,12 @@ class UiAgentSummary(BaseModel):
     open_gate_id: str | None = None
     queued_inbox: int = 0
     next_action: str = ""
+    identity_lifecycle: str = ""
+    presence_state: str = ""
+    workload_state: str = ""
+    ui_visibility_state: str = ""
+    conditions: list[RuntimeCondition] = Field(default_factory=list)
+    hidden_reason: str = ""
 
 
 class UiGateDecision(BaseModel):
@@ -254,8 +252,16 @@ class UiOperationsProjection(BaseModel):
     metro: UiTaskWorkflowProjection = Field(default_factory=UiTaskWorkflowProjection)
     action_items: list[UiActionItem] = Field(default_factory=list)
     agent_summaries: list[UiAgentSummary] = Field(default_factory=list)
+    visible_agents: list[UiAgentSummary] = Field(default_factory=list)
+    archived_agents: list[UiAgentSummary] = Field(default_factory=list)
     gate_decisions: list[UiGateDecision] = Field(default_factory=list)
+    actionable_gates: list[UiGateDecision] = Field(default_factory=list)
+    historical_gates: list[UiGateDecision] = Field(default_factory=list)
     artifact_summary: UiArtifactSummary = Field(default_factory=UiArtifactSummary)
+    current_task_artifacts: list[str] = Field(default_factory=list)
+    run_artifacts: list[str] = Field(default_factory=list)
+    legacy_unbound_artifacts: list[str] = Field(default_factory=list)
+    hidden_counts: UiHiddenCounts = Field(default_factory=UiHiddenCounts)
     diagnostics: UiDiagnosticsProjection = Field(default_factory=UiDiagnosticsProjection)
 
 
@@ -298,6 +304,10 @@ class ProjectionReader:
             if session_freshness_seconds is None
             else session_freshness_seconds
         )
+        self.freshness_thresholds = FreshnessThresholds(
+            stale_seconds=self.session_freshness_seconds,
+            archive_seconds=max(self.session_freshness_seconds * 24, self.session_freshness_seconds + 1),
+        )
 
     def build_operations_projection(self, *, event_limit: int = 200) -> OperationsProjection:
         conn = self._connect()
@@ -307,19 +317,33 @@ class ProjectionReader:
             runs = self._runs(conn)
             tasks = self._tasks(conn)
             runs = _with_projected_run_states(runs, tasks)
-            gates = self._gates(conn)
+            durable_gates = self._gates(conn)
             findings = self._review_findings(conn)
             contexts = self._contexts(conn)
             inbox = self._inbox(conn)
             artifacts = self._artifacts(conn)
             protocol_violations = self._protocol_violations(conn)
             projection_effects = self._projection_effects(conn)
-            agents = self._agents(conn, inbox)
-            gates = _with_projected_gate_owners(gates, agents)
-            sessions = self._sessions(conn)
+            agents = self._agents(conn, inbox, tasks=tasks, gates=durable_gates)
+            gates = _with_projected_gate_owners(durable_gates, agents)
+            sessions = self._sessions(conn, tasks=tasks, gates=durable_gates, inbox=inbox)
             recommendations = self.replacement_recommendations(tasks=tasks)
             last_seq = max((event.seq or 0 for event in events), default=0)
+            active_run = _select_active_run(runs)
+            # Relevance consumes durable gate ownership. The projected QA owner is display-only.
+            relevance = derive_relevance_projection(
+                active_run=active_run,
+                runs=runs,
+                tasks=tasks,
+                gates=durable_gates,
+                artifacts=artifacts,
+                agents=agents,
+                contexts=contexts,
+                inbox=inbox,
+            )
             ui = _build_ui_projection(
+                active_run=active_run,
+                relevance=relevance,
                 runs=runs,
                 tasks=tasks,
                 gates=gates,
@@ -331,6 +355,19 @@ class ProjectionReader:
                 events=events,
                 protocol_violations=protocol_violations,
                 projection_effects=projection_effects,
+            )
+            visible_agent_ids = {
+                agent_id for agent_id, projection in relevance.agents.items() if projection.visible_in_main
+            }
+            visible_artifact_count = sum(
+                1
+                for projection in relevance.artifacts.values()
+                if projection.visible_in_default_list and projection.visibility in {"current_task", "run"}
+            )
+            visible_queued_inbox = sum(
+                1
+                for item in inbox
+                if item.status == "queued" and (item.agent_id in visible_agent_ids or item.agent_id not in relevance.agents)
             )
             return OperationsProjection(
                 last_seq=last_seq,
@@ -347,15 +384,17 @@ class ProjectionReader:
                 events=limited_events,
                 replay_state=rebuild_event_state(events),
                 metrics={
-                    "agents": len(agents),
+                    "agents": len(visible_agent_ids),
                     "sessions": len(sessions),
                     "runs": len(runs),
                     "tasks": len(tasks),
-                    "open_gates": sum(1 for gate in gates if gate.state == "open"),
+                    "open_gates": sum(1 for gate in relevance.gates.values() if gate.visible_in_approval_center),
                     "open_findings": sum(1 for finding in findings if finding.status == "open"),
                     "active_contexts": sum(1 for packet in contexts if packet.status == "active"),
-                    "queued_inbox": sum(1 for item in inbox if item.status == "queued"),
-                    "artifacts": len(artifacts),
+                    "context_faults": relevance.hidden_counts.hidden_context_packets,
+                    "pending_inbox": visible_queued_inbox,
+                    "queued_inbox": visible_queued_inbox,
+                    "artifacts": visible_artifact_count,
                     "events": len(events),
                 },
                 ui=ui,
@@ -427,7 +466,14 @@ class ProjectionReader:
         migrate_runtime_schema(conn)
         return conn
 
-    def _agents(self, conn: sqlite3.Connection, inbox: list[InboxItem]) -> list[AgentProjection]:
+    def _agents(
+        self,
+        conn: sqlite3.Connection,
+        inbox: list[InboxItem],
+        *,
+        tasks: list[TaskRecord],
+        gates: list[GateRecord],
+    ) -> list[AgentProjection]:
         directory = AgentDirectory(conn=conn)
         inbox_counts: dict[str, dict[str, int]] = {}
         for item in inbox:
@@ -437,8 +483,13 @@ class ProjectionReader:
         for identity in directory.list_identities():
             active = directory.get_active_session(identity.agent_id)
             health = directory.get_health(active.session_id) if active is not None else None
+            conditions: list[RuntimeCondition] = []
             if active is not None:
-                active, health = self._with_freshness(active, health)
+                active, health, conditions = self._with_freshness(
+                    active,
+                    health,
+                    has_active_responsibility=_agent_has_active_responsibility(identity.agent_id, tasks, gates, inbox),
+                )
             projections.append(
                 AgentProjection(
                     identity=identity,
@@ -446,11 +497,19 @@ class ProjectionReader:
                     health=health,
                     capabilities=directory.list_capabilities(identity.agent_id),
                     inbox_counts=inbox_counts.get(identity.agent_id, {}),
+                    conditions=conditions,
                 )
             )
         return projections
 
-    def _sessions(self, conn: sqlite3.Connection) -> list[SessionProjection]:
+    def _sessions(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        tasks: list[TaskRecord],
+        gates: list[GateRecord],
+        inbox: list[InboxItem],
+    ) -> list[SessionProjection]:
         directory = AgentDirectory(conn=conn)
         projections: list[SessionProjection] = []
         for session in directory.list_all_sessions():
@@ -458,7 +517,11 @@ class ProjectionReader:
                 health = directory.get_health(session.session_id)
             except AgentDirectoryError:
                 health = None
-            session, health = self._with_freshness(session, health)
+            session, health, _conditions = self._with_freshness(
+                session,
+                health,
+                has_active_responsibility=_agent_has_active_responsibility(session.agent_id, tasks, gates, inbox),
+            )
             projections.append(SessionProjection(session=session, health=health))
         return projections
 
@@ -466,34 +529,40 @@ class ProjectionReader:
         self,
         session: AgentSession,
         health: AgentHealth | None,
-    ) -> tuple[AgentSession, AgentHealth | None]:
-        derived_state = _derive_stale_state(session, self.session_freshness_seconds)
-        if derived_state is None:
-            return session, health
-
-        age = _age_seconds(session.last_seen_at)
-        reason = "missing heartbeat"
-        if age is not None:
-            reason = f"missing heartbeat: last seen {int(age)}s ago"
-        projected_session = session.model_copy(update={"runtime_state": derived_state})
+        *,
+        has_active_responsibility: bool,
+    ) -> tuple[AgentSession, AgentHealth | None, list[RuntimeCondition]]:
+        runtime = derive_runtime_activity(
+            RuntimeFacts(
+                runtime_state=session.runtime_state,
+                last_seen_at=session.last_seen_at,
+                active=session.active,
+                ended_at=session.ended_at,
+                has_active_responsibility=has_active_responsibility,
+            ),
+            self.freshness_thresholds,
+        )
+        projected_session = session.model_copy(update={"runtime_state": runtime.runtime_state})
         base_health = health or AgentHealth(
             agent_id=session.agent_id,
             session_id=session.session_id,
             runtime_state=session.runtime_state,
         )
+        reason = base_health.reason
+        if runtime.stale and "heartbeat" in runtime.reason:
+            reason = f"missing heartbeat: {runtime.reason}"
+        elif runtime.reason != "fresh":
+            reason = runtime.reason
         projected_health = base_health.model_copy(
             update={
-                "runtime_state": derived_state,
-                "health_score": min(
-                    base_health.health_score,
-                    _FRESHNESS_HEALTH_SCORES.get(derived_state, base_health.health_score),
-                ),
-                "stale": True,
+                "runtime_state": runtime.runtime_state,
+                "health_score": min(base_health.health_score, runtime.health_score),
+                "stale": runtime.stale,
                 "reason": reason,
                 "checked_at": utc_now_iso(),
             }
         )
-        return projected_session, projected_health
+        return projected_session, projected_health, list(runtime.conditions.values())
 
     def _runs(self, conn: sqlite3.Connection) -> list[RunRecord]:
         rows = conn.execute("select * from runs order by created_at asc, run_id asc").fetchall()
@@ -567,6 +636,8 @@ def build_operations_projection(
 
 def _build_ui_projection(
     *,
+    active_run: RunRecord | None,
+    relevance: RelevanceProjection,
     runs: list[RunRecord],
     tasks: list[TaskRecord],
     gates: list[GateRecord],
@@ -579,7 +650,6 @@ def _build_ui_projection(
     protocol_violations: list[sqlite3.Row],
     projection_effects: list[sqlite3.Row],
 ) -> UiOperationsProjection:
-    active_run = _select_active_run(runs)
     active_run_id = active_run.run_id if active_run else None
     run_tasks = [task for task in tasks if task.run_id == active_run_id] if active_run_id else []
     run_gates = [gate for gate in gates if gate.run_id == active_run_id] if active_run_id else []
@@ -608,6 +678,33 @@ def _build_ui_projection(
         contexts,
         events,
     )
+    agent_summaries = _build_agent_summaries(
+        agents=agents,
+        tasks=tasks,
+        gates=gates,
+        inbox=inbox,
+        relevance=relevance,
+    )
+    agent_summaries_by_id = {agent.agent_id: agent for agent in agent_summaries}
+    visible_agents = [
+        agent_summaries_by_id[agent_id]
+        for agent_id, projection in relevance.agents.items()
+        if projection.visible_in_main and agent_id in agent_summaries_by_id
+    ]
+    archived_agents = [
+        agent_summaries_by_id[agent_id]
+        for agent_id, projection in relevance.agents.items()
+        if not projection.visible_in_main and agent_id in agent_summaries_by_id
+    ]
+    gate_decisions = _build_gate_decisions(gates)
+    actionable_gate_ids = {
+        gate_id for gate_id, projection in relevance.gates.items() if projection.visible_in_approval_center
+    }
+    actionable_gates = [gate for gate in gate_decisions if gate.gate_id in actionable_gate_ids]
+    historical_gates = [gate for gate in gate_decisions if gate.gate_id not in actionable_gate_ids]
+    current_task_artifacts = _artifact_ids_for_visibility(relevance, "current_task")
+    run_artifacts_for_ui = _artifact_ids_for_visibility(relevance, "run")
+    legacy_unbound_artifacts = _artifact_ids_for_visibility(relevance, "legacy_unbound")
     return UiOperationsProjection(
         active_run=_build_active_run_projection(active_run, run_tasks),
         task_workflows=task_workflows,
@@ -624,15 +721,19 @@ def _build_ui_projection(
             contexts=contexts,
             inbox=inbox,
             review_findings=review_findings,
+            relevance=relevance,
         ),
-        agent_summaries=_build_agent_summaries(
-            agents=agents,
-            tasks=tasks,
-            gates=gates,
-            inbox=inbox,
-        ),
-        gate_decisions=_build_gate_decisions(gates),
+        agent_summaries=agent_summaries,
+        visible_agents=visible_agents,
+        archived_agents=archived_agents,
+        gate_decisions=gate_decisions,
+        actionable_gates=actionable_gates,
+        historical_gates=historical_gates,
         artifact_summary=_build_artifact_summary(artifacts),
+        current_task_artifacts=current_task_artifacts,
+        run_artifacts=run_artifacts_for_ui,
+        legacy_unbound_artifacts=legacy_unbound_artifacts,
+        hidden_counts=relevance.hidden_counts,
         diagnostics=_build_diagnostics_projection(
             events=events,
             workflow_diagnostics=_unique_workflow_diagnostics(
@@ -851,7 +952,17 @@ def _build_task_workflow_projection(
             current_node_id = task_node_id
 
         branch_groups.setdefault(task_node_id, [])
-        for packet in sorted(contexts_by_task.get(task.task_id, []), key=lambda item: (item.created_at, item.packet_id)):
+        task_contexts = sorted(
+            contexts_by_task.get(task.task_id, []),
+            key=lambda item: (item.created_at, item.packet_id),
+        )
+        active_contexts = [packet for packet in task_contexts if _normalize_state(packet.status) == "active"]
+        latest_active_context = active_contexts[-1] if active_contexts else None
+        hidden_contexts = [
+            packet for packet in task_contexts if latest_active_context is None or packet.packet_id != latest_active_context.packet_id
+        ]
+        if latest_active_context is not None:
+            packet = latest_active_context
             context_node_id = f"context:{packet.packet_id}"
             nodes.append(
                 UiMetroNode(
@@ -881,7 +992,105 @@ def _build_task_workflow_projection(
             )
             branch_groups[task_node_id].append(context_node_id)
 
-        for event in event_branches.get(task.task_id, []):
+        if hidden_contexts:
+            latest_context = hidden_contexts[-1]
+            context_cluster_id = f"cluster:context_history:{task.task_id}"
+            nodes.append(
+                _cluster_node(
+                    id=context_cluster_id,
+                    kind="cluster:context_history",
+                    title="Context history",
+                    count=len(hidden_contexts),
+                    state=_normalize_state(latest_context.status),
+                    subtitle=f"{len(hidden_contexts)} context packets collapsed",
+                    tone=_tone_for_state(latest_context.status, kind="context"),
+                    run_id=latest_context.run_id,
+                    task_id=task.task_id,
+                    context_packet_id=latest_context.packet_id,
+                    agent_id=latest_context.agent_id,
+                    route="Diagnostics",
+                    priority=34,
+                )
+            )
+            edges.append(
+                UiMetroEdge(
+                    id=f"edge:{task_node_id}->{context_cluster_id}",
+                    source=task_node_id,
+                    target=context_cluster_id,
+                    kind="context",
+                    tone=_tone_for_state(latest_context.status, kind="context"),
+                    task_id=task.task_id,
+                )
+            )
+            branch_groups[task_node_id].append(context_cluster_id)
+
+        task_events = event_branches.get(task.task_id, [])
+        replacement_events = [event for event in task_events if _workflow_event_kind(event) == "replacement"]
+        non_replacement_events = [event for event in task_events if _workflow_event_kind(event) != "replacement"]
+        if replacement_events:
+            latest_replacement_node = _event_workflow_node(replacement_events[-1])
+            replacement_cluster_id = f"cluster:replacement:{task.task_id}"
+            nodes.append(
+                _cluster_node(
+                    id=replacement_cluster_id,
+                    kind="cluster:replacement",
+                    title="Replacement & Recovery",
+                    count=len(replacement_events),
+                    state=latest_replacement_node.state,
+                    subtitle=f"{len(replacement_events)} replacement events collapsed",
+                    tone=latest_replacement_node.tone,
+                    run_id=latest_replacement_node.run_id,
+                    task_id=task.task_id,
+                    recommendation_id=latest_replacement_node.recommendation_id,
+                    agent_id=latest_replacement_node.agent_id,
+                    route="Diagnostics",
+                    priority=latest_replacement_node.priority,
+                )
+            )
+            edges.append(
+                UiMetroEdge(
+                    id=f"edge:{task_node_id}->{replacement_cluster_id}",
+                    source=task_node_id,
+                    target=replacement_cluster_id,
+                    kind="replacement",
+                    tone=latest_replacement_node.tone,
+                    task_id=task.task_id,
+                )
+            )
+            branch_groups[task_node_id].append(replacement_cluster_id)
+
+        task_diagnostics = [diagnostic for diagnostic in diagnostics if diagnostic.task_id == task.task_id]
+        if task_diagnostics:
+            latest_diagnostic = task_diagnostics[-1]
+            diagnostics_cluster_id = f"cluster:protocol_diagnostics:{task.task_id}"
+            nodes.append(
+                _cluster_node(
+                    id=diagnostics_cluster_id,
+                    kind="cluster:protocol_diagnostics",
+                    title="Protocol diagnostics",
+                    count=len(task_diagnostics),
+                    state=latest_diagnostic.kind,
+                    subtitle=f"{len(task_diagnostics)} diagnostics collapsed",
+                    tone=latest_diagnostic.tone,
+                    run_id=latest_diagnostic.run_id,
+                    task_id=task.task_id,
+                    route="Diagnostics",
+                    priority=30,
+                )
+            )
+            edges.append(
+                UiMetroEdge(
+                    id=f"edge:{task_node_id}->{diagnostics_cluster_id}",
+                    source=task_node_id,
+                    target=diagnostics_cluster_id,
+                    kind="diagnostics",
+                    tone=latest_diagnostic.tone,
+                    task_id=task.task_id,
+                )
+            )
+            branch_groups[task_node_id].append(diagnostics_cluster_id)
+
+        for event in non_replacement_events:
             event_node = _event_workflow_node(event)
             nodes.append(event_node)
             edges.append(
@@ -929,10 +1138,13 @@ def _build_task_workflow_projection(
             if gate_state in {"open", "escalated"}:
                 current_node_id = gate_node_id
 
-        for artifact in sorted(
+        task_artifacts = sorted(
             artifacts_by_task.get(task.task_id, []),
             key=lambda item: (item.created_at, item.artifact_id),
-        ):
+        )
+        latest_task_artifact = task_artifacts[-1] if task_artifacts else None
+        if latest_task_artifact is not None:
+            artifact = latest_task_artifact
             artifact_node_id = f"artifact:{artifact.artifact_id}"
             nodes.append(_artifact_node(artifact, source_task_id=task.task_id))
             edges.append(
@@ -946,6 +1158,39 @@ def _build_task_workflow_projection(
                 )
             )
             branch_groups[task_node_id].append(artifact_node_id)
+
+        hidden_artifacts = task_artifacts[:-1]
+        if hidden_artifacts:
+            latest_hidden_artifact = hidden_artifacts[-1]
+            artifact_cluster_id = f"cluster:artifacts:{task.task_id}"
+            nodes.append(
+                _cluster_node(
+                    id=artifact_cluster_id,
+                    kind="cluster:artifacts",
+                    title="Artifact history",
+                    count=len(hidden_artifacts),
+                    state="available",
+                    subtitle=f"{len(hidden_artifacts)} artifacts collapsed",
+                    tone="good",
+                    run_id=latest_hidden_artifact.run_id,
+                    task_id=task.task_id,
+                    artifact_id=latest_hidden_artifact.artifact_id,
+                    agent_id=latest_hidden_artifact.created_by,
+                    route="Artifacts",
+                    priority=24,
+                )
+            )
+            edges.append(
+                UiMetroEdge(
+                    id=f"edge:{task_node_id}->{artifact_cluster_id}",
+                    source=task_node_id,
+                    target=artifact_cluster_id,
+                    kind="artifact",
+                    tone="good",
+                    task_id=task.task_id,
+                )
+            )
+            branch_groups[task_node_id].append(artifact_cluster_id)
 
         if task_state in {"completed", "failed", "superseded"}:
             terminal_node_id = f"terminal:{task.task_id}:{task_state}"
@@ -1004,6 +1249,44 @@ def _build_task_workflow_projection(
         branch_groups={key: value for key, value in branch_groups.items() if value},
         task_ids=task_ids,
         diagnostics=diagnostics,
+    )
+
+
+def _cluster_node(
+    *,
+    id: str,
+    kind: str,
+    title: str,
+    count: int,
+    state: str,
+    subtitle: str,
+    tone: str,
+    route: str,
+    priority: int,
+    run_id: str | None = None,
+    task_id: str | None = None,
+    gate_id: str | None = None,
+    artifact_id: str | None = None,
+    context_packet_id: str | None = None,
+    recommendation_id: str | None = None,
+    agent_id: str | None = None,
+) -> UiMetroNode:
+    return UiMetroNode(
+        id=id,
+        kind=kind,
+        title=f"{title} x {count}",
+        subtitle=subtitle,
+        state=state,
+        tone=tone,
+        run_id=run_id,
+        task_id=task_id,
+        gate_id=gate_id,
+        artifact_id=artifact_id,
+        context_packet_id=context_packet_id,
+        recommendation_id=recommendation_id,
+        agent_id=agent_id,
+        route=route,
+        priority=priority,
     )
 
 
@@ -1309,11 +1592,24 @@ def _build_action_items(
     contexts: list[ContextPacket],
     inbox: list[InboxItem],
     review_findings: list[ReviewFinding],
+    relevance: RelevanceProjection,
 ) -> list[UiActionItem]:
     items: list[UiActionItem] = []
 
     task_by_id = {task.task_id: task for task in tasks}
+    visible_agent_ids = {
+        agent_id for agent_id, projection in relevance.agents.items() if projection.visible_in_main
+    }
+    responsible_agent_ids = {
+        agent_id
+        for agent_id, projection in relevance.agents.items()
+        if projection.current_task_id or projection.current_gate_id or projection.queued_inbox
+    }
+    visible_or_responsible_agent_ids = visible_agent_ids | responsible_agent_ids
     for agent in agents:
+        agent_id = agent.identity.agent_id
+        if agent_id not in visible_or_responsible_agent_ids:
+            continue
         session = agent.active_session
         health = agent.health
         runtime_state = _normalize_state(session.runtime_state) if session else ""
@@ -1339,6 +1635,9 @@ def _build_action_items(
             )
 
     for task in tasks:
+        task_relevance = relevance.tasks.get(task.task_id)
+        if task_relevance is not None and not task_relevance.visible_in_home:
+            continue
         state = _normalize_state(task.status)
         if state in {"failed", "blocked"}:
             items.append(
@@ -1359,8 +1658,8 @@ def _build_action_items(
             )
 
     for gate in gates:
-        state = _normalize_state(gate.state)
-        if state in {"open", "escalated"}:
+        gate_relevance = relevance.gates.get(gate.gate_id)
+        if gate_relevance is not None and gate_relevance.visible_in_approval_center:
             items.append(
                 UiActionItem(
                     id=f"gate:{gate.gate_id}",
@@ -1399,6 +1698,8 @@ def _build_action_items(
 
     queued_inbox = [item for item in inbox if item.status in {"queued", "delivered"}]
     for item in queued_inbox[:8]:
+        if item.agent_id in relevance.agents and item.agent_id not in visible_agent_ids:
+            continue
         task_id = str(item.payload.get("task_id") or "") or None
         task = task_by_id.get(task_id or "")
         items.append(
@@ -1418,7 +1719,13 @@ def _build_action_items(
             )
         )
 
-    latest_artifact = max(artifacts, key=lambda item: (item.created_at, item.artifact_id), default=None)
+    visible_artifacts = [
+        artifact
+        for artifact in artifacts
+        if relevance.artifacts.get(artifact.artifact_id) is not None
+        and relevance.artifacts[artifact.artifact_id].visible_in_default_list
+    ]
+    latest_artifact = max(visible_artifacts, key=lambda item: (item.created_at, item.artifact_id), default=None)
     if latest_artifact is not None:
         items.append(
             UiActionItem(
@@ -1441,7 +1748,14 @@ def _build_action_items(
     active_run = _select_active_run(runs)
     if active_run is not None:
         active_task = next(
-            (task for task in tasks if task.run_id == active_run.run_id and _normalize_state(task.status) == "working"),
+            (
+                task
+                for task in tasks
+                if task.run_id == active_run.run_id
+                and _normalize_state(task.status) == "working"
+                and relevance.tasks.get(task.task_id) is not None
+                and relevance.tasks[task.task_id].visible_in_home
+            ),
             None,
         )
         if active_task is not None:
@@ -1475,23 +1789,41 @@ def _build_agent_summaries(
     tasks: list[TaskRecord],
     gates: list[GateRecord],
     inbox: list[InboxItem],
+    relevance: RelevanceProjection,
 ) -> list[UiAgentSummary]:
     summaries: list[UiAgentSummary] = []
+    tasks_by_id = {task.task_id: task for task in tasks}
+    gates_by_id = {gate.gate_id: gate for gate in gates}
     for agent in agents:
         session = agent.active_session
         health = agent.health
+        presence = relevance.agents.get(agent.identity.agent_id)
         runtime_state = _normalize_state(session.runtime_state) if session else "offline"
-        task = _active_task_for_agent(tasks, agent.identity.agent_id)
-        gate = next(
-            (
-                gate
-                for gate in gates
-                if (gate.owner_agent_id == agent.identity.agent_id or gate.requested_by == agent.identity.agent_id)
-                and _normalize_state(gate.state) in {"open", "escalated"}
-            ),
-            None,
+        task = tasks_by_id.get(presence.current_task_id) if presence else None
+        if task is None:
+            task = _active_task_for_agent(tasks, agent.identity.agent_id)
+        gate = gates_by_id.get(presence.current_gate_id) if presence else None
+        if gate is None and presence is None:
+            gate = next(
+                (
+                    gate
+                    for gate in gates
+                    if (gate.owner_agent_id == agent.identity.agent_id or gate.requested_by == agent.identity.agent_id)
+                    and _normalize_state(gate.state) in {"open", "escalated"}
+                ),
+                None,
+            )
+        queued = (
+            presence.queued_inbox
+            if presence is not None
+            else sum(1 for item in inbox if item.agent_id == agent.identity.agent_id and item.status == "queued")
         )
-        queued = sum(1 for item in inbox if item.agent_id == agent.identity.agent_id and item.status == "queued")
+        identity_lifecycle = presence.identity_state.value if presence is not None else ""
+        presence_state = presence.presence_state.value if presence is not None else ""
+        workload_state = presence.workload_state.value if presence is not None else ""
+        ui_visibility_state = presence.ui_visibility_state.value if presence is not None else ""
+        conditions = presence.conditions if presence is not None else agent.conditions
+        hidden_reason = presence.hidden_reason or "" if presence is not None else ""
         summaries.append(
             UiAgentSummary(
                 agent_id=agent.identity.agent_id,
@@ -1506,9 +1838,23 @@ def _build_agent_summaries(
                 open_gate_id=gate.gate_id if gate else None,
                 queued_inbox=queued,
                 next_action=_agent_next_action(runtime_state, task, gate, queued, health),
+                identity_lifecycle=identity_lifecycle,
+                presence_state=presence_state,
+                workload_state=workload_state,
+                ui_visibility_state=ui_visibility_state,
+                conditions=conditions,
+                hidden_reason=hidden_reason,
             )
         )
     return summaries
+
+
+def _artifact_ids_for_visibility(relevance: RelevanceProjection, visibility: str) -> list[str]:
+    return [
+        artifact_id
+        for artifact_id, projection in relevance.artifacts.items()
+        if projection.visibility == visibility
+    ]
 
 
 def _build_gate_decisions(gates: list[GateRecord]) -> list[UiGateDecision]:
@@ -1575,6 +1921,22 @@ def _active_task_for_agent(tasks: list[TaskRecord], agent_id: str) -> TaskRecord
         if task.assignee_agent_id == agent_id and _normalize_state(task.status) in ACTIVE_TASK_STATES:
             return task
     return None
+
+
+def _agent_has_active_responsibility(
+    agent_id: str,
+    tasks: list[TaskRecord],
+    gates: list[GateRecord],
+    inbox: list[InboxItem],
+) -> bool:
+    if any(agent_id in {task.owner_agent_id, task.assignee_agent_id} and _normalize_state(task.status) in ACTIVE_TASK_STATES for task in tasks):
+        return True
+    if any(
+        agent_id in {gate.owner_agent_id, gate.requested_by} and _normalize_state(gate.state) in {"open", "escalated"}
+        for gate in gates
+    ):
+        return True
+    return any(item.agent_id == agent_id and item.status in {"queued", "delivered"} for item in inbox)
 
 
 def _agent_display_name(agent: AgentProjection) -> str:
@@ -1901,31 +2263,3 @@ def _configured_session_freshness_seconds() -> float:
     except ValueError:
         return DEFAULT_SESSION_FRESHNESS_SECONDS
     return value if value > 0 else DEFAULT_SESSION_FRESHNESS_SECONDS
-
-
-def _derive_stale_state(
-    session: AgentSession,
-    freshness_seconds: float,
-    *,
-    now: datetime | None = None,
-) -> AgentRuntimeState | None:
-    if not session.active or session.ended_at is not None:
-        return None
-    derived_state = _FRESHNESS_DERIVED_STATES.get(session.runtime_state)
-    if derived_state is None:
-        return None
-    age = _age_seconds(session.last_seen_at, now=now)
-    if age is None or age <= freshness_seconds:
-        return None
-    return derived_state
-
-
-def _age_seconds(value: str | None, *, now: datetime | None = None) -> float | None:
-    if value is None:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    now = now or datetime.now(timezone.utc)
-    return max(0.0, (now - parsed).total_seconds())

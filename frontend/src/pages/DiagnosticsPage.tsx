@@ -3,7 +3,13 @@ import { Activity, AlertTriangle, Clock3, Database, Radio } from "lucide-react";
 
 import { EventTable } from "../components/EventTable";
 import { StatusBadge } from "../components/StatusBadge";
-import type { EventRow, OperationsProjection, UiDiagnosticRecord } from "../operationsApi";
+import type {
+  EventRow,
+  OperationsProjection,
+  RuntimeCondition,
+  UiAgentSummary,
+  UiDiagnosticRecord,
+} from "../operationsApi";
 import { statusFromState } from "../statusModel";
 
 type DiagnosticsFilter = "all" | "warnings" | "gate" | "interrupt" | "task" | "bus";
@@ -34,6 +40,16 @@ export function DiagnosticsPage({ projection }: DiagnosticsPageProps) {
   const staleEvents = useMemo(() => collectStaleEvents(events, generatedAt), [events, generatedAt]);
   const filteredEvents = useMemo(() => filterDiagnosticsEvents(events, filter), [events, filter]);
   const eventTypes = useMemo(() => Array.from(new Set(events.map((event) => event.type))).sort(), [events]);
+  const hiddenAgents = useMemo(() => collectHiddenAgents(projection.ui.agentSummaries), [projection.ui.agentSummaries]);
+  const archivedAgents = projection.ui.archivedAgents;
+  const diagnosticAgents = useMemo(
+    () => uniqueAgentSummaries([...hiddenAgents, ...archivedAgents]),
+    [archivedAgents, hiddenAgents],
+  );
+  const conditionAgents = useMemo(
+    () => diagnosticAgents.filter((agent) => agent.conditions.length || agent.hiddenReason),
+    [diagnosticAgents],
+  );
   const errorCount =
     events.filter((event) => event.tone === "bad").length +
     diagnostics.protocolViolations.length +
@@ -61,6 +77,7 @@ export function DiagnosticsPage({ projection }: DiagnosticsPageProps) {
         <Metric icon={Activity} label="事件类型" value={eventTypes.length} />
         <Metric icon={AlertTriangle} label="异常事件" value={errorCount} tone={errorCount ? "bad" : "good"} />
         <Metric icon={Radio} label="陈旧事件" value={staleEvents.length} tone={staleEvents.length ? "warn" : "good"} />
+        <Metric icon={AlertTriangle} label="隐藏 Agent" value={diagnosticAgents.length} tone={diagnosticAgents.length ? "warn" : "good"} />
         <Metric icon={Database} label="投影效果" value={diagnostics.projectionEffects.length} tone={diagnostics.projectionEffects.length ? "info" : "good"} />
         <Metric icon={AlertTriangle} label="协议拒绝" value={diagnostics.protocolViolations.length} tone={diagnostics.protocolViolations.length ? "bad" : "good"} />
       </div>
@@ -82,6 +99,33 @@ export function DiagnosticsPage({ projection }: DiagnosticsPageProps) {
           ) : (
             <p className="emptyNote">当前事件流没有发现协议字段缺失。</p>
           )}
+        </section>
+
+        <section className="referenceCard">
+          <header className="referenceCardHeader">
+            <div>
+              <h3>隐藏 / 归档 Agent</h3>
+              <p>{diagnosticAgents.length} 个</p>
+            </div>
+          </header>
+          <AgentConditionList
+            agents={diagnosticAgents}
+            emptyText="当前没有被投影隐藏或归档的 Agent。"
+          />
+        </section>
+
+        <section className="referenceCard">
+          <header className="referenceCardHeader">
+            <div>
+              <h3>运行时条件</h3>
+              <p>{conditionAgents.length} 个 Agent</p>
+            </div>
+          </header>
+          <AgentConditionList
+            agents={conditionAgents}
+            emptyText="隐藏 Agent 没有额外 runtime condition。"
+            showConditions
+          />
         </section>
 
         <section className="referenceCard">
@@ -211,6 +255,86 @@ function DiagnosticRecordList({
       ))}
     </ul>
   );
+}
+
+function AgentConditionList({
+  agents,
+  emptyText,
+  showConditions = false,
+}: {
+  agents: UiAgentSummary[];
+  emptyText: string;
+  showConditions?: boolean;
+}) {
+  if (!agents.length) {
+    return <p className="emptyNote">{emptyText}</p>;
+  }
+
+  return (
+    <ul className="diagnosticsList">
+      {agents.slice(0, 10).map((agent) => (
+        <li key={`${showConditions ? "conditions" : "hidden"}:${agent.agentId}`}>
+          <strong>{agent.displayName || agent.agentId}</strong>
+          <span>{agentVisibilityExplanation(agent)}</span>
+          {showConditions ? (
+            <small>
+              {agent.conditions.length
+                ? agent.conditions.map(conditionSummary).join(" · ")
+                : agent.hiddenReason || "无条件详情"}
+            </small>
+          ) : (
+            <small>
+              {[
+                agent.identityLifecycle,
+                agent.presenceState,
+                agent.workloadState,
+                agent.uiVisibilityState,
+                agent.hiddenReason,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </small>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function collectHiddenAgents(agents: UiAgentSummary[]): UiAgentSummary[] {
+  return agents.filter(
+    (agent) =>
+      agent.uiVisibilityState !== "main" &&
+      agent.uiVisibilityState !== "needs_attention",
+  );
+}
+
+function uniqueAgentSummaries(agents: UiAgentSummary[]): UiAgentSummary[] {
+  const result = new Map<string, UiAgentSummary>();
+  for (const agent of agents) {
+    if (!result.has(agent.agentId)) {
+      result.set(agent.agentId, agent);
+    }
+  }
+  return Array.from(result.values());
+}
+
+function agentVisibilityExplanation(agent: UiAgentSummary): string {
+  if (agent.displayName.toLowerCase().includes("sim2") || agent.agentId.toLowerCase().includes("sim2")) {
+    return "Sim2 会话被投影为归档/诊断事实，因此不会进入主通信 roster。";
+  }
+  if (agent.hiddenReason) {
+    return agent.hiddenReason;
+  }
+  if (agent.identityLifecycle !== "active") {
+    return `identityLifecycle=${agent.identityLifecycle}，仅在诊断/历史中保留。`;
+  }
+  return `uiVisibilityState=${agent.uiVisibilityState}，未进入主 roster。`;
+}
+
+function conditionSummary(condition: RuntimeCondition): string {
+  const message = condition.message || condition.reason;
+  return `${condition.type}:${condition.status}${message ? ` (${message})` : ""}`;
 }
 
 function collectProtocolWarnings(

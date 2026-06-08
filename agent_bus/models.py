@@ -101,6 +101,98 @@ class AgentRuntimeState(str, Enum):
     REPLACED = "REPLACED"
 
 
+class AgentIdentityLifecycle(str, Enum):
+    ACTIVE = "active"
+    DORMANT = "dormant"
+    ARCHIVED = "archived"
+    RETIRED = "retired"
+
+
+class IdentityOrigin(str, Enum):
+    SYSTEM = "system"
+    USER_REGISTERED = "user_registered"
+    RUNTIME_DISCOVERED = "runtime_discovered"
+    SIMULATION = "simulation"
+    TEMPORARY = "temporary"
+    IMPORTED = "imported"
+
+
+class VisibilityPolicy(str, Enum):
+    SYSTEM_CRITICAL = "system_critical"
+    NORMAL = "normal"
+    EPHEMERAL = "ephemeral"
+    HIDDEN_BY_DEFAULT = "hidden_by_default"
+
+
+class SessionEndReason(str, Enum):
+    REPLACED = "replaced"
+    RETIRED = "retired"
+    EXPIRED = "expired"
+    NORMAL_SHUTDOWN = "normal_shutdown"
+    USER_ARCHIVED = "user_archived"
+    PROTOCOL_VIOLATION = "protocol_violation"
+
+
+class PresenceState(str, Enum):
+    ONLINE = "online"
+    STALE = "stale"
+    OFFLINE = "offline"
+    UNKNOWN = "unknown"
+
+
+class WorkloadState(str, Enum):
+    FREE = "free"
+    ASSIGNED = "assigned"
+    WORKING = "working"
+    WAITING_INPUT = "waiting_input"
+    CLAIM_PENDING = "claim_pending"
+    WAITING_REVIEW = "waiting_review"
+    WAITING_GATE = "waiting_gate"
+    BLOCKED = "blocked"
+    HISTORICAL = "historical"
+
+
+class InboxRelevanceState(str, Enum):
+    DELIVERABLE = "deliverable"
+    DELIVERED = "delivered"
+    LEASE_EXPIRED = "lease_expired"
+    REVOKED = "revoked"
+    REASSIGNED = "reassigned"
+    ORPHANED = "orphaned"
+    DIAGNOSTICS_ONLY = "diagnostics_only"
+
+
+class GateRelevanceState(str, Enum):
+    ACTIONABLE = "actionable"
+    WAITING_EVIDENCE = "waiting_evidence"
+    WAITING_OWNER = "waiting_owner"
+    SUPERSEDED = "superseded"
+    HISTORICAL = "historical"
+    ORPHANED = "orphaned"
+    DIAGNOSTICS_ONLY = "diagnostics_only"
+
+
+class UIVisibilityState(str, Enum):
+    MAIN = "main"
+    SECONDARY = "secondary"
+    NEEDS_ATTENTION = "needs_attention"
+    APPROVAL_CENTER = "approval_center"
+    DIAGNOSTICS = "diagnostics"
+    HISTORY = "history"
+    HIDDEN = "hidden"
+
+
+class RuntimeCondition(BaseModel):
+    type: str
+    status: str
+    reason: str
+    message: str | None = None
+    severity: str = "info"
+    source: str
+    last_transition_at: str = Field(default_factory=utc_now_iso)
+    observed_generation: int | None = None
+
+
 class CapabilityEvidenceSource(str, Enum):
     DECLARED = "declared"
     PROBED = "probed"
@@ -163,6 +255,11 @@ class AgentIdentity(BaseModel):
     display_name: str | None = None
     role: str | None = None
     capability_ids: list[str] = Field(default_factory=list)
+    canonical: bool = False
+    identity_origin: IdentityOrigin = IdentityOrigin.RUNTIME_DISCOVERED
+    visibility_policy: VisibilityPolicy = VisibilityPolicy.NORMAL
+    identity_lifecycle: AgentIdentityLifecycle = AgentIdentityLifecycle.ACTIVE
+    archive_reason: str | None = None
     created_at: str = Field(default_factory=utc_now_iso)
     updated_at: str = Field(default_factory=utc_now_iso)
 
@@ -173,7 +270,7 @@ class AgentSession(BaseModel):
     run_id: str | None = None
     active: bool = True
     session_epoch: int = 1
-    session_role: SessionRole | str = SessionRole.PRIMARY
+    session_role: SessionRole = SessionRole.PRIMARY
     runtime_state: AgentRuntimeState = AgentRuntimeState.STANDBY_READY
     fencing_token_hash: str | None = None
     max_concurrent_tasks: int = 1
@@ -183,6 +280,7 @@ class AgentSession(BaseModel):
     ended_at: str | None = None
     replaced_by_session_id: str | None = None
     quarantined: bool = False
+    session_end_reason: SessionEndReason | None = None
 
 
 class AgentHealth(BaseModel):

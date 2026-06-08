@@ -20,25 +20,50 @@ type ArtifactsPageProps = {
   projection: OperationsProjection;
 };
 
-type ArtifactTab = "all" | "screenshot" | "report" | "log" | "handoff";
+type ArtifactTab = "currentTask" | "run" | "legacy" | "all";
 
 const artifactTabs: Array<{ key: ArtifactTab; label: string }> = [
-  { key: "all", label: "全部" },
-  { key: "screenshot", label: "截图" },
-  { key: "report", label: "报告" },
-  { key: "log", label: "日志" },
-  { key: "handoff", label: "交接" },
+  { key: "currentTask", label: "Current Task" },
+  { key: "run", label: "Current Run" },
+  { key: "legacy", label: "Legacy / Unbound" },
+  { key: "all", label: "All" },
 ];
 
 export function ArtifactsPage({ projection }: ArtifactsPageProps) {
   const [artifacts, setArtifacts] = useState<ArtifactManifestRow[]>([]);
   const [selectedArtifactId, setSelectedArtifactId] = useState("");
-  const [activeTab, setActiveTab] = useState<ArtifactTab>("all");
+  const [activeTab, setActiveTab] = useState<ArtifactTab>("currentTask");
   const [status, setStatus] = useState("等待同步");
   const allArtifacts = useMemo(
     () => mergeArtifactRows(artifacts, projection.artifacts.map(durableArtifactToRow)),
     [artifacts, projection.artifacts],
   );
+  const artifactGroups = useMemo(() => {
+    const byId = new Map(allArtifacts.map((artifact) => [artifact.artifactId, artifact]));
+    const fromIds = (ids: string[]) =>
+      ids.map((id) => byId.get(id)).filter((artifact): artifact is ArtifactManifestRow => Boolean(artifact));
+    const currentTask = fromIds(projection.ui.currentTaskArtifacts);
+    const currentTaskIds = new Set(currentTask.map((artifact) => artifact.artifactId));
+    const run = fromIds(projection.ui.runArtifacts).filter(
+      (artifact) => !currentTaskIds.has(artifact.artifactId),
+    );
+    const visibleIds = new Set([...currentTask, ...run].map((artifact) => artifact.artifactId));
+    const legacy = fromIds(projection.ui.legacyUnboundArtifacts).filter(
+      (artifact) => !visibleIds.has(artifact.artifactId),
+    );
+
+    return {
+      all: allArtifacts,
+      currentTask,
+      legacy,
+      run,
+    };
+  }, [
+    allArtifacts,
+    projection.ui.currentTaskArtifacts,
+    projection.ui.legacyUnboundArtifacts,
+    projection.ui.runArtifacts,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,6 +81,23 @@ export function ArtifactsPage({ projection }: ArtifactsPageProps) {
     }
   }, [allArtifacts, selectedArtifactId]);
 
+  useEffect(() => {
+    if (artifactGroups[activeTab].length) {
+      return;
+    }
+    if (artifactGroups.currentTask.length) {
+      setActiveTab("currentTask");
+      return;
+    }
+    if (artifactGroups.run.length) {
+      setActiveTab("run");
+      return;
+    }
+    if (artifactGroups.legacy.length) {
+      setActiveTab("legacy");
+    }
+  }, [activeTab, artifactGroups]);
+
   async function loadArtifacts(signal?: AbortSignal) {
     try {
       const nextArtifacts = await fetchArtifactManifests(signal);
@@ -68,20 +110,12 @@ export function ArtifactsPage({ projection }: ArtifactsPageProps) {
     }
   }
 
-  const visibleArtifacts = useMemo(
-    () =>
-      activeTab === "all"
-        ? allArtifacts
-        : allArtifacts.filter((artifact) => artifactCategory(artifact) === activeTab),
-    [activeTab, allArtifacts],
-  );
+  const visibleArtifacts = artifactGroups[activeTab];
   const selectedArtifact =
     visibleArtifacts.find((artifact) => artifact.artifactId === selectedArtifactId) ||
     visibleArtifacts[0] ||
     allArtifacts.find((artifact) => artifact.artifactId === selectedArtifactId) ||
     allArtifacts[0];
-  const todayAdded = allArtifacts.filter((artifact) => isToday(artifact.createdAt)).length;
-
   return (
     <section className="artifactsPage pageShell referencePage">
       <header className="pageHeader">
@@ -111,9 +145,9 @@ export function ArtifactsPage({ projection }: ArtifactsPageProps) {
       </div>
 
       <div className="metricStrip artifactMetrics">
-        <Metric label="Manifest artifacts" value={artifacts.length} icon={Box} />
-        <Metric label="Durable records" value={projection.artifacts.length} icon={FileCheck2} />
-        <Metric label="今日新增" value={todayAdded} icon={Archive} />
+        <Metric label="Current Task" value={artifactGroups.currentTask.length} icon={Box} />
+        <Metric label="Current Run" value={artifactGroups.run.length} icon={FileCheck2} />
+        <Metric label="Legacy / Unbound" value={artifactGroups.legacy.length} icon={Archive} />
       </div>
 
       <div className="artifactsWorkspace">
@@ -324,7 +358,7 @@ function ArtifactPreview({ artifact }: { artifact: ArtifactManifestRow }) {
   );
 }
 
-function artifactCategory(artifact: ArtifactManifestRow): ArtifactTab {
+function artifactCategory(artifact: ArtifactManifestRow): string {
   const haystack = `${artifact.type} ${artifact.title} ${artifact.path}`.toLowerCase();
   if (haystack.includes("screen") || haystack.includes("png") || haystack.includes("jpg") || haystack.includes("jpeg")) {
     return "screenshot";
@@ -338,12 +372,12 @@ function artifactCategory(artifact: ArtifactManifestRow): ArtifactTab {
   if (haystack.includes("handoff") || haystack.includes("交接")) {
     return "handoff";
   }
-  return "all";
+  return "artifact";
 }
 
 function artifactCategoryLabel(artifact: ArtifactManifestRow): string {
   const category = artifactCategory(artifact);
-  return artifactTabs.find((tab) => tab.key === category)?.label || artifact.type || "产物";
+  return category === "artifact" ? artifact.type || "产物" : category;
 }
 
 function durableArtifactToRow(
@@ -394,13 +428,6 @@ function isImageArtifact(artifact: ArtifactManifestRow): boolean {
 function isTextArtifact(artifact: ArtifactManifestRow): boolean {
   const haystack = `${artifact.contentType} ${artifact.path}`.toLowerCase();
   return /text\/|json|markdown|\.md|\.txt|\.log|\.json/.test(haystack);
-}
-
-function isToday(value: string): boolean {
-  if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
-  return date.toDateString() === new Date().toDateString();
 }
 
 function formatDateTime(value: string): string {

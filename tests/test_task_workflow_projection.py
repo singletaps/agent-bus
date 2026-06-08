@@ -65,3 +65,36 @@ def test_ui_task_workflows_are_keyed_by_task_and_do_not_chain_tasks(tmp_path):
             edge.source == f"task:{second.task_id}" and edge.target == f"task:{first.task_id}"
             for edge in workflow.edges
         )
+
+
+def test_task_workflow_clusters_replacement_events(tmp_path):
+    db_path = tmp_path / "agent-bus.sqlite3"
+    principal = controller_principal()
+    tasks = TaskBoard(db_path=db_path, principal=principal)
+    run = tasks.create_run("Wave9", objective="Cluster workflow facts", created_by="controller")
+    task = tasks.create_task("Replacement-heavy task", run_id=run.run_id, owner_agent_id="controller")
+    store = EventStore(db_path)
+
+    for index in range(5):
+        store.append_event(
+            BusEvent(
+                type=EventType.REPLACEMENT_RECOMMENDED,
+                actor="runtime-helper-2",
+                run_id=run.run_id,
+                task_id=task.task_id,
+                payload={
+                    "recommendation_id": f"rec-{index}",
+                    "summary": f"replacement candidate {index}",
+                    "task_id": task.task_id,
+                },
+            )
+        )
+
+    workflow = build_operations_projection(db_path).ui.selected_task_workflow
+    replacement_nodes = [node for node in workflow.nodes if node.kind == "replacement"]
+    cluster_nodes = [node for node in workflow.nodes if node.kind == "cluster:replacement"]
+
+    assert replacement_nodes == []
+    assert len(cluster_nodes) == 1
+    assert "Replacement" in cluster_nodes[0].title
+    assert cluster_nodes[0].state == "recommended"

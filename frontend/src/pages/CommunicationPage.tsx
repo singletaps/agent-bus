@@ -17,7 +17,7 @@ import { DetailRail } from "../components/DetailRail";
 import { IdChip } from "../components/IdChip";
 import { Panel } from "../components/Panel";
 import { StatusBadge } from "../components/StatusBadge";
-import type { AgentRow, BusMessageRow, OperationsProjection } from "../operationsApi";
+import type { AgentRow, BusMessageRow, OperationsProjection, UiAgentSummary } from "../operationsApi";
 import { fetchBusMessages, sendBusMessage } from "../operationsApi";
 import { statusFromState } from "../statusModel";
 
@@ -99,9 +99,27 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [query, setQuery] = useState("");
 
-  const agentById = useMemo(
+  const rawAgentById = useMemo(
     () => new Map(projection.agents.map((agent) => [agent.id, agent])),
     [projection.agents],
+  );
+  const visibleAgents = useMemo(
+    () =>
+      projection.ui.visibleAgents.filter(
+        (agent) => agent.uiVisibilityState === "main" || agent.uiVisibilityState === "needs_attention",
+      ),
+    [projection.ui.visibleAgents],
+  );
+  const archivedAgents = projection.ui.archivedAgents;
+  const agentById = useMemo(
+    () =>
+      new Map(
+        [...visibleAgents, ...archivedAgents].map((agent) => [
+          agent.agentId,
+          agentSummaryToAgentRow(agent, rawAgentById.get(agent.agentId)),
+        ]),
+      ),
+    [archivedAgents, rawAgentById, visibleAgents],
   );
   const operatorAgentIds = useMemo(
     () =>
@@ -129,8 +147,11 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
     filteredMessages.find((message) => message.messageId === selectedMessageId) ||
     filteredMessages[0];
   const selectedAgent =
-    projection.agents.find((agent) => agent.id === selectedAgentId) ||
+    agentById.get(selectedAgentId) ||
     selectedMessage?.recipientAgentIds.map((id) => agentById.get(id)).find(Boolean) ||
+    (visibleAgents[0]
+      ? agentSummaryToAgentRow(visibleAgents[0], rawAgentById.get(visibleAgents[0].agentId))
+      : undefined) ||
     projection.agents[0];
 
   useEffect(() => {
@@ -169,22 +190,24 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
     }
   }
 
-  function selectAgent(agent: AgentRow) {
-    setSelectedAgentId(agent.id);
+  function selectAgent(agent: UiAgentSummary) {
+    setSelectedAgentId(agent.agentId);
     setSelectedRecipients((current) => {
-      if (current.includes(agent.id)) {
+      if (current.includes(agent.agentId)) {
         return current;
       }
-      return [agent.id];
+      return [agent.agentId];
     });
   }
 
   function selectRecipient(value: string) {
     if (value === "active") {
-      const activeAgents = projection.agents
-        .filter((agent) => /working|running|active|wait/i.test(agent.state))
-        .map((agent) => agent.id);
-      setSelectedRecipients(activeAgents.length ? activeAgents : projection.agents.slice(0, 2).map((agent) => agent.id));
+      const activeAgents = visibleAgents
+        .filter((agent) => /assigned|working|waiting|blocked|claim_pending/i.test(agent.workloadState))
+        .map((agent) => agent.agentId);
+      setSelectedRecipients(
+        activeAgents.length ? activeAgents : visibleAgents.slice(0, 2).map((agent) => agent.agentId),
+      );
       return;
     }
     if (value === "selected") {
@@ -272,25 +295,25 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
             </div>
           </Panel>
 
-          <Panel title="Agent 列表" meta={`${projection.agents.length} 个`}>
+          <Panel title="Agent 列表" meta={`${visibleAgents.length} active / ${archivedAgents.length} archived`}>
             <div style={styles.agentList}>
-              {projection.agents.length ? (
-                projection.agents.map((agent) => (
+              {visibleAgents.length ? (
+                visibleAgents.map((agent) => (
                   <button
-                    aria-pressed={selectedAgentId === agent.id || selectedRecipients.includes(agent.id)}
+                    aria-pressed={selectedAgentId === agent.agentId || selectedRecipients.includes(agent.agentId)}
                     className="gateItem"
-                    key={agent.id}
+                    key={agent.agentId}
                     onClick={() => selectAgent(agent)}
                     style={{
                       ...styles.agentButton,
-                      ...(selectedAgentId === agent.id ? styles.selectedBlueBorder : {}),
+                      ...(selectedAgentId === agent.agentId ? styles.selectedBlueBorder : {}),
                     }}
                     type="button"
                   >
-                    <AgentMark agent={agent} compact />
+                    <AgentMark agent={agentSummaryToAgentRow(agent, rawAgentById.get(agent.agentId))} compact />
                     <span style={styles.agentMeta}>
-                      <span title={agent.state || undefined}>{agentHealthLabel(agent.state)}</span>
-                      <strong>{agent.inboxCount} inbox</strong>
+                      <span title={agent.runtimeState || undefined}>{agentHealthLabel(agent)}</span>
+                      <strong>{agent.queuedInbox} inbox</strong>
                     </span>
                   </button>
                 ))
@@ -299,6 +322,30 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
                   当前没有可选 Agent。
                 </p>
               )}
+              {archivedAgents.length ? (
+                <details className="agentArchiveFold">
+                  <summary>Archived Agents ({archivedAgents.length})</summary>
+                  {archivedAgents.map((agent) => (
+                    <button
+                      aria-pressed={selectedAgentId === agent.agentId || selectedRecipients.includes(agent.agentId)}
+                      className="gateItem"
+                      key={agent.agentId}
+                      onClick={() => selectAgent(agent)}
+                      style={{
+                        ...styles.agentButton,
+                        ...(selectedAgentId === agent.agentId ? styles.selectedBlueBorder : {}),
+                      }}
+                      type="button"
+                    >
+                      <AgentMark agent={agentSummaryToAgentRow(agent, rawAgentById.get(agent.agentId))} compact />
+                      <span style={styles.agentMeta}>
+                        <span title={agent.hiddenReason || agent.runtimeState || undefined}>{agentHealthLabel(agent)}</span>
+                        <strong>{agent.queuedInbox} inbox</strong>
+                      </span>
+                    </button>
+                  ))}
+                </details>
+              ) : null}
             </div>
           </Panel>
         </aside>
@@ -412,9 +459,9 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
                     <option value="">选择 Agent</option>
                     <option value="selected">已选择 {selectedRecipients.length} 个 Agent</option>
                     <option value="active">运行中的 Agent</option>
-                    {projection.agents.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name || agent.id}
+                    {visibleAgents.map((agent) => (
+                      <option key={agent.agentId} value={agent.agentId}>
+                        {agent.displayName || agent.agentId}
                       </option>
                     ))}
                   </select>
@@ -461,7 +508,7 @@ export function CommunicationPage({ projection }: CommunicationPageProps) {
           <button
             className="commandButton"
             onClick={() => {
-              const firstRecipient = selectedAgent?.id || projection.agents[0]?.id;
+              const firstRecipient = selectedAgent?.id || visibleAgents[0]?.agentId;
               if (firstRecipient) {
                 setSelectedRecipients([firstRecipient]);
                 setSelectedAgentId(firstRecipient);
@@ -555,24 +602,30 @@ function isOperatorLikeIdentity(value: string | undefined): boolean {
   return /operator|controller/i.test(value || "");
 }
 
-function agentHealthLabel(state: string): string {
-  const value = state.toLowerCase().replace(/[_-]/g, " ");
-  if (/context lost|needs rehydration|input unavailable|delivered not acked/.test(value)) {
-    return "Needs input";
+function agentSummaryToAgentRow(summary: UiAgentSummary, fallback?: AgentRow): AgentRow {
+  const role = summary.role || fallback?.role || "worker";
+  return {
+    id: summary.agentId || fallback?.id || "unknown-agent",
+    name: summary.displayName || fallback?.name || summary.agentId || "unknown-agent",
+    role,
+    roles: fallback?.roles?.length ? fallback.roles : role ? [role] : [],
+    sessionId: fallback?.sessionId || "no-session",
+    state: summary.runtimeState || summary.presenceState || fallback?.state || "unknown",
+    inboxCount: summary.queuedInbox,
+    capabilities: fallback?.capabilities || [],
+  };
+}
+
+function agentHealthLabel(agent: UiAgentSummary): string {
+  if (agent.uiVisibilityState === "needs_attention") {
+    return "Needs attention";
   }
-  if (/suspected stuck|stuck/.test(value)) {
-    return "Stuck";
-  }
-  if (/degraded|stale/.test(value)) {
-    return "Stale";
-  }
-  if (/working|busy|active/.test(value)) {
-    return "Busy";
-  }
-  if (/waiting|standby|ready|wait returned noop/.test(value)) {
-    return "Ready";
-  }
-  return state || "等待";
+  const labels: Record<string, string> = {
+    offline: "Offline",
+    online: "Online",
+    stale: "Stale",
+  };
+  return labels[agent.presenceState] || agent.presenceState || "Unknown";
 }
 
 function classifyMessageSpace(message: BusMessageRow): SpaceKey {
