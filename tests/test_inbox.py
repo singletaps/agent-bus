@@ -4,6 +4,7 @@ import sqlite3
 import threading
 import time
 
+from agent_bus.authority import controller_principal, user_principal
 from agent_bus.inbox import ACKED, BUSY_AGENT_DELIVERABLE_KINDS, InboxStore, ack, enqueue, migrate, wait
 from agent_bus.models import EventType
 from agent_bus.router import InterruptRoutingTarget, compute_affected_agents, create_user_interrupt
@@ -49,7 +50,14 @@ def test_wait_times_out_with_noop(tmp_path):
 
 def test_module_helpers_enqueue_wait_and_ack(tmp_path):
     db_path = tmp_path / "bus.sqlite3"
-    item = enqueue("agent", "task_assigned", {"task_id": "task_1"}, db_path=db_path)
+    item = enqueue(
+        "agent",
+        "task_assigned",
+        {"task_id": "task_1"},
+        db_path=db_path,
+        actor="controller",
+        principal=controller_principal(),
+    )
 
     result = wait("agent", timeout=0.1, db_path=db_path)
 
@@ -62,8 +70,8 @@ def test_wait_blocks_until_visible_item_arrives(tmp_path):
     store = InboxStore(db_path)
 
     def enqueue_later() -> None:
-        other = InboxStore(db_path)
-        other.enqueue("worker.backend", "task_assigned", {"task_id": "task_1"})
+        other = InboxStore(db_path, principal=controller_principal())
+        other.enqueue("worker.backend", "task_assigned", {"task_id": "task_1"}, actor="controller")
         other.close()
 
     timer = threading.Timer(0.03, enqueue_later)
@@ -79,9 +87,9 @@ def test_wait_blocks_until_visible_item_arrives(tmp_path):
 
 
 def test_highest_priority_item_wins(tmp_path):
-    store = InboxStore(tmp_path / "bus.sqlite3")
-    low = store.enqueue("agent", "low", priority=1)
-    high = store.enqueue("agent", "high", priority=50)
+    store = InboxStore(tmp_path / "bus.sqlite3", principal=controller_principal())
+    low = store.enqueue("agent", "low", priority=1, actor="controller")
+    high = store.enqueue("agent", "high", priority=50, actor="controller")
 
     result = store.wait("agent", timeout=0.1)
 
@@ -90,8 +98,8 @@ def test_highest_priority_item_wins(tmp_path):
 
 
 def test_ack_marks_item_done_and_prevents_redelivery(tmp_path):
-    store = InboxStore(tmp_path / "bus.sqlite3")
-    item = store.enqueue("agent", "task_assigned")
+    store = InboxStore(tmp_path / "bus.sqlite3", principal=controller_principal())
+    item = store.enqueue("agent", "task_assigned", actor="controller")
     delivered = store.wait("agent", timeout=0.1).item
 
     assert delivered.inbox_id == item.inbox_id
@@ -104,8 +112,8 @@ def test_ack_marks_item_done_and_prevents_redelivery(tmp_path):
 
 
 def test_unacked_item_redelivers_after_visibility_timeout(tmp_path):
-    store = InboxStore(tmp_path / "bus.sqlite3")
-    item = store.enqueue("agent", "task_assigned")
+    store = InboxStore(tmp_path / "bus.sqlite3", principal=controller_principal())
+    item = store.enqueue("agent", "task_assigned", actor="controller")
     first = store.wait("agent", timeout=0.1, visibility_timeout=0.01).item
 
     time.sleep(0.02)
@@ -117,9 +125,9 @@ def test_unacked_item_redelivers_after_visibility_timeout(tmp_path):
 
 
 def test_dedupe_key_prevents_duplicate_active_wakeups(tmp_path):
-    store = InboxStore(tmp_path / "bus.sqlite3")
-    first = store.enqueue("agent", "gate_result", dedupe_key="gate:1", payload={"version": 1})
-    duplicate = store.enqueue("agent", "gate_result", dedupe_key="gate:1", payload={"version": 2})
+    store = InboxStore(tmp_path / "bus.sqlite3", principal=controller_principal())
+    first = store.enqueue("agent", "gate_result", dedupe_key="gate:1", payload={"version": 1}, actor="controller")
+    duplicate = store.enqueue("agent", "gate_result", dedupe_key="gate:1", payload={"version": 2}, actor="controller")
 
     assert duplicate.inbox_id == first.inbox_id
     assert duplicate.payload == {"version": 1}
@@ -127,15 +135,15 @@ def test_dedupe_key_prevents_duplicate_active_wakeups(tmp_path):
 
     delivered = store.wait("agent", timeout=0.1).item
     assert store.ack(delivered.inbox_id)
-    replacement = store.enqueue("agent", "gate_result", dedupe_key="gate:1", payload={"version": 2})
+    replacement = store.enqueue("agent", "gate_result", dedupe_key="gate:1", payload={"version": 2}, actor="controller")
     assert replacement.inbox_id != first.inbox_id
     assert len(store.list_items("agent")) == 2
 
 
 def test_busy_agent_receives_only_urgent_control_items(tmp_path):
-    store = InboxStore(tmp_path / "bus.sqlite3")
-    ordinary = store.enqueue("agent", "task_assigned", priority=100)
-    urgent = store.enqueue("agent", "gate_result", priority=1)
+    store = InboxStore(tmp_path / "bus.sqlite3", principal=controller_principal())
+    ordinary = store.enqueue("agent", "task_assigned", priority=100, actor="controller")
+    urgent = store.enqueue("agent", "gate_result", priority=1, actor="controller")
 
     busy_result = store.wait("agent", timeout=0.1, busy=True)
 
@@ -150,7 +158,7 @@ def test_busy_agent_receives_only_urgent_control_items(tmp_path):
 
 def test_human_interrupt_routes_only_to_affected_agents_and_invalidates_context(tmp_path):
     db_path = tmp_path / "bus.sqlite3"
-    inbox_store = InboxStore(db_path)
+    inbox_store = InboxStore(db_path, principal=user_principal())
     context_store = FakeContextStore(
         {
             "controller": ["ctx-controller"],
@@ -213,7 +221,7 @@ def test_human_interrupt_routes_only_to_affected_agents_and_invalidates_context(
 
 def test_human_interrupt_dedupe_prevents_repeated_wakeups_for_same_event(tmp_path):
     db_path = tmp_path / "bus.sqlite3"
-    inbox_store = InboxStore(db_path)
+    inbox_store = InboxStore(db_path, principal=user_principal())
     target = InterruptRoutingTarget(task_owner="worker.owner", qa_agent=None)
 
     first = create_user_interrupt(

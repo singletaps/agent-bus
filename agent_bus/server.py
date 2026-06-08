@@ -4,6 +4,7 @@ import asyncio
 import json
 import mimetypes
 import os
+import sqlite3
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -15,8 +16,10 @@ from pydantic import BaseModel, Field
 
 from .agents import AgentDirectory, AgentDirectoryError
 from .artifacts import ArtifactManifestItem, ArtifactPathError, read_artifact_manifests, resolve_artifact_file
+from .authority import agent_principal, ensure_local_bootstrap_principals, resolve_local_api_principal
 from .context import ContextPacketInvalidated, ContextPacketNotFound, ContextStore
 from .db import initialize_database
+from .gates import GateBoard
 from .inbox import InboxStore
 from .models import (
     AgentHealth,
@@ -26,6 +29,7 @@ from .models import (
     BusMessageProjection,
     ContextPacket,
     EventType,
+    GateRecord,
     InboxItem,
     RunRecord,
     TaskRecord,
@@ -40,6 +44,8 @@ from .projections import (
     build_message_projection,
     build_operations_projection,
 )
+from .protocol import ProtocolKernel
+from .protocol_models import FencingResult, ProjectionEffect
 from .replacement import (
     ReplacementCandidate,
     ReplacementCoordinator,
@@ -48,6 +54,7 @@ from .replacement import (
 )
 from .router import InterruptRoutingTarget, create_user_interrupt
 from .store import EventStore
+from .tasks import RuntimeRecordError, StateTransitionError, TaskBoard
 
 
 class ApiEnvelope(BaseModel):
@@ -127,6 +134,20 @@ class InboxAckRequest(BaseModel):
     agent_id: str | None = None
 
 
+class WorkerInboxWaitRequest(InboxWaitRequest):
+    session_id: str
+    session_epoch: int
+    fencing_token: str
+
+
+class WorkerInboxAckRequest(BaseModel):
+    inbox_id: str
+    agent_id: str
+    session_id: str
+    session_epoch: int
+    fencing_token: str
+
+
 class InboxAckResponse(ApiEnvelope):
     inbox_id: str
     acked: bool
@@ -188,7 +209,63 @@ class ReplacementApproveResponse(ApiEnvelope):
     old_session: Any
     replacement_session: Any
     context_packet: ContextPacket
+    context_packet_id: str
+    invalidated_packet_ids: list[str]
+    event_chain: list[dict[str, Any]]
     approved_by: str
+
+
+class GateDecisionRequest(BaseModel):
+    actor: str = "controller"
+    reason: str | None = None
+    allow_high_risk: bool = False
+    action_agent_id: str = "controller"
+    evidence_artifact_ids: list[str] = Field(default_factory=list)
+
+
+class GateDecisionResponse(ApiEnvelope):
+    gate: GateRecord
+
+
+class WorkerTaskCompleteRequest(BaseModel):
+    actor: str
+    session_id: str | None = None
+    session_epoch: int | None = None
+    context_packet_id: str | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkerTaskCompletionClaimRequest(BaseModel):
+    actor: str
+    session_id: str
+    session_epoch: int
+    fencing_token: str
+    context_packet_id: str
+    payload: dict[str, Any]
+
+
+class WorkerClaimResponse(ApiEnvelope):
+    task: TaskRecord
+    claim: dict[str, Any]
+    event_id: str
+    projection_effect: str
+    fencing_result: str
+
+
+class ControllerGateDecisionRequest(BaseModel):
+    reason: str | None = None
+    allow_high_risk: bool = False
+    action_agent_id: str = "controller"
+    evidence_artifact_ids: list[str] = Field(default_factory=list)
+
+
+class ControllerClaimDecisionRequest(BaseModel):
+    actor: str = "controller"
+
+
+class ControllerClaimDecisionResponse(ApiEnvelope):
+    task: TaskRecord
+    claim: dict[str, Any]
 
 
 def create_app(
@@ -197,6 +274,7 @@ def create_app(
     frontend_dist: str | os.PathLike[str] | None = None,
 ) -> FastAPI:
     initialize_database(db_path)
+    ensure_local_bootstrap_principals(db_path)
     app = FastAPI(title="Agent Bus Runtime API", version="0.1.0")
     app.state.db_path = db_path
     app.state.frontend_dist = _resolve_frontend_dist(frontend_dist)
@@ -292,7 +370,15 @@ def create_app(
     @app.post("/api/messages/send", response_model=BusMessageSendResponse)
     def send_message(payload: BusMessageSendRequest, request: Request) -> BusMessageSendResponse:
         db = _db_path(request)
-        context = ContextStore(db)
+        _record_deprecated_adapter_use(
+            db,
+            path="api.messages.send",
+            replacement="api.user.interrupts",
+            actor=payload.actor,
+        )
+        principal = resolve_local_api_principal(db, "user")
+        context = ContextStore(db, principal=principal)
+        inbox = InboxStore(db_path=db, principal=principal)
         try:
             result = create_user_interrupt(
                 actor=payload.actor,
@@ -314,8 +400,10 @@ def create_app(
                 },
                 db_path=db,
                 context_store=context,
+                inbox_store=inbox,
             )
         finally:
+            inbox.close()
             context.close()
         return BusMessageSendResponse(event=result.event, affected_agents=result.affected_agents)
 
@@ -341,8 +429,8 @@ def create_app(
             return FileResponse(path, media_type=content_type, filename=path.name)
         return FileResponse(path, media_type=content_type)
 
-    @app.post("/api/inbox/wait", response_model=InboxWaitResponse)
-    async def inbox_wait(payload: InboxWaitRequest, request: Request) -> InboxWaitResponse:
+    @app.post("/api/worker/inbox/wait", response_model=InboxWaitResponse)
+    async def worker_inbox_wait(payload: WorkerInboxWaitRequest, request: Request) -> InboxWaitResponse | JSONResponse:
         db = _db_path(request)
         deadline = asyncio.get_running_loop().time() + payload.timeout
         store = InboxStore(db_path=db)
@@ -350,14 +438,28 @@ def create_app(
             while True:
                 if await request.is_disconnected():
                     raise HTTPException(status_code=499, detail="client disconnected")
-                result = await asyncio.to_thread(
-                    store.wait,
-                    payload.agent_id,
-                    0,
-                    busy=payload.busy,
-                    visibility_timeout=payload.visibility_timeout,
-                    poll_interval=payload.poll_interval,
-                )
+                try:
+                    result = await asyncio.to_thread(
+                        store.wait,
+                        payload.agent_id,
+                        0,
+                        busy=payload.busy,
+                        visibility_timeout=payload.visibility_timeout,
+                        poll_interval=payload.poll_interval,
+                        session_id=payload.session_id,
+                        session_epoch=payload.session_epoch,
+                        fencing_token=payload.fencing_token,
+                        require_fence=True,
+                    )
+                except PermissionError as exc:
+                    return JSONResponse(
+                        status_code=403,
+                        content=_stable_error_payload(
+                            "fencing_reject",
+                            str(exc),
+                            projection_effect=ProjectionEffect.REJECT.value,
+                        ),
+                    )
                 if result.item is not None or asyncio.get_running_loop().time() >= deadline:
                     return InboxWaitResponse(
                         kind=result.kind,
@@ -369,14 +471,70 @@ def create_app(
         finally:
             store.close()
 
-    @app.post("/api/inbox/ack", response_model=InboxAckResponse)
-    def inbox_ack(payload: InboxAckRequest, request: Request) -> InboxAckResponse:
+    @app.post("/api/inbox/wait", response_model=InboxWaitResponse)
+    async def inbox_wait(payload: InboxWaitRequest, request: Request) -> JSONResponse:
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.inbox.wait",
+            replacement="api.worker.inbox.wait",
+            actor=payload.agent_id,
+        )
+        return JSONResponse(
+            status_code=409,
+            content=_stable_error_payload(
+                "deprecated_adapter",
+                "legacy inbox wait requires fenced worker identity; use /api/worker/inbox/wait",
+                projection_effect=ProjectionEffect.AUDIT_ONLY.value,
+            ),
+        )
+
+    @app.post("/api/worker/inbox/ack", response_model=InboxAckResponse)
+    def worker_inbox_ack(payload: WorkerInboxAckRequest, request: Request) -> InboxAckResponse | JSONResponse:
         store = InboxStore(db_path=_db_path(request))
         try:
-            acked = store.ack(payload.inbox_id, agent_id=payload.agent_id)
-            return InboxAckResponse(inbox_id=payload.inbox_id, acked=acked)
+            try:
+                acked = store.ack(
+                    payload.inbox_id,
+                    agent_id=payload.agent_id,
+                    session_id=payload.session_id,
+                    session_epoch=payload.session_epoch,
+                    fencing_token=payload.fencing_token,
+                    require_fence=True,
+                )
+            except PermissionError as exc:
+                return JSONResponse(
+                    status_code=403,
+                    content=_stable_error_payload(
+                        "fencing_reject",
+                        str(exc),
+                        projection_effect=ProjectionEffect.REJECT.value,
+                    ),
+                )
+            if not acked:
+                return JSONResponse(
+                    status_code=409,
+                    content=_stable_error_payload("ack_rejected", "inbox ack was rejected"),
+                )
+            return InboxAckResponse(inbox_id=payload.inbox_id, acked=True)
         finally:
             store.close()
+
+    @app.post("/api/inbox/ack", response_model=InboxAckResponse)
+    def inbox_ack(payload: InboxAckRequest, request: Request) -> JSONResponse:
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.inbox.ack",
+            replacement="api.worker.inbox.ack",
+            actor=payload.agent_id,
+        )
+        return JSONResponse(
+            status_code=409,
+            content=_stable_error_payload(
+                "deprecated_adapter",
+                "legacy inbox ack requires fenced worker identity; use /api/worker/inbox/ack",
+                projection_effect=ProjectionEffect.AUDIT_ONLY.value,
+            ),
+        )
 
     @app.get("/api/context/{packet_id}", response_model=ContextPacket)
     def context_packet(
@@ -391,29 +549,97 @@ def create_app(
         except ContextPacketNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @app.post("/api/user/interrupts", response_model=InterruptResponse)
+    def user_interrupt(payload: InterruptRequest, request: Request) -> InterruptResponse:
+        return _user_interrupt(payload, request)
+
     @app.post("/api/interrupt", response_model=InterruptResponse)
     def interrupt(payload: InterruptRequest, request: Request) -> InterruptResponse:
-        db = _db_path(request)
-        context = ContextStore(db)
-        try:
-            result = create_user_interrupt(
-                actor=payload.actor,
-                target=InterruptRoutingTarget(**payload.target.model_dump()),
-                text=payload.text,
-                run_id=payload.run_id,
-                task_id=payload.task_id,
-                payload=payload.payload,
-                db_path=db,
-                context_store=context,
-            )
-        finally:
-            context.close()
-        return InterruptResponse(
-            event=result.event,
-            affected_agents=result.affected_agents,
-            invalidated_packet_ids_by_agent=result.invalidated_packet_ids_by_agent,
-            inbox_ids_by_agent=result.inbox_ids_by_agent,
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.interrupt",
+            replacement="api.user.interrupts",
+            actor=payload.actor,
         )
+        return _user_interrupt(payload, request)
+
+    @app.post("/api/worker/tasks/{task_id}/completion-claim", response_model=WorkerClaimResponse)
+    def worker_task_completion_claim(
+        task_id: str,
+        payload: WorkerTaskCompletionClaimRequest,
+        request: Request,
+    ) -> WorkerClaimResponse | JSONResponse:
+        return _worker_task_completion_claim(task_id, payload, request)
+
+    @app.post("/api/worker/tasks/{task_id}/complete", response_model=WorkerClaimResponse)
+    def worker_task_complete(
+        task_id: str,
+        payload: WorkerTaskCompleteRequest,
+        request: Request,
+    ) -> WorkerClaimResponse | JSONResponse:
+        return _worker_task_complete(task_id, payload, request)
+
+    @app.post("/api/controller/gates/{gate_id}/approve", response_model=GateDecisionResponse)
+    def controller_gate_approve(
+        gate_id: str,
+        payload: ControllerGateDecisionRequest,
+        request: Request,
+    ) -> GateDecisionResponse | JSONResponse:
+        return _controller_gate_decision("approve", gate_id, payload, request)
+
+    @app.post("/api/controller/gates/{gate_id}/reject", response_model=GateDecisionResponse)
+    def controller_gate_reject(
+        gate_id: str,
+        payload: ControllerGateDecisionRequest,
+        request: Request,
+    ) -> GateDecisionResponse | JSONResponse:
+        return _controller_gate_decision("reject", gate_id, payload, request)
+
+    @app.post("/api/controller/gates/{gate_id}/escalate", response_model=GateDecisionResponse)
+    def controller_gate_escalate(
+        gate_id: str,
+        payload: ControllerGateDecisionRequest,
+        request: Request,
+    ) -> GateDecisionResponse | JSONResponse:
+        return _controller_gate_decision("escalate", gate_id, payload, request)
+
+    @app.post("/api/controller/task-claims/{claim_id}/commit", response_model=ControllerClaimDecisionResponse)
+    def controller_claim_commit(
+        claim_id: str,
+        payload: ControllerClaimDecisionRequest,
+        request: Request,
+    ) -> ControllerClaimDecisionResponse | JSONResponse:
+        return _controller_claim_commit(claim_id, payload, request)
+
+    @app.post("/api/gates/{gate_id}/approve", response_model=GateDecisionResponse)
+    def gate_approve(gate_id: str, payload: GateDecisionRequest, request: Request) -> GateDecisionResponse | JSONResponse:
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.gates.approve",
+            replacement="api.controller.gates.approve",
+            actor=payload.actor,
+        )
+        return _gate_decision("approve", gate_id, payload, request)
+
+    @app.post("/api/gates/{gate_id}/reject", response_model=GateDecisionResponse)
+    def gate_reject(gate_id: str, payload: GateDecisionRequest, request: Request) -> GateDecisionResponse | JSONResponse:
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.gates.reject",
+            replacement="api.controller.gates.reject",
+            actor=payload.actor,
+        )
+        return _gate_decision("reject", gate_id, payload, request)
+
+    @app.post("/api/gates/{gate_id}/escalate", response_model=GateDecisionResponse)
+    def gate_escalate(gate_id: str, payload: GateDecisionRequest, request: Request) -> GateDecisionResponse | JSONResponse:
+        _record_deprecated_adapter_use(
+            _db_path(request),
+            path="api.gates.escalate",
+            replacement="api.controller.gates.escalate",
+            actor=payload.actor,
+        )
+        return _gate_decision("escalate", gate_id, payload, request)
 
     @app.get("/api/replacement/recommendations", response_model=ReplacementRecommendationsResponse)
     def replacement_recommendations(
@@ -437,8 +663,9 @@ def create_app(
     def replacement_approve(payload: ReplacementApproveRequest, request: Request) -> ReplacementApproveResponse:
         db = _db_path(request)
         directory = AgentDirectory(db_path=db)
-        inbox = InboxStore(db_path=db)
-        context = ContextStore(db)
+        principal = resolve_local_api_principal(db, "controller")
+        inbox = InboxStore(db_path=db, principal=principal)
+        context = ContextStore(db, principal=principal)
         coordinator = ReplacementCoordinator(
             directory=directory,
             inbox=inbox,
@@ -461,6 +688,9 @@ def create_app(
                 old_session=approval.old_session.model_dump(mode="json"),
                 replacement_session=approval.replacement_session.model_dump(mode="json"),
                 context_packet=approval.context_packet,
+                context_packet_id=approval.context_packet.packet_id,
+                invalidated_packet_ids=_context_invalidated_packet_ids(approval.context_packet),
+                event_chain=_replacement_event_chain(db, recommendation.recommendation_id),
                 approved_by=approval.approved_by,
             )
         finally:
@@ -478,6 +708,401 @@ def create_app(
         app.mount("/", StaticFiles(directory=str(frontend_root), html=True), name="frontend")
 
     return app
+
+
+def _user_interrupt(payload: InterruptRequest, request: Request) -> InterruptResponse:
+    db = _db_path(request)
+    principal = resolve_local_api_principal(db, "user")
+    context = ContextStore(db, principal=principal)
+    inbox = InboxStore(db_path=db, principal=principal)
+    try:
+        result = create_user_interrupt(
+            actor=payload.actor,
+            target=InterruptRoutingTarget(**payload.target.model_dump()),
+            text=payload.text,
+            run_id=payload.run_id,
+            task_id=payload.task_id,
+            payload=payload.payload,
+            db_path=db,
+            context_store=context,
+            inbox_store=inbox,
+        )
+    finally:
+        inbox.close()
+        context.close()
+    return InterruptResponse(
+        event=result.event,
+        affected_agents=result.affected_agents,
+        invalidated_packet_ids_by_agent=result.invalidated_packet_ids_by_agent,
+        inbox_ids_by_agent=result.inbox_ids_by_agent,
+    )
+
+
+def _worker_task_complete(
+    task_id: str,
+    payload: WorkerTaskCompleteRequest,
+    request: Request,
+) -> WorkerClaimResponse | JSONResponse:
+    db = _db_path(request)
+    try:
+        _assert_worker_actor(payload.actor)
+        result = ProtocolKernel(db).record_task_completion_claim(
+            task_id,
+            actor=payload.actor,
+            agent_id=payload.actor,
+            session_id=payload.session_id,
+            session_epoch=payload.session_epoch,
+            context_packet_id=payload.context_packet_id,
+            payload=payload.payload,
+        )
+        board = TaskBoard(db_path=db)
+        try:
+            task = board.get_task(task_id)
+        finally:
+            board.close()
+        return WorkerClaimResponse(
+            task=task,
+            claim=_task_claim_snapshot(db, result.claim_id),
+            event_id=result.event_id or "",
+            projection_effect=_enum_value(result.projection_effect),
+            fencing_result=_enum_value(result.fencing_result),
+        )
+    except RuntimeRecordError as exc:
+        return JSONResponse(status_code=404, content=_stable_error_payload("not_found", str(exc)))
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=403,
+            content=_stable_error_payload(
+                "authority_reject",
+                str(exc),
+                actor=payload.actor,
+                projection_effect=ProjectionEffect.REJECT.value,
+            ),
+        )
+
+
+def _worker_task_completion_claim(
+    task_id: str,
+    payload: WorkerTaskCompletionClaimRequest,
+    request: Request,
+) -> WorkerClaimResponse | JSONResponse:
+    db = _db_path(request)
+    try:
+        _assert_worker_actor(payload.actor)
+        result = ProtocolKernel(db).record_fenced_task_completion_claim(
+            task_id,
+            actor=payload.actor,
+            principal=agent_principal(payload.actor, session_id=payload.session_id),
+            agent_id=payload.actor,
+            session_id=payload.session_id,
+            session_epoch=payload.session_epoch,
+            fencing_token=payload.fencing_token,
+            context_packet_id=payload.context_packet_id,
+            payload=payload.payload,
+        )
+        if not result.accepted:
+            return _worker_claim_reject_response(result)
+        board = TaskBoard(db_path=db)
+        try:
+            task = board.get_task(task_id)
+        finally:
+            board.close()
+        return WorkerClaimResponse(
+            task=task,
+            claim=_task_claim_snapshot(db, result.claim_id),
+            event_id=result.event_id or "",
+            projection_effect=_enum_value(result.projection_effect),
+            fencing_result=_enum_value(result.fencing_result),
+        )
+    except RuntimeRecordError as exc:
+        return JSONResponse(status_code=404, content=_stable_error_payload("not_found", str(exc)))
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=403,
+            content=_stable_error_payload(
+                "authority_reject",
+                str(exc),
+                actor=payload.actor,
+                projection_effect=ProjectionEffect.REJECT.value,
+            ),
+        )
+
+
+def _worker_claim_reject_response(result) -> JSONResponse:
+    fencing_failed = result.fencing_result in {
+        FencingResult.MISSING,
+        FencingResult.INVALID,
+        FencingResult.STALE_EPOCH,
+        FencingResult.WRONG_SESSION,
+    }
+    return JSONResponse(
+        status_code=403 if fencing_failed else 409,
+        content=_stable_error_payload(
+            "fencing_reject" if fencing_failed else "protocol_reject",
+            result.reason or "worker completion claim rejected",
+            projection_effect=_enum_value(result.projection_effect),
+            fencing_result=_enum_value(result.fencing_result),
+            violation_id=result.violation_id,
+        ),
+    )
+
+
+def _controller_gate_decision(
+    action: str,
+    gate_id: str,
+    payload: ControllerGateDecisionRequest,
+    request: Request,
+) -> GateDecisionResponse | JSONResponse:
+    return _gate_decision(
+        action,
+        gate_id,
+        GateDecisionRequest(
+            actor="controller",
+            reason=payload.reason,
+            allow_high_risk=payload.allow_high_risk,
+            action_agent_id=payload.action_agent_id,
+            evidence_artifact_ids=payload.evidence_artifact_ids,
+        ),
+        request,
+    )
+
+
+def _controller_claim_commit(
+    claim_id: str,
+    payload: ControllerClaimDecisionRequest,
+    request: Request,
+) -> ControllerClaimDecisionResponse | JSONResponse:
+    db = _db_path(request)
+    try:
+        principal = _api_controller_principal_for_actor(payload.actor, db)
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=403,
+            content=_stable_error_payload(
+                "authority_reject",
+                str(exc),
+                actor=payload.actor,
+                projection_effect=ProjectionEffect.REJECT.value,
+            ),
+        )
+    board = TaskBoard(db_path=db, principal=principal)
+    try:
+        task = board.commit_task_claim(claim_id, actor=payload.actor, principal=principal)
+        return ControllerClaimDecisionResponse(task=task, claim=_task_claim_snapshot(db, claim_id))
+    except RuntimeRecordError as exc:
+        return JSONResponse(status_code=404, content=_stable_error_payload("not_found", str(exc)))
+    except StateTransitionError as exc:
+        return JSONResponse(status_code=409, content=_stable_error_payload("invalid_state", str(exc)))
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=409,
+            content=_stable_error_payload("protocol_reject", str(exc), projection_effect=ProjectionEffect.REJECT.value),
+        )
+    finally:
+        board.close()
+
+
+def _gate_decision(
+    action: str,
+    gate_id: str,
+    payload: GateDecisionRequest,
+    request: Request,
+) -> GateDecisionResponse | JSONResponse:
+    db = _db_path(request)
+    try:
+        principal = _api_principal_for_actor(payload.actor, db)
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=403,
+            content=_stable_error_payload(
+                "authority_reject",
+                str(exc),
+                actor=payload.actor,
+                projection_effect="REJECT",
+            ),
+        )
+    gates = GateBoard(db_path=db, principal=principal)
+    try:
+        if action == "approve":
+            gate = gates.approve_gate(
+                gate_id,
+                actor=payload.actor,
+                reason=payload.reason,
+                allow_high_risk=payload.allow_high_risk,
+                action_agent_id=payload.action_agent_id,
+                evidence_artifact_ids=payload.evidence_artifact_ids,
+                principal=principal,
+            )
+        elif action == "reject":
+            gate = gates.reject_gate(gate_id, actor=payload.actor, reason=payload.reason, principal=principal)
+        elif action == "escalate":
+            gate = gates.escalate_gate(gate_id, actor=payload.actor, reason=payload.reason, principal=principal)
+        else:  # pragma: no cover - route construction keeps this closed.
+            raise RuntimeRecordError(f"unknown gate action: {action}")
+        return GateDecisionResponse(gate=gate)
+    except RuntimeRecordError as exc:
+        return JSONResponse(status_code=404, content=_stable_error_payload("not_found", str(exc)))
+    except StateTransitionError as exc:
+        return JSONResponse(status_code=409, content=_stable_error_payload("invalid_state", str(exc)))
+    except PermissionError as exc:
+        return JSONResponse(
+            status_code=409,
+            content=_stable_error_payload(
+                "protocol_reject",
+                str(exc),
+                **_latest_protocol_rejection(db, action=_gate_action_name(action)),
+            ),
+        )
+    finally:
+        gates.close()
+
+
+def _api_principal_for_actor(actor: str, db_path: str | os.PathLike[str] | None):
+    normalized = actor.strip().lower()
+    if normalized not in {"controller", "user"}:
+        raise PermissionError(f"unsupported gate decision actor '{actor}'; expected controller or user")
+    return resolve_local_api_principal(db_path, normalized)
+
+
+def _api_controller_principal_for_actor(actor: str, db_path: str | os.PathLike[str] | None):
+    normalized = actor.strip().lower()
+    if normalized != "controller":
+        raise PermissionError(f"controller actor is required; got '{actor}'")
+    return resolve_local_api_principal(db_path, normalized)
+
+
+def _assert_worker_actor(actor: str) -> None:
+    normalized = actor.strip().lower()
+    if not normalized or normalized in {"controller", "user"}:
+        raise PermissionError("worker actor is required for worker API writes")
+
+
+def _gate_action_name(action: str) -> str:
+    if action == "approve":
+        return EventType.GATE_APPROVED.value
+    if action == "reject":
+        return EventType.GATE_REJECTED.value
+    if action == "escalate":
+        return EventType.GATE_ESCALATED.value
+    return action
+
+
+def _stable_error_payload(error: str, message: str, **metadata: Any) -> dict[str, Any]:
+    payload: dict[str, Any] = {"ok": False, "error": error, "message": message}
+    payload.update({key: value for key, value in metadata.items() if value is not None})
+    return payload
+
+
+def _record_deprecated_adapter_use(
+    db_path: str | os.PathLike[str] | None,
+    *,
+    path: str,
+    replacement: str,
+    actor: str | None,
+) -> BusEvent:
+    return EventStore(db_path).append_event(
+        BusEvent(
+            type=EventType.ADAPTER_DEPRECATED_PATH_USED,
+            actor=actor,
+            actor_role="adapter",
+            projection_effect=ProjectionEffect.AUDIT_ONLY,
+            fencing_result=FencingResult.NOT_REQUIRED,
+            payload={"path": path, "replacement": replacement},
+        )
+    )
+
+
+def _task_claim_snapshot(db_path: str | os.PathLike[str] | None, claim_id: str | None) -> dict[str, Any]:
+    if not claim_id:
+        return {}
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("select * from task_claims where claim_id = ?", (claim_id,)).fetchone()
+    if row is None:
+        return {}
+    return {
+        "claim_id": row["claim_id"],
+        "claim_kind": row["claim_kind"],
+        "status": row["status"],
+        "task_id": row["task_id"],
+        "run_id": row["run_id"],
+        "agent_id": row["agent_id"],
+        "session_id": row["session_id"],
+        "session_epoch": row["session_epoch"],
+        "context_packet_id": row["context_packet_id"],
+        "created_from_event_id": row["created_from_event_id"],
+        "committed_by_event_id": row["committed_by_event_id"],
+        "payload": json.loads(row["payload_json"] or "{}"),
+    }
+
+
+def _enum_value(value: Any) -> str:
+    return value.value if hasattr(value, "value") else str(value)
+
+
+def _latest_protocol_rejection(db_path: str | os.PathLike[str] | None, *, action: str | None = None) -> dict[str, Any]:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        if action is None:
+            row = conn.execute(
+                "select violation_id, projection_effect, fencing_result from protocol_violations order by created_at desc limit 1"
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                select violation_id, projection_effect, fencing_result
+                  from protocol_violations
+                 where action = ?
+                 order by created_at desc
+                 limit 1
+                """,
+                (action,),
+            ).fetchone()
+    if row is None:
+        return {"projection_effect": "REJECT"}
+    return {
+        "violation_id": row["violation_id"],
+        "projection_effect": row["projection_effect"],
+        "fencing_result": row["fencing_result"],
+    }
+
+
+def _context_invalidated_packet_ids(packet: ContextPacket) -> list[str]:
+    instructions = packet.instructions
+    if isinstance(instructions, dict):
+        values = instructions.get("invalidated_packet_ids", [])
+        if isinstance(values, list):
+            return [str(value) for value in values]
+    return []
+
+
+def _replacement_event_chain(db_path: str | os.PathLike[str] | None, recommendation_id: str) -> list[dict[str, Any]]:
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            select event_id, type, causation_id, correlation_id, projection_effect, fencing_result, payload_json
+              from event_log
+             where correlation_id = ?
+             order by seq asc
+            """,
+            (recommendation_id,),
+        ).fetchall()
+    events: list[dict[str, Any]] = []
+    for row in rows:
+        payload = json.loads(row["payload_json"] or "{}")
+        events.append(
+            {
+                "event_id": row["event_id"],
+                "type": row["type"],
+                "causation_id": row["causation_id"],
+                "correlation_id": row["correlation_id"],
+                "projection_effect": row["projection_effect"],
+                "fencing_result": row["fencing_result"],
+                "payload": payload,
+            }
+        )
+    return events
 
 
 async def _operations_sse(

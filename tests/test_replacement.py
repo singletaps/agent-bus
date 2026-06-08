@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from agent_bus.agents import AgentDirectory
+from agent_bus.authority import controller_principal
 from agent_bus.context import ContextStore
 from agent_bus.inbox import InboxStore
 from agent_bus.models import AgentRuntimeState, CapabilityEvidenceSource
@@ -101,12 +102,13 @@ def test_candidate_scoring_prefers_capable_standby_role_match():
 
 def test_controller_approval_switches_replacement_and_rehydrates_same_task(tmp_path):
     db_path = tmp_path / "bus.sqlite3"
+    principal = controller_principal()
     directory, old, replacement = _directory_with_candidate()
     directory.report_context_loss(old.session_id, reason="lost context")
-    inbox = InboxStore(db_path)
-    inbox.enqueue("worker.frontend", "task_assigned", {"task_id": "task-ui"})
-    context_sink = ContextStore(db_path)
-    coordinator = ReplacementCoordinator(directory=directory, inbox=inbox, context_sink=context_sink)
+    inbox = InboxStore(db_path, principal=principal)
+    inbox.enqueue("worker.frontend", "task_assigned", {"task_id": "task-ui"}, actor="controller")
+    context_sink = ContextStore(db_path, principal=principal)
+    coordinator = ReplacementCoordinator(directory=directory, inbox=inbox, context_sink=context_sink, principal=principal)
     recommendation = coordinator.recommend_for_session(
         old.session_id,
         task_id="task-ui",

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .agents import AgentDirectory
+from .authority import actor_role_for_principal, controller_principal
 from .context import ContextStore
 from .inbox import InboxStore
 from .models import (
@@ -20,7 +21,9 @@ from .models import (
     new_id,
     utc_now_iso,
 )
+from .protocol_models import FencingResult, PacketKind, Principal, ProjectionEffect, SessionRole
 from .store import EventStore
+from .unit_of_work import UnitOfWork
 
 
 SUSPECT_STATES = {
@@ -98,6 +101,7 @@ class InMemoryRehydrationContext:
 
     def create_rehydration_packet(self, **kwargs: Any) -> ContextPacket:
         packet = ContextPacket(
+            packet_kind=PacketKind.REHYDRATION,
             agent_id=kwargs["agent_id"],
             task_id=kwargs.get("task_id"),
             run_id=kwargs.get("run_id"),
@@ -110,6 +114,9 @@ class InMemoryRehydrationContext:
         self.rehydration_requests.append({**kwargs, "packet_id": packet.packet_id})
         return packet
 
+    def invalidate_active_binding_for_session(self, **_kwargs: Any) -> list[ContextPacket]:
+        return []
+
 
 class ReplacementCoordinator:
     def __init__(
@@ -121,13 +128,19 @@ class ReplacementCoordinator:
         event_store: EventStore | None = None,
         db_path: str | Path | None = None,
         heartbeat_timeout_seconds: float = 300.0,
+        principal: Principal | None = None,
     ) -> None:
         self.directory = directory or AgentDirectory(db_path=db_path)
         context_db_path = db_path
         if context_db_path is None and directory is not None:
             context_db_path = directory.db_path
         self.db_path = Path(context_db_path) if context_db_path is not None else None
-        self.context_sink = context_sink or (ContextStore(context_db_path) if context_db_path is not None else InMemoryRehydrationContext())
+        self.principal = principal or controller_principal("replacement-controller")
+        self.context_sink = context_sink or (
+            ContextStore(context_db_path, principal=self.principal)
+            if context_db_path is not None
+            else InMemoryRehydrationContext()
+        )
         self.inbox = inbox
         self.event_store = event_store
         self.heartbeat_timeout_seconds = heartbeat_timeout_seconds
@@ -172,12 +185,18 @@ class ReplacementCoordinator:
             BusEvent(
                 type=EventType.REPLACEMENT_RECOMMENDED,
                 actor="agent_bus.replacement",
+                actor_role="system",
                 run_id=recommendation.run_id,
                 task_id=task_id,
                 agent_id=session.agent_id,
+                correlation_id=recommendation.recommendation_id,
+                projection_effect=ProjectionEffect.AUDIT_ONLY,
+                fencing_result=FencingResult.NOT_REQUIRED,
                 payload={
                     "recommendation_id": recommendation.recommendation_id,
+                    "task_id": task_id,
                     "old_session_id": session.session_id,
+                    "old_agent_id": session.agent_id,
                     "candidate_agent_id": recommendation.candidate.agent_id,
                     "candidate_session_id": recommendation.candidate.session_id,
                     "triggers": [trigger.name for trigger in triggers],
@@ -240,95 +259,588 @@ class ReplacementCoordinator:
     ) -> ReplacementApproval:
         old_session = self.directory.get_session(recommendation.old_session_id)
         replacement_session = self._ensure_replacement_session(recommendation)
-
-        old_session, replacement_session = self.directory.replace_with_session(
-            old_session.session_id,
-            replacement_session.session_id,
-            reason=f"approved by {approved_by}: {recommendation.reason}",
-            replacement_state=AgentRuntimeState.REHYDRATING,
-        )
-        self._reassign_task_to_replacement(recommendation, replacement_session, approved_by)
-        packet = self.context_sink.create_rehydration_packet(
-            agent_id=replacement_session.agent_id,
-            task_id=recommendation.task_id,
-            run_id=recommendation.run_id,
-            role_contract=f"replacement for {recommendation.old_agent_id}",
-            current_task=recommendation.task_id,
-            last_known_summary=f"Replacement approved for {recommendation.old_agent_id}: {recommendation.reason}",
-            open_inbox_item_ids=self._open_inbox_item_ids(old_session.agent_id),
-            required_artifacts=list(required_artifacts),
-            next_action=next_action,
-            invalidated_packet_ids=list(invalidated_packet_ids),
-            actor=approved_by,
-        )
-        if self.inbox is not None:
-            self.inbox.enqueue(
-                replacement_session.agent_id,
-                "replacement_notice",
-                {
-                    "task_id": recommendation.task_id,
-                    "old_agent_id": old_session.agent_id,
-                    "old_session_id": old_session.session_id,
-                    "replacement_session_id": replacement_session.session_id,
-                    "recommendation_id": recommendation.recommendation_id,
-                },
-                priority=100,
-                context_packet_id=packet.packet_id,
-                dedupe_key=f"replacement:{recommendation.task_id}:{replacement_session.session_id}",
+        snapshot = self._snapshot_replacement_approval(recommendation, old_session, replacement_session)
+        try:
+            approval_request_event = self._record_approval_requested(
+                recommendation,
+                old_session=old_session,
+                replacement_session=replacement_session,
+                approved_by=approved_by,
             )
-        approval = ReplacementApproval(
-            recommendation_id=recommendation.recommendation_id,
-            task_id=recommendation.task_id,
-            old_session=old_session,
-            replacement_session=replacement_session,
-            context_packet=packet,
-            approved_by=approved_by,
-        )
-        self._record_event(
-            BusEvent(
-                type=EventType.REPLACEMENT_APPROVED,
+            scoped_invalidations = self._invalidate_old_task_session_bindings(
+                recommendation,
+                old_session=old_session,
+                invalidated_by_event_id=approval_request_event.event_id,
                 actor=approved_by,
-                run_id=recommendation.run_id,
-                task_id=recommendation.task_id,
-                agent_id=replacement_session.agent_id,
-                payload={
-                    "recommendation_id": recommendation.recommendation_id,
-                    "old_session_id": old_session.session_id,
-                    "replacement_session_id": replacement_session.session_id,
-                    "context_packet_id": packet.packet_id,
-                },
             )
-        )
-        return approval
+            invalidated_packet_id_list = _dedupe_preserving_order(
+                [packet.packet_id for packet in scoped_invalidations] + list(invalidated_packet_ids)
+            )
+
+            old_session, replacement_session = self.directory.replace_with_session(
+                old_session.session_id,
+                replacement_session.session_id,
+                reason=f"approved by {approved_by}: {recommendation.reason}",
+                replacement_state=AgentRuntimeState.REHYDRATING,
+            )
+            self._mark_fence_replaced(old_session.session_id, replacement_session.session_id)
+            packet = self.context_sink.create_rehydration_packet(
+                agent_id=replacement_session.agent_id,
+                task_id=recommendation.task_id,
+                run_id=recommendation.run_id,
+                role_contract=f"replacement for {recommendation.old_agent_id}",
+                current_task=recommendation.task_id,
+                last_known_summary=f"Replacement approved for {recommendation.old_agent_id}: {recommendation.reason}",
+                open_inbox_item_ids=self._open_inbox_item_ids(old_session.agent_id),
+                required_artifacts=list(required_artifacts),
+                next_action=next_action,
+                invalidated_packet_ids=invalidated_packet_id_list,
+                created_from_event_id=approval_request_event.event_id,
+                actor=approved_by,
+                principal=self.principal,
+                session_id=replacement_session.session_id,
+                session_epoch=replacement_session.session_epoch,
+            )
+            if self.inbox is not None:
+                self.inbox.enqueue(
+                    replacement_session.agent_id,
+                    "replacement_notice",
+                    {
+                        "task_id": recommendation.task_id,
+                        "old_agent_id": old_session.agent_id,
+                        "old_session_id": old_session.session_id,
+                        "replacement_session_id": replacement_session.session_id,
+                        "recommendation_id": recommendation.recommendation_id,
+                    },
+                    priority=100,
+                    context_packet_id=packet.packet_id,
+                    dedupe_key=f"replacement:{recommendation.task_id}:{replacement_session.session_id}",
+                    actor=approved_by,
+                    principal=self.principal,
+                )
+            approval_event = self._record_event(
+                BusEvent(
+                    type=EventType.REPLACEMENT_APPROVED,
+                    actor=approved_by,
+                    actor_role=actor_role_for_principal(self.principal, "controller"),
+                    run_id=recommendation.run_id,
+                    task_id=recommendation.task_id,
+                    agent_id=replacement_session.agent_id,
+                    context_packet_id=packet.packet_id,
+                    correlation_id=recommendation.recommendation_id,
+                    causation_id=approval_request_event.event_id,
+                    projection_effect=ProjectionEffect.COMMIT,
+                    fencing_result=FencingResult.NOT_REQUIRED,
+                    payload={
+                        "recommendation_id": recommendation.recommendation_id,
+                        "task_id": recommendation.task_id,
+                        "old_agent_id": old_session.agent_id,
+                        "old_session_id": old_session.session_id,
+                        "replacement_agent_id": replacement_session.agent_id,
+                        "replacement_session_id": replacement_session.session_id,
+                        "context_packet_id": packet.packet_id,
+                        "invalidated_packet_ids": invalidated_packet_id_list,
+                    },
+                )
+            )
+            self._reassign_task_to_replacement(
+                recommendation,
+                replacement_session,
+                approved_by,
+                causation_id=approval_event.event_id,
+                context_packet_id=packet.packet_id,
+            )
+            approval = ReplacementApproval(
+                recommendation_id=recommendation.recommendation_id,
+                task_id=recommendation.task_id,
+                old_session=old_session,
+                replacement_session=replacement_session,
+                context_packet=packet,
+                approved_by=approved_by,
+            )
+            return approval
+        except Exception:
+            self._rollback_partial_replacement_approval(recommendation, snapshot)
+            raise
 
     def _reassign_task_to_replacement(
         self,
         recommendation: ReplacementRecommendation,
         replacement_session: AgentSession,
         approved_by: str,
+        *,
+        causation_id: str,
+        context_packet_id: str,
     ) -> None:
         if self.db_path is None:
             return
-        from .tasks import TaskBoard
+        from .protocol import ProtocolKernel
 
-        board = TaskBoard(
-            db_path=self.db_path,
-            agent_directory=self.directory,
-            inbox_store=self.inbox,
+        with UnitOfWork(self.db_path) as probe:
+            conn = probe.conn
+            if conn is None:
+                return
+            row = conn.execute("select * from tasks where task_id = ?", (recommendation.task_id,)).fetchone()
+        if row is None:
+            return
+        if row["status"] in {"completed", "failed", "superseded"}:
+            return
+        if row["assignee_agent_id"] == replacement_session.agent_id:
+            return
+        now = utc_now_iso()
+        event = BusEvent(
+            type=EventType.REPLACEMENT_REASSIGNMENT_COMMITTED,
+            actor=approved_by,
+            actor_role="controller",
+            run_id=recommendation.run_id or row["run_id"],
+            task_id=recommendation.task_id,
+            agent_id=replacement_session.agent_id,
+            context_packet_id=context_packet_id,
+            correlation_id=recommendation.recommendation_id,
+            causation_id=causation_id,
+            projection_effect=ProjectionEffect.COMMIT,
+            fencing_result=FencingResult.NOT_REQUIRED,
+            payload={
+                "task_id": recommendation.task_id,
+                "original_task_id": recommendation.task_id,
+                "old_agent_id": recommendation.old_agent_id,
+                "old_session_id": recommendation.old_session_id,
+                "replacement_agent_id": replacement_session.agent_id,
+                "replacement_session_id": replacement_session.session_id,
+                "recommendation_id": recommendation.recommendation_id,
+                "previous_status": row["status"],
+                "status": "reassigned",
+            },
         )
-        try:
-            task = board.get_task(recommendation.task_id)
-            if task.status.value in {"completed", "failed", "superseded"}:
-                return
-            if task.assignee_agent_id == replacement_session.agent_id:
-                return
-            board.assign_task(
-                recommendation.task_id,
-                replacement_session.agent_id,
+        result = ProtocolKernel(self.db_path).commit_event(
+            event,
+            principal=self.principal,
+            guard_targets=(("tasks", recommendation.task_id, EventType.REPLACEMENT_REASSIGNMENT_COMMITTED.value),),
+            target_table="tasks",
+            target_id=recommendation.task_id,
+            reason="replacement reassignment approved",
+            mutation=lambda conn, _event: conn.execute(
+                """
+                update tasks
+                   set assignee_agent_id = ?,
+                       status = 'reassigned',
+                       blocked_reason = null,
+                       updated_at = ?
+                 where task_id = ?
+                """,
+                (replacement_session.agent_id, now, recommendation.task_id),
+            ),
+        )
+        if not result.accepted:
+            raise PermissionError(result.reason or "protocol rejected replacement reassignment")
+        self._record_task_reassigned_projection(
+            recommendation,
+            replacement_session,
+            approved_by,
+            causation_id=result.event_id or event.event_id,
+            context_packet_id=context_packet_id,
+        )
+
+    def _record_task_reassigned_projection(
+        self,
+        recommendation: ReplacementRecommendation,
+        replacement_session: AgentSession,
+        approved_by: str,
+        *,
+        causation_id: str,
+        context_packet_id: str,
+    ) -> None:
+        if self.db_path is None:
+            return
+        from .protocol import ProtocolKernel
+
+        event = BusEvent(
+            type=EventType.TASK_REASSIGNED,
+            actor=approved_by,
+            actor_role="controller",
+            run_id=recommendation.run_id,
+            task_id=recommendation.task_id,
+            agent_id=replacement_session.agent_id,
+            context_packet_id=context_packet_id,
+            correlation_id=recommendation.recommendation_id,
+            causation_id=causation_id,
+            projection_effect=ProjectionEffect.COMMIT,
+            fencing_result=FencingResult.NOT_REQUIRED,
+            payload={
+                "task_id": recommendation.task_id,
+                "original_task_id": recommendation.task_id,
+                "old_agent_id": recommendation.old_agent_id,
+                "old_session_id": recommendation.old_session_id,
+                "replacement_agent_id": replacement_session.agent_id,
+                "replacement_session_id": replacement_session.session_id,
+                "recommendation_id": recommendation.recommendation_id,
+                "source_event_type": EventType.REPLACEMENT_REASSIGNMENT_COMMITTED.value,
+            },
+        )
+        result = ProtocolKernel(self.db_path).commit_event(
+            event,
+            principal=self.principal,
+            guard_targets=(("tasks", recommendation.task_id, EventType.TASK_REASSIGNED.value),),
+            target_table="tasks",
+            target_id=recommendation.task_id,
+            reason="task reassigned compatibility projection for replacement reassignment",
+        )
+        if not result.accepted:
+            raise PermissionError(result.reason or "protocol rejected task reassignment projection")
+
+    def _record_approval_requested(
+        self,
+        recommendation: ReplacementRecommendation,
+        *,
+        old_session: AgentSession,
+        replacement_session: AgentSession,
+        approved_by: str,
+    ) -> BusEvent:
+        return self._record_event(
+            BusEvent(
+                type=EventType.REPLACEMENT_APPROVAL_REQUESTED,
                 actor=approved_by,
+                actor_role=actor_role_for_principal(self.principal, "controller"),
+                run_id=recommendation.run_id,
+                task_id=recommendation.task_id,
+                agent_id=replacement_session.agent_id,
+                correlation_id=recommendation.recommendation_id,
+                projection_effect=ProjectionEffect.AUDIT_ONLY,
+                fencing_result=FencingResult.NOT_REQUIRED,
+                payload={
+                    "recommendation_id": recommendation.recommendation_id,
+                    "task_id": recommendation.task_id,
+                    "old_agent_id": old_session.agent_id,
+                    "old_session_id": old_session.session_id,
+                    "replacement_agent_id": replacement_session.agent_id,
+                    "replacement_session_id": replacement_session.session_id,
+                    "reason": recommendation.reason,
+                },
             )
-        finally:
-            board.close()
+        )
+
+    def _invalidate_old_task_session_bindings(
+        self,
+        recommendation: ReplacementRecommendation,
+        *,
+        old_session: AgentSession,
+        invalidated_by_event_id: str,
+        actor: str,
+    ) -> list[ContextPacket]:
+        invalidate = getattr(self.context_sink, "invalidate_active_binding_for_session", None)
+        if invalidate is None:
+            return []
+        return list(
+            invalidate(
+                task_id=recommendation.task_id,
+                agent_id=old_session.agent_id,
+                session_id=old_session.session_id,
+                invalidated_by_event_id=invalidated_by_event_id,
+                actor=actor,
+                principal=self.principal,
+            )
+        )
+
+    def _mark_fence_replaced(self, old_session_id: str, replacement_session_id: str) -> None:
+        if self.db_path is None:
+            return
+        with UnitOfWork(self.db_path) as uow:
+            conn = uow.conn
+            if conn is None:
+                return
+            conn.execute(
+                """
+                update session_fences
+                   set active = 0,
+                       session_role = ?,
+                       replaced_by_session_id = ?,
+                       updated_at = ?
+                 where session_id = ?
+                """,
+                (SessionRole.REPLACED.value, replacement_session_id, utc_now_iso(), old_session_id),
+            )
+
+    def _snapshot_replacement_approval(
+        self,
+        recommendation: ReplacementRecommendation,
+        old_session: AgentSession,
+        replacement_session: AgentSession,
+    ) -> dict[str, Any] | None:
+        if self.db_path is None:
+            return None
+        with UnitOfWork(self.db_path) as uow:
+            conn = uow.conn
+            if conn is None:
+                return None
+            binding_rows = [
+                dict(row)
+                for row in conn.execute(
+                    """
+                    select * from task_context_bindings
+                     where task_id = ?
+                       and agent_id = ?
+                       and session_id = ?
+                    """,
+                    (recommendation.task_id, old_session.agent_id, old_session.session_id),
+                ).fetchall()
+            ]
+            binding_packet_ids = [row["context_packet_id"] for row in binding_rows]
+            return {
+                "max_event_seq": self._max_event_seq(conn),
+                "task": self._fetch_row(conn, "tasks", "task_id", recommendation.task_id),
+                "old_session": self._fetch_row(conn, "agent_sessions", "session_id", old_session.session_id),
+                "replacement_session": self._fetch_row(
+                    conn,
+                    "agent_sessions",
+                    "session_id",
+                    replacement_session.session_id,
+                ),
+                "old_fence": self._fetch_row(conn, "session_fences", "session_id", old_session.session_id),
+                "replacement_fence": self._fetch_row(
+                    conn,
+                    "session_fences",
+                    "session_id",
+                    replacement_session.session_id,
+                ),
+                "old_bindings": binding_rows,
+                "old_context_packets": self._fetch_rows_by_ids(
+                    conn,
+                    "context_packets",
+                    "packet_id",
+                    binding_packet_ids,
+                ),
+                "rehydration_packet_ids": self._matching_ids(
+                    conn,
+                    "context_packets",
+                    "packet_id",
+                    """
+                    packet_kind = ?
+                    and agent_id = ?
+                    and task_id = ?
+                    """,
+                    (PacketKind.REHYDRATION.value, replacement_session.agent_id, recommendation.task_id),
+                ),
+                "replacement_notice_ids": self._matching_ids(
+                    conn,
+                    "inbox_items",
+                    "inbox_id",
+                    "kind = ? and agent_id = ? and payload_json like ?",
+                    (
+                        "replacement_notice",
+                        replacement_session.agent_id,
+                        f"%{recommendation.recommendation_id}%",
+                    ),
+                ),
+            }
+
+    def _rollback_partial_replacement_approval(
+        self,
+        recommendation: ReplacementRecommendation,
+        snapshot: dict[str, Any] | None,
+    ) -> None:
+        if self.db_path is None or snapshot is None:
+            return
+        with UnitOfWork(self.db_path) as uow:
+            conn = uow.conn
+            if conn is None:
+                return
+            event_ids = self._replacement_event_ids_after_snapshot(
+                conn,
+                recommendation.recommendation_id,
+                snapshot["max_event_seq"],
+            )
+            self._delete_protocol_records_for_events(conn, event_ids)
+            self._delete_new_rehydration_packets(conn, recommendation, snapshot)
+            self._delete_new_replacement_notices(conn, recommendation, snapshot)
+            self._restore_row(conn, "tasks", "task_id", snapshot.get("task"))
+            self._restore_row(conn, "agent_sessions", "session_id", snapshot.get("old_session"))
+            self._restore_row(conn, "agent_sessions", "session_id", snapshot.get("replacement_session"))
+            self._restore_row(conn, "session_fences", "session_id", snapshot.get("old_fence"))
+            self._restore_row(conn, "session_fences", "session_id", snapshot.get("replacement_fence"))
+            for row in snapshot.get("old_context_packets", []):
+                self._restore_row(conn, "context_packets", "packet_id", row)
+            for row in snapshot.get("old_bindings", []):
+                self._restore_row(conn, "task_context_bindings", "binding_id", row)
+
+    def _replacement_event_ids_after_snapshot(
+        self,
+        conn: Any,
+        recommendation_id: str,
+        max_event_seq: int,
+    ) -> list[str]:
+        return [
+            row["event_id"]
+            for row in conn.execute(
+                """
+                select event_id from event_log
+                 where seq > ?
+                   and (
+                       correlation_id = ?
+                       or payload_json like ?
+                   )
+                """,
+                (max_event_seq, recommendation_id, f"%{recommendation_id}%"),
+            ).fetchall()
+        ]
+
+    def _delete_protocol_records_for_events(self, conn: Any, event_ids: list[str]) -> None:
+        if not event_ids:
+            return
+        placeholders = ", ".join("?" for _ in event_ids)
+        for table, column in (
+            ("projection_effects", "event_id"),
+            ("kernel_write_guards", "event_id"),
+        ):
+            if self._has_table(conn, table):
+                conn.execute(f"delete from {table} where {column} in ({placeholders})", event_ids)
+        if self._has_table(conn, "projection_effects"):
+            conn.execute(f"delete from projection_effects where attempted_event_id in ({placeholders})", event_ids)
+        conn.execute(f"delete from event_log where event_id in ({placeholders})", event_ids)
+
+    def _delete_new_rehydration_packets(
+        self,
+        conn: Any,
+        recommendation: ReplacementRecommendation,
+        snapshot: dict[str, Any],
+    ) -> None:
+        replacement_session = snapshot.get("replacement_session")
+        if replacement_session is None:
+            return
+        existing_packet_ids = set(snapshot.get("rehydration_packet_ids", []))
+        packet_ids = [
+            packet_id
+            for packet_id in self._matching_ids(
+                conn,
+                "context_packets",
+                "packet_id",
+                """
+                packet_kind = ?
+                and agent_id = ?
+                and task_id = ?
+                """,
+                (
+                    PacketKind.REHYDRATION.value,
+                    replacement_session["agent_id"],
+                    recommendation.task_id,
+                ),
+            )
+            if packet_id not in existing_packet_ids
+        ]
+        if not packet_ids:
+            return
+        placeholders = ", ".join("?" for _ in packet_ids)
+        if self._has_table(conn, "task_context_bindings"):
+            conn.execute(f"delete from task_context_bindings where context_packet_id in ({placeholders})", packet_ids)
+        conn.execute(f"delete from context_packets where packet_id in ({placeholders})", packet_ids)
+
+    def _delete_new_replacement_notices(
+        self,
+        conn: Any,
+        recommendation: ReplacementRecommendation,
+        snapshot: dict[str, Any],
+    ) -> None:
+        replacement_session = snapshot.get("replacement_session")
+        if replacement_session is None:
+            return
+        existing_notice_ids = set(snapshot.get("replacement_notice_ids", []))
+        notice_ids = [
+            notice_id
+            for notice_id in self._matching_ids(
+                conn,
+                "inbox_items",
+                "inbox_id",
+                "kind = ? and agent_id = ? and payload_json like ?",
+                (
+                    "replacement_notice",
+                    replacement_session["agent_id"],
+                    f"%{recommendation.recommendation_id}%",
+                ),
+            )
+            if notice_id not in existing_notice_ids
+        ]
+        if not notice_ids:
+            return
+        placeholders = ", ".join("?" for _ in notice_ids)
+        conn.execute(f"delete from inbox_items where inbox_id in ({placeholders})", notice_ids)
+
+    def _fetch_row(self, conn: Any, table: str, key_column: str, key: str) -> dict[str, Any] | None:
+        row = conn.execute(f"select * from {table} where {key_column} = ?", (key,)).fetchone()
+        return dict(row) if row is not None else None
+
+    def _fetch_rows_by_ids(
+        self,
+        conn: Any,
+        table: str,
+        key_column: str,
+        keys: list[str],
+    ) -> list[dict[str, Any]]:
+        if not keys:
+            return []
+        placeholders = ", ".join("?" for _ in keys)
+        return [
+            dict(row)
+            for row in conn.execute(
+                f"select * from {table} where {key_column} in ({placeholders})",
+                keys,
+            ).fetchall()
+        ]
+
+    def _matching_ids(
+        self,
+        conn: Any,
+        table: str,
+        id_column: str,
+        where_clause: str,
+        params: tuple[Any, ...],
+    ) -> list[str]:
+        if not self._has_table(conn, table):
+            return []
+        return [
+            row[id_column]
+            for row in conn.execute(
+                f"select {id_column} from {table} where {where_clause}",
+                params,
+            ).fetchall()
+        ]
+
+    def _restore_row(self, conn: Any, table: str, key_column: str, row: dict[str, Any] | None) -> None:
+        if row is None or not self._has_table(conn, table):
+            return
+        columns = [column for column in row if column in self._table_columns(conn, table)]
+        if key_column not in columns:
+            return
+        key = row[key_column]
+        existing = conn.execute(f"select 1 from {table} where {key_column} = ?", (key,)).fetchone()
+        if existing is None:
+            placeholders = ", ".join("?" for _ in columns)
+            column_sql = ", ".join(columns)
+            conn.execute(
+                f"insert into {table} ({column_sql}) values ({placeholders})",
+                [row[column] for column in columns],
+            )
+            return
+        update_columns = [column for column in columns if column != key_column]
+        if not update_columns:
+            return
+        update_sql = ", ".join(f"{column} = ?" for column in update_columns)
+        conn.execute(
+            f"update {table} set {update_sql} where {key_column} = ?",
+            [row[column] for column in update_columns] + [key],
+        )
+
+    def _max_event_seq(self, conn: Any) -> int:
+        row = conn.execute("select coalesce(max(seq), 0) as max_seq from event_log").fetchone()
+        return int(row["max_seq"])
+
+    def _has_table(self, conn: Any, table: str) -> bool:
+        row = conn.execute(
+            "select 1 from sqlite_master where type = 'table' and name = ?",
+            (table,),
+        ).fetchone()
+        return row is not None
+
+    def _table_columns(self, conn: Any, table: str) -> set[str]:
+        return {row["name"] for row in conn.execute(f"pragma table_info({table})").fetchall()}
 
     def _ensure_replacement_session(self, recommendation: ReplacementRecommendation) -> AgentSession:
         if recommendation.candidate.session_id:
@@ -458,13 +970,51 @@ class ReplacementCoordinator:
             if item.acked_at is None and item.status != "acked"
         ]
 
-    def _record_event(self, event: BusEvent) -> None:
+    def _record_event(self, event: BusEvent) -> BusEvent:
+        if self.db_path is not None and _is_authoritative_replacement_event(event):
+            event = event.model_copy(
+                update={
+                    "projection_effect": event.projection_effect or ProjectionEffect.COMMIT,
+                    "fencing_result": event.fencing_result or FencingResult.NOT_REQUIRED,
+                }
+            )
+            with UnitOfWork(self.db_path) as uow:
+                appended = uow.append_event(event, guard=True)
+                uow.record_projection_effect(
+                    event_id=appended.event_id,
+                    effect=ProjectionEffect.COMMIT,
+                    reason="replacement coordinator authoritative event",
+                    run_id=event.run_id,
+                    task_id=event.task_id,
+                )
+            return appended
+        if self.db_path is not None:
+            return EventStore(self.db_path).append_event(event)
         if self.event_store is not None:
-            self.event_store.append_event(event)
+            return self.event_store.append_event(event)
+        return event
 
 
 def _missing_capability() -> AgentCapability:
     return AgentCapability(agent_id="missing", name="missing", confidence=0.0)
+
+
+def _is_authoritative_replacement_event(event: BusEvent) -> bool:
+    event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
+    return event_type in {
+        EventType.REPLACEMENT_APPROVED.value,
+        EventType.REPLACEMENT_REASSIGNMENT_COMMITTED.value,
+    }
+
+
+def _dedupe_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
 
 
 def _age_seconds(value: str | None, *, now: datetime | None = None) -> float | None:

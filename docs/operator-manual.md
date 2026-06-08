@@ -133,3 +133,77 @@ npm run build
 ```
 
 The operations console should show agents, sessions, context integrity, pending inbox items, tasks, gates, review findings, replacement recommendations, and timeline events.
+
+## Protocol V2 Operator Flow
+
+Use role-scoped APIs and CLI commands for new work. Keep legacy mixed paths only for compatibility checks.
+
+Worker claim:
+
+```powershell
+$Body = @{
+    actor = 'runtime-worker-7'
+    session_id = '<session_id>'
+    session_epoch = 1
+    context_packet_id = '<context_packet_id>'
+} | ConvertTo-Json -Compress
+Invoke-RestMethod "$Base/api/worker/tasks/<task_id>/complete" -Method Post -Body $Body -ContentType 'application/json'
+
+python -m agent_bus worker task complete <task_id> `
+  --actor runtime-worker-7 `
+  --session-id <session_id> `
+  --session-epoch 1 `
+  --context-packet-id <context_packet_id> `
+  --json
+```
+
+Controller decisions:
+
+```powershell
+python -m agent_bus controller gate approve <gate_id> --evidence-artifact-id <artifact_id> --json
+python -m agent_bus controller gate reject <gate_id> --reason 'missing evidence' --json
+python -m agent_bus controller task-claim commit <claim_id> --json
+```
+
+User interrupt:
+
+```powershell
+python -m agent_bus user interrupt create --text 'pause and replan' --task-id <task_id> --json
+```
+
+Protocol audit:
+
+```powershell
+python -m agent_bus protocol events --type adapter.deprecated_path_used --limit 20 --json
+```
+
+Expected safety behavior:
+
+- Worker completion without a valid fence is `AUDIT_ONLY`, not a task-state commit.
+- Controller/user writes fail closed when the principal cannot be resolved.
+- Legacy route and CLI adapter usage records `adapter.deprecated_path_used`.
+- Stable rejects include `authority_reject` or `protocol_reject` plus `projection_effect` where applicable.
+
+## Operations Projection Checks
+
+Use `/api/projections/operations` to confirm the UI is fed by real backend-shaped data:
+
+```powershell
+$Projection = Invoke-RestMethod "$Base/api/projections/operations"
+$Projection.ui.task_workflow.nodes | Select-Object id,kind,task_id,state
+$Projection.ui.metro.nodes | Select-Object id,kind,task_id,state
+$Projection.ui.diagnostics.protocol_violations | Select-Object -First 5
+```
+
+The accepted v2 projection contract is:
+
+- `ui.task_workflow` is task-scoped and may include context, gate, replacement, claim, artifact, task, start, and terminal nodes.
+- `ui.metro` is legacy compatibility for old run/task/gate/artifact consumers.
+- Cross-task edges should be zero or surfaced as diagnostics, never silently connected.
+- Communication and Diagnostics pages consume real message and protocol metadata, not demo/mock rows.
+
+The console currently uses in-page tab navigation for Communication and Diagnostics. A direct browser load of `/communication` or `/diagnostics` may return 404 unless a server-side SPA fallback is added; use `http://127.0.0.1:8787/` and the app tabs for operator QA.
+
+## Post-Acceptance Publishing
+
+After final acceptance passes, follow the user instruction to push the accepted work to GitHub. Publication scope must still be assigned by QA/controller before an agent commits, pushes, or opens a PR. After publication, keep broker/fallback listening active while external review decides follow-up changes and the next construction plan.

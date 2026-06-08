@@ -1,5 +1,51 @@
 # Agent Bus
 
+## Verified Protocol Kernel V2 Runtime
+
+The current accepted runtime contract is documented in:
+
+- `docs/protocol.md`
+- `docs/subagent-contracts.md`
+- `docs/operator-manual.md`
+- `docs/recovery-playbook.md`
+
+Verified behavior through Gate5:
+
+- Agent Bus is the runtime control plane. Agents keep listening after task completion; there is no shutdown protocol.
+- SQLite/event log remains the source of truth. Raw replay is for diagnostics and audit, not normal working context.
+- Context packets are authoritative for worker action. If a packet is invalidated, the worker stops using it and waits for replan or rehydration.
+- Every durable write resolves an explicit `Principal`. Free-form `actor` strings do not grant controller authority.
+- Worker task completion is a fenced claim. Missing or invalid fencing records `AUDIT_ONLY` evidence and does not mutate task state until a controller commits the claim.
+- Canonical API/CLI groups are role-scoped: worker, controller, user, and protocol. Legacy mixed routes and CLI commands remain compatibility adapters and emit `adapter.deprecated_path_used` audit events.
+- Replacement preserves the original `task_id`, creates a `REHYDRATION` context packet for the replacement session, invalidates only the old task + old agent + old session active binding, and records the replacement event chain.
+- Operations UI uses `ui.task_workflow` for task-scoped workflow data and keeps `ui.metro` as a legacy compatibility projection. Diagnostics expose projection effects, fencing rejects, protocol violations, and deprecated adapter events.
+- Broker/bus listening is primary for coordination-sensitive traffic during the refactor. Fallback files remain `USER_FEEDBACK.md`, `coordination/messages.ndjson`, `coordination/agent-status.md`, and `coordination/wave-gates.md`.
+
+Useful PowerShell commands:
+
+```powershell
+Set-Location 'C:\Users\laptopofzy\Documents\Agent bus'
+$Db = 'coordination\live-agent-bus.sqlite3'
+
+python -m agent_bus --help
+python -m agent_bus wait --agent runtime-worker-7 --timeout 0.01 --db $Db --json
+python -m agent_bus worker task complete <task_id> --actor <worker_agent_id> --session-id <session_id> --session-epoch <epoch> --context-packet-id <packet_id> --db $Db --json
+python -m agent_bus controller task-claim commit <claim_id> --db $Db --json
+python -m agent_bus controller gate approve <gate_id> --evidence-artifact-id <artifact_id> --db $Db --json
+python -m agent_bus user interrupt create --text 'pause and replan' --db $Db --json
+python -m agent_bus protocol events --type adapter.deprecated_path_used --limit 20 --db $Db --json
+```
+
+Recent accepted verification:
+
+```text
+python -m pytest -q -> 117 passed
+frontend npm run build -> passed
+Wave5 browser QA -> Home/Communication/Diagnostics desktop and mobile console-clean, no horizontal overflow
+```
+
+After final acceptance, the user requested a GitHub push and continued Agent Bus listening while external review decides follow-up changes and the next construction plan.
+
 Agent Bus 是一个用于实验“多 Codex Agent 长时协作”的本地运行控制台。它把多个子 Agent 看成常驻 worker，通过 SQLite 事件日志、Agent inbox、上下文包、任务流、门禁、替换接管和 React 运维前端来协调工作。
 
 这个项目的核心问题不是“怎样让几个进程互相发消息”，而是：当多个 Agent 同时执行、失联、上下文失效、需要 QA 或需要接管时，系统能否保留可审计的事实链路，并让前端准确呈现当前 workflow。
@@ -201,14 +247,16 @@ python -m agent_bus ack <inbox_id> --agent sim-frontend --db $Db --json
 
 ## Workflow 与地铁图
 
-前端 Home 的地铁图本质上是 active run 的 workflow projection。后端会从 run、task、gate、artifact 和 agent health 中生成 `ui.metro`。
+The accepted v2 Home workflow contract separates task workflow from legacy metro compatibility.
 
-当前设计里有两层 workflow：
+Current projection semantics:
 
-- 全局地铁图：展示 active run 的主路径和当前节点。
-- 行动卡小地铁图：每个 action queue item 独享一个 compact workflow strip，用于解释这个行动项属于哪条 run/task/gate 链路。
+- `ui.task_workflow` is the task-scoped workflow projection used for current workflow reasoning. It may include task, context, gate, replacement, claim, artifact, terminal, and start nodes.
+- `ui.metro` is compatibility-only for old run/task/gate/artifact consumers. It is not the primary task workflow source.
+- Home action queues must not create global or cross-task metro edges. Each action should stay bound to its task/run/gate/artifact metadata.
+- Taskless or global events belong in timeline, communication, or diagnostics views unless an explicit task binding exists.
 
-这避免了“行动队列只是横向卡片滚动”的问题：每个卡片都能看到自己的 workflow 上下文。
+This keeps the action queue tied to real workflow context without silently connecting unrelated tasks.
 
 ## Replacement / 接管实验
 

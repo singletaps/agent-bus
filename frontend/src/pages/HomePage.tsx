@@ -22,7 +22,7 @@ import type {
   Tone,
   UiActionItem,
   UiMetroNode,
-  UiMetroProjection,
+  UiTaskWorkflowProjection,
   UiTone,
   ViewName,
 } from "../operationsApi";
@@ -73,9 +73,41 @@ export function HomePage({
   const progress = activeRun.progress;
   const actionItems = projection.ui.actionItems.slice(0, 5);
   const currentState = activeRun.state || projection.runs[0]?.state || "none";
-  const metro = projection.ui.metro;
+  const workflowTaskIds = React.useMemo(
+    () => Object.keys(projection.ui.taskWorkflows),
+    [projection.ui.taskWorkflows],
+  );
+  const taskTitlesById = React.useMemo(
+    () => new Map(projection.tasks.map((task) => [task.id, task.title || task.id])),
+    [projection.tasks],
+  );
+  const defaultTaskId =
+    projection.ui.selectedTaskId ||
+    actionItems.find((item) => item.taskId)?.taskId ||
+    workflowTaskIds[0] ||
+    projection.ui.taskWorkflow.taskIds[0] ||
+    "";
+  const [selectedTaskId, setSelectedTaskId] = React.useState(defaultTaskId);
+
+  React.useEffect(() => {
+    if (!defaultTaskId) {
+      setSelectedTaskId("");
+      return;
+    }
+    if (!projection.ui.taskWorkflows[selectedTaskId]) {
+      setSelectedTaskId(defaultTaskId);
+    }
+  }, [defaultTaskId, projection.ui.taskWorkflows, selectedTaskId]);
+
+  const selectedWorkflow =
+    workflowForTask(selectedTaskId, projection) ||
+    projection.ui.selectedTaskWorkflow ||
+    projection.ui.taskWorkflow;
 
   function openAction(item: UiActionItem) {
+    if (item.taskId) {
+      setSelectedTaskId(item.taskId);
+    }
     onViewChange(item.route);
     const drawerItem = drawerItemFromAction(item);
     if (drawerItem) {
@@ -84,6 +116,9 @@ export function HomePage({
   }
 
   function openNode(node: UiMetroNode) {
+    if (node.taskId) {
+      setSelectedTaskId(node.taskId);
+    }
     onViewChange(node.route);
     const drawerItem = drawerItemFromNode(node);
     if (drawerItem) {
@@ -136,9 +171,11 @@ export function HomePage({
         <header className="panelHeader">
           <h3>
             <span className="sectionNumber">2</span>
-            任务流地铁图
+            任务工作流
           </h3>
-          <span>{metro.nodes.length} 个真实节点</span>
+          <span>
+            {selectedTaskId ? `当前 Task · ${shortDisplayId(selectedTaskId)}` : `${selectedWorkflow.nodes.length} 个真实节点`}
+          </span>
         </header>
         <div className="laneSummaryStrip" aria-label="任务状态汇总">
           {laneOrder.map((lane) => (
@@ -149,7 +186,25 @@ export function HomePage({
             </div>
           ))}
         </div>
-        <MetroGraph metro={metro} onNodeSelect={openNode} />
+        {workflowTaskIds.length > 1 ? (
+          <div className="workflowTaskPicker" aria-label="选择任务工作流">
+            {workflowTaskIds.map((taskId) => (
+              <button
+                aria-pressed={taskId === selectedTaskId}
+                className="workflowTaskButton"
+                data-selected={taskId === selectedTaskId ? "true" : "false"}
+                key={taskId}
+                onClick={() => setSelectedTaskId(taskId)}
+                title={taskId}
+                type="button"
+              >
+                <span>{taskTitlesById.get(taskId) || shortDisplayId(taskId)}</span>
+                <small>{shortDisplayId(taskId)}</small>
+              </button>
+            ))}
+          </div>
+        ) : null}
+        <MetroGraph metro={selectedWorkflow} onNodeSelect={openNode} />
       </section>
 
       <section className="panel actionQueuePanel">
@@ -182,7 +237,7 @@ export function HomePage({
                 </div>
                 <ActionWorkflowStrip
                   item={item}
-                  metro={metro}
+                  metro={workflowForTask(item.taskId, projection) || selectedWorkflow}
                   onNodeSelect={openNode}
                 />
                 <button
@@ -222,13 +277,27 @@ type WorkflowStep = {
   node?: UiMetroNode;
 };
 
+function workflowForTask(
+  taskId: string,
+  projection: OperationsProjection,
+): UiTaskWorkflowProjection | undefined {
+  if (!taskId) {
+    return undefined;
+  }
+  return projection.ui.taskWorkflows[taskId];
+}
+
+function shortDisplayId(value: string): string {
+  return value.length > 12 ? `${value.slice(0, 10)}...` : value;
+}
+
 function ActionWorkflowStrip({
   item,
   metro,
   onNodeSelect,
 }: {
   item: UiActionItem;
-  metro: UiMetroProjection;
+  metro: UiTaskWorkflowProjection;
   onNodeSelect: (node: UiMetroNode) => void;
 }) {
   const steps = workflowStepsForAction(item, metro);
@@ -270,7 +339,7 @@ function ActionWorkflowStrip({
 
 function workflowStepsForAction(
   item: UiActionItem,
-  metro: UiMetroProjection,
+  metro: UiTaskWorkflowProjection,
 ): WorkflowStep[] {
   const nodeById = new Map(metro.nodes.map((node) => [node.id, node]));
   const start = metro.mainPathNodeIds
@@ -323,13 +392,25 @@ function nodeTitle(node: UiMetroNode): string {
   if (node.kind === "start") {
     return "Run";
   }
+  if (node.kind === "context") {
+    return "上下文";
+  }
+  if (node.kind === "claim") {
+    return "声明";
+  }
   if (node.kind === "gate") {
-    return "Gate";
+    return "门禁";
   }
   if (node.kind === "artifact") {
-    return "Artifact";
+    return "产物";
   }
-  return "Task";
+  if (node.kind === "replacement") {
+    return "替换";
+  }
+  if (node.kind === "terminal") {
+    return "终点";
+  }
+  return "任务";
 }
 
 function drawerItemFromAction(item: UiActionItem): ActionDrawerItem | null {

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from agent_bus.agents import AgentDirectory
+from agent_bus.authority import controller_principal
 from agent_bus.cli import build_parser, main
 from agent_bus.context import ContextStore
 from agent_bus.models import AgentRuntimeState
@@ -116,8 +117,18 @@ def test_cli_operational_flow_persists_json_outputs_and_exit_codes(tmp_path, cap
     run_id = task_created["run"]["run_id"]
     assert task_created["task"]["status"] == "assigned"
 
-    context = ContextStore(db_path)
-    packet = context.create_packet(agent_id="worker", task_id=task_id, run_id=run_id, summary="CLI context")
+    context = ContextStore(db_path, principal=controller_principal())
+    packet = context.create_packet(
+        agent_id="worker",
+        task_id=task_id,
+        run_id=run_id,
+        summary="CLI context",
+        actor="controller",
+    )
+    expected_invalidated_packet_ids = [
+        item.packet_id for item in context.list_active_packets(agent_id="worker", task_id=task_id)
+    ]
+    assert packet.packet_id in expected_invalidated_packet_ids
     context.close()
 
     assert main(["context", "get", packet.packet_id, "--db", str(db_path), "--json"]) == 0
@@ -134,7 +145,11 @@ def test_cli_operational_flow_persists_json_outputs_and_exit_codes(tmp_path, cap
     assert _stdout_json(capsys)["task"]["status"] == "working"
 
     assert main(["task", "complete", task_id, "--actor", "worker", "--db", str(db_path), "--json"]) == 0
-    assert _stdout_json(capsys)["task"]["status"] == "completed"
+    completion_claim = _stdout_json(capsys)
+    assert completion_claim["task"]["status"] == "working"
+    assert completion_claim["claim"]["status"] == "needs_fencing"
+    assert completion_claim["projection_effect"] == "AUDIT_ONLY"
+    assert completion_claim["fencing_result"] == "MISSING"
 
     assert (
         main(
@@ -188,11 +203,6 @@ def test_cli_operational_flow_persists_json_outputs_and_exit_codes(tmp_path, cap
     assert main(["review", "resolve", finding_id, "--resolved-by", "worker", "--db", str(db_path), "--json"]) == 0
     assert _stdout_json(capsys)["finding"]["status"] == "resolved"
 
-    assert main(["gate", "create", "CLI gate", "--run-id", run_id, "--owner", "qa", "--db", str(db_path), "--json"]) == 0
-    gate_id = _stdout_json(capsys)["gate"]["gate_id"]
-    assert main(["gate", "approve", gate_id, "--actor", "controller", "--db", str(db_path), "--json"]) == 0
-    assert _stdout_json(capsys)["gate"]["state"] == "approved"
-
     assert (
         main(
             [
@@ -213,7 +223,83 @@ def test_cli_operational_flow_persists_json_outputs_and_exit_codes(tmp_path, cap
         )
         == 0
     )
-    assert _stdout_json(capsys)["artifact"]["metadata"] == {"passed": True}
+    artifact_output = _stdout_json(capsys)["artifact"]
+    assert artifact_output["metadata"] == {"passed": True}
+    evidence_id = artifact_output["artifact_id"]
+
+    assert (
+        main(
+            [
+                "gate",
+                "create",
+                "CLI gate",
+                "--run-id",
+                run_id,
+                "--task-id",
+                task_id,
+                "--owner",
+                "qa",
+                "--requested-by",
+                "worker",
+                "--required-evidence",
+                evidence_id,
+                "--db",
+                str(db_path),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    gate_id = _stdout_json(capsys)["gate"]["gate_id"]
+    assert (
+        main(
+            [
+                "gate",
+                "approve",
+                gate_id,
+                "--actor",
+                "worker.other",
+                "--evidence-artifact-id",
+                evidence_id,
+                "--db",
+                str(db_path),
+                "--json",
+            ]
+        )
+        == 1
+    )
+    worker_gate_error = _stderr_json(capsys)
+    assert worker_gate_error["error"] == "authority_reject"
+    assert worker_gate_error["projection_effect"] == "REJECT"
+    assert worker_gate_error["actor"] == "worker.other"
+    assert "expected controller or user" in worker_gate_error["message"]
+
+    assert main(["gate", "approve", gate_id, "--actor", "controller", "--db", str(db_path), "--json"]) == 1
+    gate_error = _stderr_json(capsys)
+    assert gate_error["error"] == "protocol_reject"
+    assert gate_error["projection_effect"] == "REJECT"
+    assert gate_error["violation_id"]
+    assert "required evidence missing" in gate_error["message"]
+    assert "exception" not in gate_error
+
+    assert (
+        main(
+            [
+                "gate",
+                "approve",
+                gate_id,
+                "--actor",
+                "controller",
+                "--evidence-artifact-id",
+                evidence_id,
+                "--db",
+                str(db_path),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    assert _stdout_json(capsys)["gate"]["state"] == "approved"
 
     assert (
         main(
@@ -239,7 +325,7 @@ def test_cli_operational_flow_persists_json_outputs_and_exit_codes(tmp_path, cap
     )
     interrupted = _stdout_json(capsys)
     assert "worker" in interrupted["result"]["affected_agents"]
-    assert interrupted["result"]["invalidated_packet_ids_by_agent"]["worker"] == [packet.packet_id]
+    assert interrupted["result"]["invalidated_packet_ids_by_agent"]["worker"] == expected_invalidated_packet_ids
 
     directory = AgentDirectory(db_path=db_path)
     directory.update_session_state(worker_session_id, AgentRuntimeState.CONTEXT_LOST, reason="lost context")

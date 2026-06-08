@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from .authority import user_principal
 from .inbox import InboxStore
 from .models import BusEvent, EventType
 from .store import EventStore
@@ -102,7 +103,8 @@ def route_user_interrupt(
     context_store: Any | None = None,
 ) -> InterruptRoutingResult:
     agent_ids = _ordered_unique(affected_agents)
-    store = inbox_store or InboxStore(db_path=db_path)
+    principal = user_principal("router-user")
+    store = inbox_store or InboxStore(db_path=db_path, principal=principal)
     invalidated_by_agent: dict[str, list[str]] = {}
     inbox_ids_by_agent: dict[str, list[str]] = {}
     try:

@@ -7,9 +7,12 @@ from pathlib import Path
 from threading import RLock
 from typing import Any
 
+from .authority import actor_role_for_principal
 from .db import connect, initialize_database
 from .models import BusEvent, ContextPacket, EventType, new_id, utc_now_iso
+from .protocol_models import BindingStatus, FencingResult, PacketKind, Principal, ProjectionEffect
 from .store import EventStore
+from .unit_of_work import UnitOfWork
 
 ACTIVE = "active"
 INVALIDATED = "invalidated"
@@ -45,6 +48,7 @@ def migrate(conn: sqlite3.Connection) -> None:
         create table if not exists context_packets (
             packet_id text primary key,
             version integer not null,
+            packet_kind text not null default 'assignment',
             agent_id text not null,
             task_id text,
             run_id text,
@@ -57,6 +61,7 @@ def migrate(conn: sqlite3.Connection) -> None:
             superseded_by_packet_id text,
             invalidated_by_event_id text,
             created_at text not null,
+            updated_at text,
             invalidated_at text
         );
 
@@ -67,6 +72,18 @@ def migrate(conn: sqlite3.Connection) -> None:
         on context_packets(task_id, status, created_at);
         """
     )
+    for definition in (
+        "packet_kind text not null default 'assignment'",
+        "role_contract_json text",
+        "objective text not null default ''",
+        "constraints_json text not null default '[]'",
+        "next_action text",
+        "expected_outputs_json text not null default '[]'",
+        "required_artifacts_json text not null default '[]'",
+        "acceptance_gates_json text not null default '[]'",
+        "updated_at text",
+    ):
+        _add_column_if_missing(conn, "context_packets", definition)
 
 
 class ContextStore:
@@ -74,12 +91,16 @@ class ContextStore:
         self,
         db_path: str | os.PathLike[str] | None = None,
         conn: sqlite3.Connection | None = None,
+        trusted_compatibility: bool = False,
+        principal: Principal | None = None,
     ) -> None:
         self.db_path = db_path
         initialize_database(db_path)
         self.conn = conn if conn is not None else connect(db_path)
         self._owns_connection = conn is None
         self._lock = RLock()
+        self.trusted_compatibility = trusted_compatibility
+        self.principal = principal
         migrate(self.conn)
         self.conn.commit()
         self.events = EventStore(db_path)
@@ -93,6 +114,7 @@ class ContextStore:
         *,
         agent_id: str,
         summary: str,
+        packet_kind: PacketKind | str = PacketKind.ASSIGNMENT,
         task_id: str | None = None,
         run_id: str | None = None,
         instructions: list[str] | dict[str, Any] | None = None,
@@ -102,10 +124,16 @@ class ContextStore:
         packet_id: str | None = None,
         version: int = 1,
         actor: str | None = None,
+        principal: Principal | None = None,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
     ) -> ContextPacket:
+        principal = principal or self.principal
         packet = ContextPacket(
             packet_id=packet_id or new_id("ctx"),
             version=version,
+            packet_kind=packet_kind,
             agent_id=agent_id,
             task_id=task_id,
             run_id=run_id,
@@ -117,19 +145,31 @@ class ContextStore:
             supersedes_packet_id=supersedes_packet_id,
         )
         with self._lock:
-            self.conn.execute(
-                """
-                insert into context_packets (
-                    packet_id, version, agent_id, task_id, run_id, status, summary,
-                    instructions_json, artifact_refs_json, created_from_event_id,
-                    supersedes_packet_id, superseded_by_packet_id,
-                    invalidated_by_event_id, created_at, invalidated_at
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                packet_to_row(packet),
+            from .protocol import ProtocolKernel
+
+            def mutate(conn: sqlite3.Connection, event: BusEvent) -> None:
+                _insert_packet_and_binding(
+                    conn,
+                    packet,
+                    event,
+                    session_id=session_id,
+                    session_epoch=session_epoch,
+                )
+
+            result = ProtocolKernel(self.db_path, conn=self.conn).commit_event(
+                _packet_event(EventType.CONTEXT_CREATED, packet, actor=actor, principal=principal),
+                principal=principal,
+                session_id=session_id,
+                session_epoch=session_epoch,
+                fencing_token=fencing_token,
+                guard_targets=(("context_packets", packet.packet_id, EventType.CONTEXT_CREATED.value),),
+                target_table="context_packets",
+                target_id=packet.packet_id,
+                reason="context packet created through ProtocolKernel command",
+                mutation=mutate,
             )
-            self.conn.commit()
-        self._record_event(EventType.CONTEXT_CREATED, packet, actor=actor)
+            if not result.accepted:
+                raise PermissionError(result.reason or "protocol rejected context packet creation")
         return packet
 
     def get_packet(self, packet_id: str, *, include_inactive: bool = False) -> ContextPacket:
@@ -144,23 +184,48 @@ class ContextStore:
         *,
         invalidated_by_event_id: str,
         actor: str | None = None,
+        principal: Principal | None = None,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
     ) -> ContextPacket:
+        principal = principal or self.principal
         packet = self._load_packet(packet_id)
         if packet.status == INVALIDATED:
             return packet
         now = utc_now_iso()
+        invalidated = packet.model_copy(update={"status": INVALIDATED, "invalidated_by_event_id": invalidated_by_event_id, "invalidated_at": now})
         with self._lock:
-            self.conn.execute(
-                """
-                update context_packets
-                set status = ?, invalidated_by_event_id = ?, invalidated_at = ?
-                where packet_id = ?
-                """,
-                (INVALIDATED, invalidated_by_event_id, now, packet_id),
+            from .protocol import ProtocolKernel
+
+            result = ProtocolKernel(self.db_path, conn=self.conn).commit_event(
+                _packet_event(EventType.CONTEXT_INVALIDATED, invalidated, actor=actor, principal=principal),
+                principal=principal,
+                session_id=session_id,
+                session_epoch=session_epoch,
+                fencing_token=fencing_token,
+                guard_targets=(("context_packets", packet_id, EventType.CONTEXT_INVALIDATED.value),),
+                target_table="context_packets",
+                target_id=packet_id,
+                reason="context packet invalidated through ProtocolKernel command",
+                mutation=lambda conn, _event: conn.execute(
+                    """
+                    update context_packets
+                    set status = ?, invalidated_by_event_id = ?, invalidated_at = ?
+                    where packet_id = ?
+                    """,
+                    (INVALIDATED, invalidated_by_event_id, now, packet_id),
+                ) and conn.execute(
+                    """
+                    update task_context_bindings
+                    set status = ?, ended_at = ?
+                    where context_packet_id = ? and status = ?
+                    """,
+                    (BindingStatus.INVALIDATED.value, now, packet_id, BindingStatus.ACTIVE.value),
+                ),
             )
-            self.conn.commit()
-        invalidated = self._load_packet(packet_id)
-        self._record_event(EventType.CONTEXT_INVALIDATED, invalidated, actor=actor)
+            if not result.accepted:
+                raise PermissionError(result.reason or "protocol rejected context invalidation")
         return invalidated
 
     def supersede_packet(
@@ -172,7 +237,12 @@ class ContextStore:
         artifact_refs: list[str] | None = None,
         created_from_event_id: str | None = None,
         actor: str | None = None,
+        principal: Principal | None = None,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
     ) -> ContextPacket:
+        principal = principal or self.principal
         old = self._load_packet(packet_id)
         if old.status == INVALIDATED:
             raise ContextPacketInvalidated(old)
@@ -191,27 +261,78 @@ class ContextStore:
             supersedes_packet_id=old.packet_id,
         )
         with self._lock:
-            self.conn.execute(
-                """
-                insert into context_packets (
-                    packet_id, version, agent_id, task_id, run_id, status, summary,
-                    instructions_json, artifact_refs_json, created_from_event_id,
-                    supersedes_packet_id, superseded_by_packet_id,
-                    invalidated_by_event_id, created_at, invalidated_at
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                packet_to_row(replacement),
+            from .protocol import ProtocolKernel
+
+            def mutate(conn: sqlite3.Connection, _event: BusEvent) -> None:
+                binding = conn.execute(
+                    """
+                    select session_id, session_epoch, binding_kind from task_context_bindings
+                    where context_packet_id = ? and status = ?
+                    order by created_at desc
+                    limit 1
+                    """,
+                    (old.packet_id, BindingStatus.ACTIVE.value),
+                ).fetchone()
+                conn.execute(
+                    _insert_packet_sql(),
+                    packet_to_row(replacement),
+                )
+                if replacement.task_id:
+                    conn.execute(
+                        """
+                        insert into task_context_bindings (
+                            binding_id, task_id, agent_id, session_id, session_epoch,
+                            context_packet_id, binding_kind, status, created_from_event_id, created_at, ended_at
+                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            new_id("bind"),
+                            replacement.task_id,
+                            replacement.agent_id,
+                            binding["session_id"] if binding is not None else session_id,
+                            binding["session_epoch"] if binding is not None else session_epoch,
+                            replacement.packet_id,
+                            binding["binding_kind"] if binding is not None else PacketKind.ASSIGNMENT.value,
+                            BindingStatus.ACTIVE.value,
+                            _event.event_id,
+                            replacement.created_at,
+                            None,
+                        ),
+                    )
+                conn.execute(
+                    """
+                    update context_packets
+                    set status = ?, superseded_by_packet_id = ?
+                    where packet_id = ?
+                    """,
+                    (SUPERSEDED, replacement.packet_id, old.packet_id),
+                )
+                conn.execute(
+                    """
+                    update task_context_bindings
+                    set status = ?, ended_at = ?
+                    where context_packet_id = ? and status = ?
+                    """,
+                    (BindingStatus.SUPERSEDED.value, utc_now_iso(), old.packet_id, BindingStatus.ACTIVE.value),
+                )
+
+            result = ProtocolKernel(self.db_path, conn=self.conn).commit_event(
+                _packet_event(EventType.CONTEXT_SUPERSEDED, replacement, actor=actor, principal=principal),
+                principal=principal,
+                session_id=session_id,
+                session_epoch=session_epoch,
+                fencing_token=fencing_token,
+                guard_targets=(
+                    ("context_packets", replacement.packet_id, EventType.CONTEXT_SUPERSEDED.value),
+                    ("context_packets", old.packet_id, EventType.CONTEXT_SUPERSEDED.value),
+                ),
+                target_table="context_packets",
+                target_id=replacement.packet_id,
+                reason="context packet superseded through ProtocolKernel command",
+                mutation=mutate,
             )
-            self.conn.execute(
-                """
-                update context_packets
-                set status = ?, superseded_by_packet_id = ?
-                where packet_id = ?
-                """,
-                (SUPERSEDED, replacement.packet_id, old.packet_id),
-            )
-            self.conn.commit()
-        self._record_event(EventType.CONTEXT_SUPERSEDED, replacement, actor=actor)
+            if not result.accepted:
+                raise PermissionError(result.reason or "protocol rejected context supersession")
         return replacement
 
     def create_rehydration_packet(
@@ -229,6 +350,10 @@ class ContextStore:
         invalidated_packet_ids: list[str] | None = None,
         created_from_event_id: str | None = None,
         actor: str | None = None,
+        principal: Principal | None = None,
+        session_id: str | None = None,
+        session_epoch: int | None = None,
+        fencing_token: str | None = None,
     ) -> ContextPacket:
         instructions = {
             "kind": "rehydration",
@@ -244,6 +369,7 @@ class ContextStore:
         }
         return self.create_packet(
             agent_id=agent_id,
+            packet_kind=PacketKind.REHYDRATION,
             task_id=task_id,
             run_id=run_id,
             summary=f"Rehydration packet for {agent_id}",
@@ -251,7 +377,44 @@ class ContextStore:
             artifact_refs=required_artifacts or [],
             created_from_event_id=created_from_event_id,
             actor=actor,
+            principal=principal,
+            session_id=session_id,
+            session_epoch=session_epoch,
+            fencing_token=fencing_token,
         )
+
+    def invalidate_active_binding_for_session(
+        self,
+        *,
+        task_id: str,
+        agent_id: str,
+        session_id: str,
+        invalidated_by_event_id: str,
+        actor: str | None = None,
+        principal: Principal | None = None,
+    ) -> list[ContextPacket]:
+        rows = self.conn.execute(
+            """
+            select distinct context_packet_id from task_context_bindings
+            where task_id = ?
+              and agent_id = ?
+              and session_id = ?
+              and status = ?
+            order by created_at asc, context_packet_id asc
+            """,
+            (task_id, agent_id, session_id, BindingStatus.ACTIVE.value),
+        ).fetchall()
+        invalidated: list[ContextPacket] = []
+        for row in rows:
+            invalidated.append(
+                self.invalidate_packet(
+                    row["context_packet_id"],
+                    invalidated_by_event_id=invalidated_by_event_id,
+                    actor=actor,
+                    principal=principal,
+                )
+            )
+        return invalidated
 
     def list_packets(
         self,
@@ -335,14 +498,7 @@ class ContextStore:
 
     def _record_event(self, event_type: EventType, packet: ContextPacket, *, actor: str | None) -> None:
         self.events.append_event(
-            BusEvent(
-                type=event_type,
-                actor=actor,
-                run_id=packet.run_id,
-                task_id=packet.task_id,
-                agent_id=packet.agent_id,
-                payload=packet.model_dump(mode="json"),
-            )
+            _packet_event(event_type, packet, actor=actor)
         )
 
 
@@ -352,6 +508,27 @@ def create_packet(**kwargs: Any) -> ContextPacket:
         return store.create_packet(**kwargs)
     finally:
         store.close()
+
+
+def _packet_event(
+    event_type: EventType,
+    packet: ContextPacket,
+    *,
+    actor: str | None,
+    principal: Principal | None = None,
+) -> BusEvent:
+    return BusEvent(
+        type=event_type,
+        actor=actor,
+        actor_role=actor_role_for_principal(principal),
+        run_id=packet.run_id,
+        task_id=packet.task_id,
+        agent_id=packet.agent_id,
+        context_packet_id=packet.packet_id,
+        projection_effect=ProjectionEffect.COMMIT,
+        fencing_result=FencingResult.NOT_REQUIRED,
+        payload=packet.model_dump(mode="json"),
+    )
 
 
 def get_packet(packet_id: str, *, db_path: str | os.PathLike[str] | None = None, include_inactive: bool = False) -> ContextPacket:
@@ -417,6 +594,7 @@ def packet_to_row(packet: ContextPacket) -> tuple[Any, ...]:
     return (
         packet.packet_id,
         packet.version,
+        _enum_value(packet.packet_kind),
         packet.agent_id,
         packet.task_id,
         packet.run_id,
@@ -429,6 +607,7 @@ def packet_to_row(packet: ContextPacket) -> tuple[Any, ...]:
         packet.superseded_by_packet_id,
         packet.invalidated_by_event_id,
         packet.created_at,
+        packet.updated_at,
         packet.invalidated_at,
     )
 
@@ -437,6 +616,7 @@ def row_to_packet(row: sqlite3.Row) -> ContextPacket:
     return ContextPacket(
         packet_id=row["packet_id"],
         version=row["version"],
+        packet_kind=row["packet_kind"],
         agent_id=row["agent_id"],
         task_id=row["task_id"],
         run_id=row["run_id"],
@@ -449,5 +629,66 @@ def row_to_packet(row: sqlite3.Row) -> ContextPacket:
         superseded_by_packet_id=row["superseded_by_packet_id"],
         invalidated_by_event_id=row["invalidated_by_event_id"],
         created_at=row["created_at"],
+        updated_at=row["updated_at"],
         invalidated_at=row["invalidated_at"],
     )
+
+
+def _insert_packet_sql() -> str:
+    return """
+    insert into context_packets (
+        packet_id, version, packet_kind, agent_id, task_id, run_id, status, summary,
+        instructions_json, artifact_refs_json, created_from_event_id,
+        supersedes_packet_id, superseded_by_packet_id,
+        invalidated_by_event_id, created_at, updated_at, invalidated_at
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+
+
+def _insert_packet_and_binding(
+    conn: sqlite3.Connection,
+    packet: ContextPacket,
+    event: BusEvent,
+    *,
+    session_id: str | None,
+    session_epoch: int | None,
+) -> None:
+    conn.execute(_insert_packet_sql(), packet_to_row(packet))
+    if packet.task_id is None:
+        return
+    conn.execute(
+        """
+        insert into task_context_bindings (
+            binding_id, task_id, agent_id, session_id, session_epoch,
+            context_packet_id, binding_kind, status, created_from_event_id, created_at, ended_at
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            new_id("bind"),
+            packet.task_id,
+            packet.agent_id,
+            session_id,
+            session_epoch,
+            packet.packet_id,
+            _enum_value(packet.packet_kind),
+            BindingStatus.ACTIVE.value,
+            event.event_id,
+            packet.created_at,
+            None,
+        ),
+    )
+
+
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column_definition: str) -> None:
+    column = column_definition.split()[0]
+    columns = {row[1] for row in conn.execute(f"pragma table_info({table})").fetchall()}
+    if column not in columns:
+        conn.execute(f"alter table {table} add column {column_definition}")
+
+
+def _enum_value(value: object | None) -> str | None:
+    if value is None:
+        return None
+    if hasattr(value, "value"):
+        return str(value.value)
+    return str(value)

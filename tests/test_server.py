@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import sqlite3
+
 from fastapi.testclient import TestClient
 
 from agent_bus.agents import AgentDirectory
+from agent_bus.authority import controller_principal, user_principal
 from agent_bus.context import ContextStore
+from agent_bus.fencing import FencingService
 from agent_bus.gates import GateBoard
 from agent_bus.inbox import InboxStore
 from agent_bus.models import AgentRuntimeState, BusEvent, CapabilityEvidenceSource
@@ -18,7 +22,8 @@ def test_operations_api_projects_durable_runtime_state_and_openapi(tmp_path):
     directory.register_identity("worker.backend", role="worker", declared_capabilities=["python"])
     directory.start_session("worker.backend", session_id="session-backend")
     directory.record_capability_evidence("worker.backend", "python", CapabilityEvidenceSource.QA_CONFIRMED)
-    board = TaskBoard(db_path=db_path, agent_directory=directory)
+    controller = controller_principal()
+    board = TaskBoard(db_path=db_path, agent_directory=directory, principal=controller)
     run = board.create_run("Wave C", objective="Expose API", created_by="controller")
     task = board.create_task(
         "Implement FastAPI server",
@@ -26,7 +31,7 @@ def test_operations_api_projects_durable_runtime_state_and_openapi(tmp_path):
         owner_agent_id="controller",
         assignee_agent_id="worker.backend",
     )
-    ContextStore(db_path).create_packet(
+    ContextStore(db_path, principal=controller).create_packet(
         agent_id="worker.backend",
         run_id=run.run_id,
         task_id=task.task_id,
@@ -57,7 +62,7 @@ def test_operations_api_projects_run_state_from_task_progression(tmp_path):
     directory = AgentDirectory(db_path=db_path)
     directory.register_identity("worker.backend", role="worker")
     directory.start_session("worker.backend", session_id="worker-session")
-    board = TaskBoard(db_path=db_path, agent_directory=directory)
+    board = TaskBoard(db_path=db_path, agent_directory=directory, principal=controller_principal())
     run = board.create_run("Progressed run", objective="Avoid stale created status", created_by="controller")
     task = board.create_task(
         "Advance task",
@@ -86,7 +91,7 @@ def test_operations_api_projects_ui_metro_and_durable_artifacts(tmp_path):
     directory.register_identity("runtime-qa", role="qa")
     directory.register_identity("worker.frontend", role="worker", declared_capabilities=["react"])
     directory.start_session("worker.frontend", session_id="frontend-session")
-    board = TaskBoard(db_path=db_path, agent_directory=directory)
+    board = TaskBoard(db_path=db_path, agent_directory=directory, principal=controller_principal())
     run = board.create_run("Reference convergence", objective="Match 5-29 pages", created_by="controller")
     task = board.create_task(
         "Build metro graph",
@@ -125,10 +130,10 @@ def test_operations_api_projects_ui_metro_and_durable_artifacts(tmp_path):
     assert f"task:{task.task_id}" in node_ids
     assert f"gate:{gate.gate_id}" in node_ids
     assert f"artifact:{artifact.artifact_id}" in node_ids
-    assert projection["ui"]["metro"]["branch_groups"][f"task:{task.task_id}"] == [
-        f"gate:{gate.gate_id}",
-        f"artifact:{artifact.artifact_id}",
-    ]
+    branch_group = projection["ui"]["metro"]["branch_groups"][f"task:{task.task_id}"]
+    assert any(item.startswith("context:") for item in branch_group)
+    assert f"gate:{gate.gate_id}" in branch_group
+    assert f"artifact:{artifact.artifact_id}" in branch_group
     assert any(item["kind"] == "gate" and item["gate_id"] == gate.gate_id for item in projection["ui"]["action_items"])
     assert projection["ui"]["artifact_summary"]["latest_artifact_id"] == artifact.artifact_id
     assert projection["ui"]["agent_summaries"][0]["agent_id"] in {"controller", "runtime-qa", "worker.frontend"}
@@ -215,12 +220,29 @@ def test_agent_heartbeat_api_refreshes_stale_session_and_records_event(tmp_path)
 
 def test_inbox_wait_and_ack_api_return_actionable_item_then_noop(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    item = InboxStore(db_path).enqueue("worker.frontend", "task_assigned", {"task_id": "task-1"})
+    item = InboxStore(db_path, principal=controller_principal()).enqueue(
+        "worker.frontend",
+        "task_assigned",
+        {"task_id": "task-1"},
+        actor="controller",
+    )
+    fence = FencingService(db_path).register_session(
+        "frontend-session",
+        agent_id="worker.frontend",
+        token="frontend-token",
+    )
     client = TestClient(create_app(db_path=db_path, frontend_dist=tmp_path / "missing-dist"))
 
     delivered = client.post(
-        "/api/inbox/wait",
-        json={"agent_id": "worker.frontend", "timeout": 1, "poll_interval": 0.01},
+        "/api/worker/inbox/wait",
+        json={
+            "agent_id": "worker.frontend",
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+            "timeout": 1,
+            "poll_interval": 0.01,
+        },
     ).json()
 
     assert delivered["ok"] is True
@@ -228,12 +250,28 @@ def test_inbox_wait_and_ack_api_return_actionable_item_then_noop(tmp_path):
     assert delivered["item"]["inbox_id"] == item.inbox_id
     assert delivered["item"]["payload"] == {"task_id": "task-1"}
 
-    acked = client.post("/api/inbox/ack", json={"inbox_id": item.inbox_id, "agent_id": "worker.frontend"}).json()
+    acked = client.post(
+        "/api/worker/inbox/ack",
+        json={
+            "inbox_id": item.inbox_id,
+            "agent_id": "worker.frontend",
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+        },
+    ).json()
     assert acked == {"ok": True, "inbox_id": item.inbox_id, "acked": True}
 
     noop = client.post(
-        "/api/inbox/wait",
-        json={"agent_id": "worker.frontend", "timeout": 0.01, "poll_interval": 0.005},
+        "/api/worker/inbox/wait",
+        json={
+            "agent_id": "worker.frontend",
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+            "timeout": 0.01,
+            "poll_interval": 0.005,
+        },
     ).json()
     assert noop["noop"] is True
     assert noop["timed_out"] is True
@@ -242,8 +280,8 @@ def test_inbox_wait_and_ack_api_return_actionable_item_then_noop(tmp_path):
 
 def test_context_api_returns_structured_invalidated_error(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    context = ContextStore(db_path)
-    packet = context.create_packet(agent_id="worker", summary="old")
+    context = ContextStore(db_path, principal=user_principal())
+    packet = context.create_packet(agent_id="worker", summary="old", actor="user")
     invalidated = context.invalidate_packet(packet.packet_id, invalidated_by_event_id="evt-stop")
     client = TestClient(create_app(db_path=db_path, frontend_dist=tmp_path / "missing-dist"))
 
@@ -262,9 +300,9 @@ def test_context_api_returns_structured_invalidated_error(tmp_path):
 
 def test_interrupt_api_routes_only_affected_agents_and_invalidates_context(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
-    context = ContextStore(db_path)
-    affected = context.create_packet(agent_id="worker.owner", run_id="run-1", task_id="task-1", summary="affected")
-    context.create_packet(agent_id="worker.unrelated", run_id="run-1", task_id="task-1", summary="unrelated")
+    context = ContextStore(db_path, principal=user_principal())
+    affected = context.create_packet(agent_id="worker.owner", run_id="run-1", task_id="task-1", summary="affected", actor="user")
+    context.create_packet(agent_id="worker.unrelated", run_id="run-1", task_id="task-1", summary="unrelated", actor="user")
     client = TestClient(create_app(db_path=db_path, frontend_dist=tmp_path / "missing-dist"))
 
     response = client.post(
@@ -301,6 +339,69 @@ def test_interrupt_api_routes_only_affected_agents_and_invalidates_context(tmp_p
     assert owner_kinds == {"user_interrupt", "context_invalidated", "agent_replan_required"}
 
 
+def test_controller_gate_api_returns_stable_reject_and_approves_with_evidence(tmp_path):
+    db_path = tmp_path / "agent-bus.sqlite3"
+    controller = controller_principal()
+    board = TaskBoard(db_path=db_path, principal=controller)
+    run = board.create_run("Gate API", objective="exercise controller adapter", created_by="controller")
+    task = board.create_task(
+        "Ship reviewed change",
+        run_id=run.run_id,
+        owner_agent_id="controller",
+        assignee_agent_id="worker.owner",
+    )
+    evidence = board.create_artifact(
+        "test-log",
+        "file://pytest.log",
+        run_id=run.run_id,
+        task_id=task.task_id,
+        created_by="worker.owner",
+    )
+    gate = GateBoard(db_path=db_path, principal=controller).create_gate(
+        "Evidence gate",
+        run_id=run.run_id,
+        task_id=task.task_id,
+        requested_by="worker.owner",
+        owner_agent_id="runtime-qa",
+        required_evidence=[evidence.artifact_id],
+    )
+    client = TestClient(create_app(db_path=db_path, frontend_dist=tmp_path / "missing-dist"))
+
+    worker_rejected = client.post(
+        f"/api/gates/{gate.gate_id}/approve",
+        json={"actor": "worker.other", "evidence_artifact_ids": [evidence.artifact_id]},
+    )
+
+    assert worker_rejected.status_code == 403
+    worker_rejected_body = worker_rejected.json()
+    assert worker_rejected_body["ok"] is False
+    assert worker_rejected_body["error"] == "authority_reject"
+    assert worker_rejected_body["projection_effect"] == "REJECT"
+    assert worker_rejected_body["actor"] == "worker.other"
+    assert "expected controller or user" in worker_rejected_body["message"]
+
+    rejected = client.post(f"/api/gates/{gate.gate_id}/approve", json={"actor": "controller"})
+
+    assert rejected.status_code == 409
+    rejected_body = rejected.json()
+    assert rejected_body["ok"] is False
+    assert rejected_body["error"] == "protocol_reject"
+    assert rejected_body["projection_effect"] == "REJECT"
+    assert rejected_body["violation_id"]
+    assert "required evidence missing" in rejected_body["message"]
+
+    approved = client.post(
+        f"/api/gates/{gate.gate_id}/approve",
+        json={"actor": "controller", "evidence_artifact_ids": [evidence.artifact_id]},
+    )
+
+    assert approved.status_code == 200
+    approved_body = approved.json()
+    assert approved_body["ok"] is True
+    assert approved_body["gate"]["state"] == "approved"
+    assert approved_body["gate"]["decision_actor"] == "controller"
+
+
 def test_replacement_recommendation_and_approval_api_rehydrates_candidate(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
     directory = AgentDirectory(db_path=db_path)
@@ -310,12 +411,31 @@ def test_replacement_recommendation_and_approval_api_rehydrates_candidate(tmp_pa
     spare = directory.start_session("worker.spare", run_id="run-1", session_id="spare-session")
     directory.record_capability_evidence("worker.spare", "react", CapabilityEvidenceSource.QA_CONFIRMED)
     directory.report_context_loss(old.session_id, reason="context compression failed")
-    board = TaskBoard(db_path=db_path, agent_directory=directory)
+    board = TaskBoard(db_path=db_path, agent_directory=directory, principal=controller_principal())
     task = board.create_task(
         "Build console",
         run_id="run-1",
         owner_agent_id="controller",
         assignee_agent_id="worker.frontend",
+    )
+    context = ContextStore(db_path, principal=controller_principal())
+    old_packet = context.create_packet(
+        agent_id="worker.frontend",
+        task_id=task.task_id,
+        run_id="run-1",
+        summary="Old assignment",
+        actor="controller",
+        session_id=old.session_id,
+        session_epoch=old.session_epoch,
+    )
+    unrelated_packet = context.create_packet(
+        agent_id="worker.frontend",
+        task_id=task.task_id,
+        run_id="run-1",
+        summary="Different session assignment",
+        actor="controller",
+        session_id="other-session",
+        session_epoch=1,
     )
     client = TestClient(create_app(db_path=db_path, frontend_dist=tmp_path / "missing-dist"))
 
@@ -352,6 +472,16 @@ def test_replacement_recommendation_and_approval_api_rehydrates_candidate(tmp_pa
     ).json()
 
     assert approval["ok"] is True
+    assert approval["context_packet_id"] == approval["context_packet"]["packet_id"]
+    assert old_packet.packet_id in approval["invalidated_packet_ids"]
+    assert unrelated_packet.packet_id not in approval["invalidated_packet_ids"]
+    event_types = [event["type"] for event in approval["event_chain"]]
+    assert event_types[:4] == [
+        "replacement.recommended",
+        "replacement.approval_requested",
+        "replacement.approved",
+        "replacement.reassignment_committed",
+    ]
     assert approval["context_packet"]["agent_id"] == "worker.spare"
     assert approval["context_packet"]["instructions"]["kind"] == "rehydration"
     assert approval["context_packet"]["instructions"]["next_action"] == "continue implementation"
@@ -359,6 +489,27 @@ def test_replacement_recommendation_and_approval_api_rehydrates_candidate(tmp_pa
     assert reassigned.assignee_agent_id == "worker.spare"
     assert reassigned.status.value == "reassigned"
     assert AgentDirectory(db_path=db_path).get_session(old.session_id).runtime_state is AgentRuntimeState.REPLACED
+    with sqlite3.connect(db_path) as conn:
+        kernel_events = {
+            row[0]
+            for row in conn.execute(
+                """
+                select type from event_log
+                where type in ('task.reassigned', 'replacement.approved', 'context.created', 'inbox.enqueued')
+                """
+            )
+        }
+        effect_count = conn.execute(
+            """
+            select count(*) from projection_effects
+            where event_id in (
+                select event_id from event_log
+                where type in ('task.reassigned', 'replacement.approved', 'context.created', 'inbox.enqueued')
+            )
+            """
+        ).fetchone()[0]
+    assert {"task.reassigned", "replacement.approved", "context.created", "inbox.enqueued"} <= kernel_events
+    assert effect_count >= 4
     notice = InboxStore(db_path).wait("worker.spare", timeout=0.1).item
     assert notice.kind in {"task_assigned", "replacement_notice"}
     if notice.kind != "replacement_notice":

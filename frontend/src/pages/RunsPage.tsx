@@ -319,7 +319,9 @@ function AgentGroupCard({ group }: { group: AgentGroup }) {
             {group.agents.slice(0, 5).map((agent) => (
               <li key={agent.id}>
                 <span>{agent.name || agent.id}</span>
-                <StatusBadge status={statusFromState(agent.state, "agent")} />
+                <span title={agent.state || undefined}>
+                  <StatusBadge status={agentHealthStatus(agent.state)} />
+                </span>
               </li>
             ))}
           </ul>
@@ -404,6 +406,33 @@ function buildAgentGroups(agents: AgentRow[]): AgentGroup[] {
 function hasRole(agent: AgentRow, role: string): boolean {
   const haystack = `${agent.role} ${agent.roles.join(" ")} ${agent.id}`.toLowerCase();
   return haystack.includes(role);
+}
+
+function agentHealthStatus(state: string) {
+  return {
+    ...statusFromState(state, "agent"),
+    label: agentHealthLabel(state),
+  };
+}
+
+function agentHealthLabel(state: string): string {
+  const value = state.toLowerCase().replace(/[_-]/g, " ");
+  if (/context lost|needs rehydration|input unavailable|delivered not acked/.test(value)) {
+    return "Needs input";
+  }
+  if (/suspected stuck|stuck/.test(value)) {
+    return "Stuck";
+  }
+  if (/degraded|stale/.test(value)) {
+    return "Stale";
+  }
+  if (/working|busy|active/.test(value)) {
+    return "Busy";
+  }
+  if (/waiting|standby|ready|wait returned noop/.test(value)) {
+    return "Ready";
+  }
+  return state || "No data";
 }
 
 function completedCount(tasks: TaskRow[]): number {

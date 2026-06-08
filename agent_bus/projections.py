@@ -25,6 +25,7 @@ from .models import (
     BusMessageLink,
     BusMessageProjection,
     ContextPacket,
+    EventType,
     GateRecord,
     InboxItem,
     ReviewFinding,
@@ -127,6 +128,9 @@ class UiMetroNode(BaseModel):
     task_id: str | None = None
     gate_id: str | None = None
     artifact_id: str | None = None
+    context_packet_id: str | None = None
+    claim_id: str | None = None
+    recommendation_id: str | None = None
     agent_id: str | None = None
     route: str = "Runs"
     priority: int = 0
@@ -138,6 +142,17 @@ class UiMetroEdge(BaseModel):
     target: str
     kind: str = "main"
     tone: str = "neutral"
+    task_id: str | None = None
+
+
+class UiWorkflowDiagnostic(BaseModel):
+    kind: str
+    title: str
+    detail: str = ""
+    tone: str = "warn"
+    event_id: str | None = None
+    run_id: str | None = None
+    task_id: str | None = None
 
 
 class UiMetroProjection(BaseModel):
@@ -146,6 +161,33 @@ class UiMetroProjection(BaseModel):
     main_path_node_ids: list[str] = Field(default_factory=list)
     current_node_id: str | None = None
     branch_groups: dict[str, list[str]] = Field(default_factory=dict)
+    task_ids: list[str] = Field(default_factory=list)
+    diagnostics: list[UiWorkflowDiagnostic] = Field(default_factory=list)
+
+
+class UiTaskWorkflowProjection(UiMetroProjection):
+    pass
+
+
+class UiDiagnosticRecord(BaseModel):
+    kind: str
+    title: str
+    detail: str = ""
+    tone: str = "info"
+    effect: str = ""
+    fencing_result: str = ""
+    event_id: str | None = None
+    attempted_event_id: str | None = None
+    run_id: str | None = None
+    task_id: str | None = None
+    created_at: str | None = None
+
+
+class UiDiagnosticsProjection(BaseModel):
+    projection_effects: list[UiDiagnosticRecord] = Field(default_factory=list)
+    fencing_rejects: list[UiDiagnosticRecord] = Field(default_factory=list)
+    protocol_violations: list[UiDiagnosticRecord] = Field(default_factory=list)
+    deprecated_adapter_events: list[UiDiagnosticRecord] = Field(default_factory=list)
 
 
 class UiActionItem(BaseModel):
@@ -205,11 +247,16 @@ class UiArtifactSummary(BaseModel):
 
 class UiOperationsProjection(BaseModel):
     active_run: UiActiveRunProjection = Field(default_factory=UiActiveRunProjection)
-    metro: UiMetroProjection = Field(default_factory=UiMetroProjection)
+    task_workflows: dict[str, UiTaskWorkflowProjection] = Field(default_factory=dict)
+    selected_task_id: str | None = None
+    selected_task_workflow: UiTaskWorkflowProjection = Field(default_factory=UiTaskWorkflowProjection)
+    task_workflow: UiTaskWorkflowProjection = Field(default_factory=UiTaskWorkflowProjection)
+    metro: UiTaskWorkflowProjection = Field(default_factory=UiTaskWorkflowProjection)
     action_items: list[UiActionItem] = Field(default_factory=list)
     agent_summaries: list[UiAgentSummary] = Field(default_factory=list)
     gate_decisions: list[UiGateDecision] = Field(default_factory=list)
     artifact_summary: UiArtifactSummary = Field(default_factory=UiArtifactSummary)
+    diagnostics: UiDiagnosticsProjection = Field(default_factory=UiDiagnosticsProjection)
 
 
 class EventReplayState(BaseModel):
@@ -265,6 +312,8 @@ class ProjectionReader:
             contexts = self._contexts(conn)
             inbox = self._inbox(conn)
             artifacts = self._artifacts(conn)
+            protocol_violations = self._protocol_violations(conn)
+            projection_effects = self._projection_effects(conn)
             agents = self._agents(conn, inbox)
             gates = _with_projected_gate_owners(gates, agents)
             sessions = self._sessions(conn)
@@ -279,6 +328,9 @@ class ProjectionReader:
                 contexts=contexts,
                 inbox=inbox,
                 review_findings=findings,
+                events=events,
+                protocol_violations=protocol_violations,
+                projection_effects=projection_effects,
             )
             return OperationsProjection(
                 last_seq=last_seq,
@@ -478,6 +530,28 @@ class ProjectionReader:
         rows = conn.execute("select * from artifacts order by created_at asc, artifact_id asc").fetchall()
         return [_row_to_artifact(row) for row in rows]
 
+    def _protocol_violations(self, conn: sqlite3.Connection) -> list[sqlite3.Row]:
+        if not _has_table(conn, "protocol_violations"):
+            return []
+        return conn.execute(
+            """
+            select * from protocol_violations
+            order by created_at desc, violation_id desc
+            limit 80
+            """
+        ).fetchall()
+
+    def _projection_effects(self, conn: sqlite3.Connection) -> list[sqlite3.Row]:
+        if not _has_table(conn, "projection_effects"):
+            return []
+        return conn.execute(
+            """
+            select * from projection_effects
+            order by created_at desc, effect_id desc
+            limit 120
+            """
+        ).fetchall()
+
 
 def build_operations_projection(
     db_path: str | os.PathLike[str] | None = None,
@@ -501,6 +575,9 @@ def _build_ui_projection(
     contexts: list[ContextPacket],
     inbox: list[InboxItem],
     review_findings: list[ReviewFinding],
+    events: list[BusEvent],
+    protocol_violations: list[sqlite3.Row],
+    projection_effects: list[sqlite3.Row],
 ) -> UiOperationsProjection:
     active_run = _select_active_run(runs)
     active_run_id = active_run.run_id if active_run else None
@@ -509,9 +586,35 @@ def _build_ui_projection(
     run_artifacts = [
         artifact for artifact in artifacts if artifact.run_id == active_run_id
     ] if active_run_id else []
+    task_workflows = _build_task_workflow_map(
+        active_run,
+        run_tasks,
+        run_gates,
+        run_artifacts,
+        contexts,
+        events,
+    )
+    selected_task_id = _select_selected_workflow_task_id(run_tasks, run_gates, task_workflows)
+    selected_task_workflow = (
+        task_workflows.get(selected_task_id)
+        if selected_task_id is not None
+        else None
+    ) or UiTaskWorkflowProjection()
+    legacy_metro = _build_task_workflow_projection(
+        active_run,
+        run_tasks,
+        run_gates,
+        run_artifacts,
+        contexts,
+        events,
+    )
     return UiOperationsProjection(
         active_run=_build_active_run_projection(active_run, run_tasks),
-        metro=_build_metro_projection(active_run, run_tasks, run_gates, run_artifacts),
+        task_workflows=task_workflows,
+        selected_task_id=selected_task_id,
+        selected_task_workflow=selected_task_workflow,
+        task_workflow=legacy_metro,
+        metro=legacy_metro,
         action_items=_build_action_items(
             runs=runs,
             tasks=tasks,
@@ -530,6 +633,14 @@ def _build_ui_projection(
         ),
         gate_decisions=_build_gate_decisions(gates),
         artifact_summary=_build_artifact_summary(artifacts),
+        diagnostics=_build_diagnostics_projection(
+            events=events,
+            workflow_diagnostics=_unique_workflow_diagnostics(
+                [legacy_metro, *task_workflows.values()]
+            ),
+            protocol_violations=protocol_violations,
+            projection_effects=projection_effects,
+        ),
     )
 
 
@@ -561,20 +672,116 @@ def _build_active_run_projection(
     )
 
 
-def _build_metro_projection(
+def _build_task_workflow_map(
     run: RunRecord | None,
     tasks: list[TaskRecord],
     gates: list[GateRecord],
     artifacts: list[ArtifactRecord],
-) -> UiMetroProjection:
+    contexts: list[ContextPacket],
+    events: list[BusEvent],
+) -> dict[str, UiTaskWorkflowProjection]:
     if run is None:
-        return UiMetroProjection()
+        return {}
+
+    workflows: dict[str, UiTaskWorkflowProjection] = {}
+    ordered_tasks = sorted(tasks, key=lambda task: (task.created_at, task.task_id))
+    for task in ordered_tasks:
+        workflows[task.task_id] = _build_task_workflow_projection(
+            run,
+            [task],
+            [gate for gate in gates if gate.task_id == task.task_id],
+            [artifact for artifact in artifacts if artifact.task_id == task.task_id],
+            contexts,
+            _events_for_task_workflow(events, task.task_id),
+        )
+    return workflows
+
+
+def _unique_workflow_diagnostics(
+    workflows: list[UiTaskWorkflowProjection],
+) -> list[UiWorkflowDiagnostic]:
+    diagnostics: list[UiWorkflowDiagnostic] = []
+    seen: set[tuple[str, str, str, str]] = set()
+    for workflow in workflows:
+        for diagnostic in workflow.diagnostics:
+            key = (
+                diagnostic.kind,
+                diagnostic.detail,
+                diagnostic.event_id or "",
+                diagnostic.task_id or "",
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            diagnostics.append(diagnostic)
+    return diagnostics
+
+
+def _events_for_task_workflow(events: list[BusEvent], task_id: str) -> list[BusEvent]:
+    scoped: list[BusEvent] = []
+    for event in events:
+        if _workflow_event_kind(event) is None:
+            continue
+        payload_task_id = str((event.payload or {}).get("task_id") or "")
+        event_task_id = str(event.task_id or "")
+        if task_id in {payload_task_id, event_task_id}:
+            scoped.append(event)
+    return scoped
+
+
+def _select_selected_workflow_task_id(
+    tasks: list[TaskRecord],
+    gates: list[GateRecord],
+    task_workflows: dict[str, UiTaskWorkflowProjection],
+) -> str | None:
+    if not task_workflows:
+        return None
+
+    open_gate = next(
+        (
+            gate
+            for gate in sorted(gates, key=lambda item: (_gate_priority(item), item.created_at, item.gate_id), reverse=True)
+            if gate.task_id in task_workflows and _normalize_state(gate.state) in {"open", "escalated"}
+        ),
+        None,
+    )
+    if open_gate is not None:
+        return open_gate.task_id
+
+    active_task = next(
+        (
+            task
+            for task in sorted(tasks, key=lambda item: (item.updated_at, item.created_at, item.task_id), reverse=True)
+            if task.task_id in task_workflows
+            and _normalize_state(task.status) in {"blocked", "working", "assigned", "acknowledged", "reassigned"}
+        ),
+        None,
+    )
+    if active_task is not None:
+        return active_task.task_id
+
+    return next(iter(task_workflows))
+
+
+def _build_task_workflow_projection(
+    run: RunRecord | None,
+    tasks: list[TaskRecord],
+    gates: list[GateRecord],
+    artifacts: list[ArtifactRecord],
+    contexts: list[ContextPacket],
+    events: list[BusEvent],
+) -> UiTaskWorkflowProjection:
+    if run is None:
+        return UiTaskWorkflowProjection()
 
     nodes: list[UiMetroNode] = []
     edges: list[UiMetroEdge] = []
     main_path: list[str] = []
     branch_groups: dict[str, list[str]] = {}
     current_node_id: str | None = None
+    task_ids = [task.task_id for task in sorted(tasks, key=lambda item: (item.created_at, item.task_id))]
+    task_id_set = set(task_ids)
+    event_branches, diagnostics = _task_bound_workflow_events(events, task_id_set)
     start_node_id = f"run:{run.run_id}:start"
     nodes.append(
         UiMetroNode(
@@ -595,10 +802,15 @@ def _build_metro_projection(
         if gate.task_id:
             gates_by_task.setdefault(gate.task_id, []).append(gate)
 
+    contexts_by_task: dict[str, list[ContextPacket]] = {}
+    for packet in contexts:
+        if packet.task_id in task_id_set:
+            contexts_by_task.setdefault(str(packet.task_id), []).append(packet)
+
     artifacts_by_task: dict[str, list[ArtifactRecord]] = {}
     unlinked_artifacts: list[ArtifactRecord] = []
     for artifact in artifacts:
-        if artifact.task_id:
+        if artifact.task_id in task_id_set:
             artifacts_by_task.setdefault(artifact.task_id, []).append(artifact)
         else:
             unlinked_artifacts.append(artifact)
@@ -630,6 +842,7 @@ def _build_metro_projection(
                 target=task_node_id,
                 kind="main",
                 tone=_tone_for_state(task_state, kind="task"),
+                task_id=task.task_id,
             )
         )
         main_path.append(task_node_id)
@@ -638,6 +851,51 @@ def _build_metro_projection(
             current_node_id = task_node_id
 
         branch_groups.setdefault(task_node_id, [])
+        for packet in sorted(contexts_by_task.get(task.task_id, []), key=lambda item: (item.created_at, item.packet_id)):
+            context_node_id = f"context:{packet.packet_id}"
+            nodes.append(
+                UiMetroNode(
+                    id=context_node_id,
+                    kind="context",
+                    title="上下文",
+                    subtitle=packet.summary or packet.packet_id,
+                    state=packet.status,
+                    tone=_tone_for_state(packet.status, kind="context"),
+                    run_id=packet.run_id,
+                    task_id=packet.task_id,
+                    context_packet_id=packet.packet_id,
+                    agent_id=packet.agent_id,
+                    route="Diagnostics",
+                    priority=35,
+                )
+            )
+            edges.append(
+                UiMetroEdge(
+                    id=f"edge:{task_node_id}->{context_node_id}",
+                    source=task_node_id,
+                    target=context_node_id,
+                    kind="context",
+                    tone=_tone_for_state(packet.status, kind="context"),
+                    task_id=task.task_id,
+                )
+            )
+            branch_groups[task_node_id].append(context_node_id)
+
+        for event in event_branches.get(task.task_id, []):
+            event_node = _event_workflow_node(event)
+            nodes.append(event_node)
+            edges.append(
+                UiMetroEdge(
+                    id=f"edge:{task_node_id}->{event_node.id}",
+                    source=task_node_id,
+                    target=event_node.id,
+                    kind=event_node.kind,
+                    tone=event_node.tone,
+                    task_id=task.task_id,
+                )
+            )
+            branch_groups[task_node_id].append(event_node.id)
+
         for gate in sorted(gates_by_task.get(task.task_id, []), key=lambda item: (item.created_at, item.gate_id)):
             gate_state = _normalize_state(gate.state)
             gate_node_id = f"gate:{gate.gate_id}"
@@ -664,6 +922,7 @@ def _build_metro_projection(
                     target=gate_node_id,
                     kind="gate",
                     tone=_tone_for_state(gate_state, kind="gate"),
+                    task_id=task.task_id,
                 )
             )
             branch_groups[task_node_id].append(gate_node_id)
@@ -683,9 +942,39 @@ def _build_metro_projection(
                     target=artifact_node_id,
                     kind="artifact",
                     tone="good",
+                    task_id=task.task_id,
                 )
             )
             branch_groups[task_node_id].append(artifact_node_id)
+
+        if task_state in {"completed", "failed", "superseded"}:
+            terminal_node_id = f"terminal:{task.task_id}:{task_state}"
+            nodes.append(
+                UiMetroNode(
+                    id=terminal_node_id,
+                    kind="terminal",
+                    title=_terminal_title(task_state),
+                    subtitle=task.updated_at,
+                    state=task_state,
+                    tone=_tone_for_state(task_state, kind="task"),
+                    run_id=task.run_id,
+                    task_id=task.task_id,
+                    agent_id=task.assignee_agent_id or task.owner_agent_id,
+                    route="Runs",
+                    priority=task.priority,
+                )
+            )
+            edges.append(
+                UiMetroEdge(
+                    id=f"edge:{task_node_id}->{terminal_node_id}",
+                    source=task_node_id,
+                    target=terminal_node_id,
+                    kind="terminal",
+                    tone=_tone_for_state(task_state, kind="task"),
+                    task_id=task.task_id,
+                )
+            )
+            branch_groups[task_node_id].append(terminal_node_id)
 
     if unlinked_artifacts:
         branch_groups.setdefault(start_node_id, [])
@@ -699,6 +988,7 @@ def _build_metro_projection(
                 target=artifact_node.id,
                 kind="artifact",
                 tone="good",
+                task_id=artifact_node.task_id,
             )
         )
         branch_groups[start_node_id].append(artifact_node.id)
@@ -706,12 +996,14 @@ def _build_metro_projection(
     if current_node_id is None:
         current_node_id = main_path[-1] if main_path else start_node_id
 
-    return UiMetroProjection(
+    return UiTaskWorkflowProjection(
         nodes=nodes,
         edges=edges,
         main_path_node_ids=main_path,
         current_node_id=current_node_id,
         branch_groups={key: value for key, value in branch_groups.items() if value},
+        task_ids=task_ids,
+        diagnostics=diagnostics,
     )
 
 
@@ -730,6 +1022,281 @@ def _artifact_node(artifact: ArtifactRecord, *, source_task_id: str | None = Non
         agent_id=artifact.created_by,
         route="Artifacts",
     )
+
+
+def _task_bound_workflow_events(
+    events: list[BusEvent],
+    task_ids: set[str],
+) -> tuple[dict[str, list[BusEvent]], list[UiWorkflowDiagnostic]]:
+    branches: dict[str, list[BusEvent]] = {}
+    diagnostics: list[UiWorkflowDiagnostic] = []
+
+    for event in events:
+        kind = _workflow_event_kind(event)
+        if kind is None:
+            continue
+
+        payload = event.payload or {}
+        event_task_id = str(event.task_id or "")
+        payload_task_id = str(payload.get("task_id") or "")
+        if event_task_id and payload_task_id and event_task_id != payload_task_id:
+            diagnostics.append(
+                UiWorkflowDiagnostic(
+                    kind="protocol_violation",
+                    title="跨任务边已丢弃",
+                    detail=(
+                        "cross-task workflow edge dropped: "
+                        f"event task_id={event_task_id}, payload task_id={payload_task_id}"
+                    ),
+                    event_id=event.event_id,
+                    run_id=event.run_id,
+                    task_id=event_task_id,
+                )
+            )
+            continue
+
+        task_id = event_task_id or payload_task_id
+        if not task_id:
+            continue
+        if task_id not in task_ids:
+            diagnostics.append(
+                UiWorkflowDiagnostic(
+                    kind="protocol_violation",
+                    title="未知任务边已丢弃",
+                    detail=f"workflow event {event.event_id} references unknown task_id={task_id}",
+                    event_id=event.event_id,
+                    run_id=event.run_id,
+                    task_id=task_id,
+                )
+            )
+            continue
+        branches.setdefault(task_id, []).append(event)
+
+    for task_events in branches.values():
+        task_events.sort(key=lambda item: (item.ts or "", item.seq or 0, item.event_id))
+    return branches, diagnostics
+
+
+def _workflow_event_kind(event: BusEvent) -> str | None:
+    event_type = _event_type_value(event)
+    if event_type in {
+        EventType.TASK_ACK_CLAIMED.value,
+        EventType.TASK_PROGRESS_REPORTED.value,
+        EventType.TASK_BLOCKER_REPORTED.value,
+        EventType.TASK_COMPLETION_CLAIMED.value,
+        EventType.TASK_FAILURE_CLAIMED.value,
+        EventType.ARTIFACT_PRODUCED.value,
+    }:
+        return "claim"
+    if event_type.startswith("replacement."):
+        return "replacement"
+    if event_type in {
+        EventType.TASK_COMPLETED.value,
+        EventType.TASK_FAILED.value,
+        EventType.TASK_SUPERSEDED.value,
+    }:
+        return "terminal"
+    return None
+
+
+def _event_workflow_node(event: BusEvent) -> UiMetroNode:
+    kind = _workflow_event_kind(event) or "claim"
+    event_type = _event_type_value(event)
+    payload = event.payload or {}
+    state = str(payload.get("status") or payload.get("state") or event_type.rsplit(".", 1)[-1])
+    task_id = str(event.task_id or payload.get("task_id") or "") or None
+    recommendation_id = str(payload.get("recommendation_id") or "") or None
+    return UiMetroNode(
+        id=f"event:{event.event_id}",
+        kind=kind,
+        title=_workflow_event_title(event_type, kind),
+        subtitle=str(payload.get("summary") or payload.get("reason") or event.actor or event_type),
+        state=state,
+        tone=_workflow_event_tone(kind, state, event_type),
+        run_id=event.run_id or str(payload.get("run_id") or "") or None,
+        task_id=task_id,
+        artifact_id=event.artifact_id or str(payload.get("artifact_id") or "") or None,
+        claim_id=str(payload.get("claim_id") or payload.get("created_from_event_id") or "") or None,
+        recommendation_id=recommendation_id,
+        agent_id=event.agent_id or event.actor,
+        route="Runs" if kind == "terminal" else "Diagnostics",
+        priority=45 if kind == "replacement" else 40,
+    )
+
+
+def _workflow_event_title(event_type: str, kind: str) -> str:
+    labels = {
+        EventType.TASK_ACK_CLAIMED.value: "认领声明",
+        EventType.TASK_PROGRESS_REPORTED.value: "进展声明",
+        EventType.TASK_BLOCKER_REPORTED.value: "阻塞声明",
+        EventType.TASK_COMPLETION_CLAIMED.value: "完成声明",
+        EventType.TASK_FAILURE_CLAIMED.value: "失败声明",
+        EventType.ARTIFACT_PRODUCED.value: "产物声明",
+        EventType.TASK_COMPLETED.value: "完成终点",
+        EventType.TASK_FAILED.value: "失败终点",
+        EventType.TASK_SUPERSEDED.value: "替换终点",
+    }
+    if event_type in labels:
+        return labels[event_type]
+    if kind == "replacement":
+        return "替换"
+    if kind == "terminal":
+        return "终点"
+    return "声明"
+
+
+def _workflow_event_tone(kind: str, state: str, event_type: str) -> str:
+    if kind == "terminal":
+        return _tone_for_state(state, kind="task")
+    if event_type in {EventType.TASK_BLOCKER_REPORTED.value, EventType.TASK_FAILURE_CLAIMED.value}:
+        return "bad"
+    if event_type == EventType.TASK_COMPLETION_CLAIMED.value:
+        return "warn"
+    if kind == "replacement":
+        return "warn"
+    return "info"
+
+
+def _terminal_title(task_state: str) -> str:
+    if task_state == "failed":
+        return "失败终点"
+    if task_state == "superseded":
+        return "替换终点"
+    return "完成终点"
+
+
+def _build_diagnostics_projection(
+    *,
+    events: list[BusEvent],
+    workflow_diagnostics: list[UiWorkflowDiagnostic],
+    protocol_violations: list[sqlite3.Row],
+    projection_effects: list[sqlite3.Row],
+) -> UiDiagnosticsProjection:
+    protocol_records = [_diagnostic_from_protocol_violation(row) for row in protocol_violations]
+    protocol_records.extend(_diagnostic_from_workflow(item) for item in workflow_diagnostics)
+
+    effect_records = [_diagnostic_from_projection_effect(row) for row in projection_effects]
+    fencing_rejects = [
+        item
+        for item in protocol_records
+        if _is_fencing_reject(item.fencing_result)
+    ]
+    fencing_rejects.extend(
+        _diagnostic_from_fenced_event(event)
+        for event in events
+        if _is_fencing_reject(_string_value(event.fencing_result))
+    )
+
+    deprecated_adapter_events = [
+        _diagnostic_from_deprecated_adapter(event)
+        for event in events
+        if _event_type_value(event) == EventType.ADAPTER_DEPRECATED_PATH_USED.value
+    ]
+
+    return UiDiagnosticsProjection(
+        projection_effects=effect_records,
+        fencing_rejects=fencing_rejects,
+        protocol_violations=protocol_records,
+        deprecated_adapter_events=deprecated_adapter_events,
+    )
+
+
+def _diagnostic_from_protocol_violation(row: sqlite3.Row) -> UiDiagnosticRecord:
+    return UiDiagnosticRecord(
+        kind="protocol_violation",
+        title=_row_text(row, "action") or "协议违规",
+        detail=_row_text(row, "reason"),
+        tone="bad",
+        effect=_row_text(row, "projection_effect"),
+        fencing_result=_row_text(row, "fencing_result"),
+        attempted_event_id=_row_text(row, "attempted_event_id"),
+        run_id=_row_text(row, "run_id") or None,
+        task_id=_row_text(row, "task_id") or None,
+        created_at=_row_text(row, "created_at") or None,
+    )
+
+
+def _diagnostic_from_projection_effect(row: sqlite3.Row) -> UiDiagnosticRecord:
+    effect = _row_text(row, "effect")
+    target = _row_text(row, "target_id") or _row_text(row, "attempted_event_id") or _row_text(row, "event_id")
+    return UiDiagnosticRecord(
+        kind="projection_effect",
+        title=effect or "投影效果",
+        detail=_row_text(row, "reason") or target,
+        tone="bad" if effect == "REJECT" else "warn" if effect == "AUDIT_ONLY" else "good",
+        effect=effect,
+        event_id=_row_text(row, "event_id") or None,
+        attempted_event_id=_row_text(row, "attempted_event_id") or None,
+        run_id=_row_text(row, "run_id") or None,
+        task_id=_row_text(row, "task_id") or None,
+        created_at=_row_text(row, "created_at") or None,
+    )
+
+
+def _diagnostic_from_workflow(item: UiWorkflowDiagnostic) -> UiDiagnosticRecord:
+    return UiDiagnosticRecord(
+        kind=item.kind,
+        title=item.title,
+        detail=item.detail,
+        tone=item.tone,
+        event_id=item.event_id,
+        run_id=item.run_id,
+        task_id=item.task_id,
+    )
+
+
+def _diagnostic_from_fenced_event(event: BusEvent) -> UiDiagnosticRecord:
+    return UiDiagnosticRecord(
+        kind="fencing_reject",
+        title=_event_type_value(event),
+        detail=str((event.payload or {}).get("reason") or "fencing rejected event"),
+        tone="bad",
+        effect=_string_value(event.projection_effect),
+        fencing_result=_string_value(event.fencing_result),
+        event_id=event.event_id,
+        run_id=event.run_id,
+        task_id=event.task_id,
+        created_at=event.ts,
+    )
+
+
+def _diagnostic_from_deprecated_adapter(event: BusEvent) -> UiDiagnosticRecord:
+    payload = event.payload or {}
+    path = str(payload.get("path") or payload.get("deprecated_path") or _event_type_value(event))
+    replacement = str(payload.get("replacement") or payload.get("replacement_path") or "")
+    detail = f"{path} -> {replacement}" if replacement else path
+    return UiDiagnosticRecord(
+        kind="deprecated_adapter",
+        title="旧适配器路径",
+        detail=detail,
+        tone="warn",
+        effect=_string_value(event.projection_effect),
+        fencing_result=_string_value(event.fencing_result),
+        event_id=event.event_id,
+        run_id=event.run_id,
+        task_id=event.task_id,
+        created_at=event.ts,
+    )
+
+
+def _is_fencing_reject(value: str | None) -> bool:
+    normalized = (value or "").upper()
+    return normalized not in {"", "VALID", "NOT_REQUIRED"}
+
+
+def _row_text(row: sqlite3.Row, key: str) -> str:
+    if key not in row.keys():
+        return ""
+    value = row[key]
+    return _string_value(value)
+
+
+def _string_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if hasattr(value, "value"):
+        return str(value.value)
+    return str(value)
 
 
 def _build_action_items(
@@ -1315,6 +1882,14 @@ def _normalize_state(value: Any) -> str:
     if state.startswith("taskstate.") or state.startswith("runstate."):
         state = state.split(".", 1)[1]
     return state
+
+
+def _has_table(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        "select 1 from sqlite_master where type = 'table' and name = ?",
+        (table,),
+    ).fetchone()
+    return row is not None
 
 
 def _configured_session_freshness_seconds() -> float:

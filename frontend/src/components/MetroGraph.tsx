@@ -2,19 +2,23 @@ import React, { useMemo } from "react";
 import {
   CheckCircle2,
   Circle,
+  ClipboardCheck,
   Diamond,
+  FileCheck2,
   FileText,
+  Flag,
   GitBranch,
   Play,
+  RefreshCw,
   ShieldAlert,
   XCircle,
 } from "lucide-react";
 
-import type { UiMetroNode, UiMetroProjection, UiTone } from "../operationsApi";
+import type { UiMetroNode, UiTaskWorkflowProjection, UiTone } from "../operationsApi";
 import { stateLabel } from "../uiText";
 
 export type MetroGraphProps = {
-  metro: UiMetroProjection;
+  metro: UiTaskWorkflowProjection;
   onNodeSelect: (node: UiMetroNode) => void;
 };
 
@@ -33,14 +37,14 @@ export function MetroGraph({ metro, onNodeSelect }: MetroGraphProps) {
     return (
       <div className="metroGraphEmpty">
         <GitBranch size={22} strokeWidth={2.1} />
-        <strong>暂无任务流节点</strong>
-        <span>等待真实 run、task、gate 或 artifact 写入后生成地铁图。</span>
+        <strong>暂无任务工作流节点</strong>
+        <span>等待真实 run、task、context、claim、gate 或 artifact 写入后生成视图。</span>
       </div>
     );
   }
 
   return (
-    <div className="metroGraphViewport" aria-label="任务流地铁图">
+    <div className="metroGraphViewport" aria-label="任务工作流图">
       <div
         className="metroGraphCanvas"
         style={{ width: layout.width, height: layout.height }}
@@ -98,7 +102,7 @@ export function MetroGraph({ metro, onNodeSelect }: MetroGraphProps) {
   );
 }
 
-function buildMetroLayout(metro: UiMetroProjection) {
+function buildMetroLayout(metro: UiTaskWorkflowProjection) {
   const mainIds =
     metro.mainPathNodeIds.length > 0
       ? metro.mainPathNodeIds
@@ -192,6 +196,18 @@ function nodeIcon(node: UiMetroNode) {
   }
   if (node.kind === "artifact") {
     return <FileText size={size} strokeWidth={2.2} />;
+  }
+  if (node.kind === "context") {
+    return <ClipboardCheck size={size} strokeWidth={2.2} />;
+  }
+  if (node.kind === "claim") {
+    return <FileCheck2 size={size} strokeWidth={2.2} />;
+  }
+  if (node.kind === "replacement") {
+    return <RefreshCw size={size} strokeWidth={2.2} />;
+  }
+  if (node.kind === "terminal") {
+    return <Flag size={size} strokeWidth={2.2} />;
   }
   if (node.tone === "good") {
     return <CheckCircle2 size={size} strokeWidth={2.2} />;

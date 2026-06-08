@@ -171,3 +171,107 @@ python -m agent_bus context get <new_context_packet_id> --json
 ```
 
 Stop acting from old context immediately.
+
+## Authority Or Fencing Reject
+
+Symptoms:
+
+- HTTP response contains `authority_reject` or `protocol_reject`.
+- CLI JSON/stderr contains `projection_effect: REJECT`.
+- A worker completion claim shows `projection_effect: AUDIT_ONLY` and `fencing_result: MISSING`, `INVALID`, `STALE_EPOCH`, or `WRONG_SESSION`.
+- A free-form worker actor attempted a controller route.
+
+Actions:
+
+1. Do not retry by changing `actor` to look like a controller.
+2. Identify the correct principal and route group: worker, controller, or user.
+3. If the event is a worker completion, treat it as a claim and ask the controller to commit the claim.
+4. If the fence is missing, fetch the active session/context packet and rerun only when the assignment is still valid.
+5. Preserve the reject event as diagnostic evidence.
+
+Useful probes:
+
+```powershell
+python -m agent_bus protocol events --limit 20 --json
+python -m agent_bus protocol events --type adapter.deprecated_path_used --limit 20 --json
+```
+
+## Deprecated Adapter Warning
+
+Symptoms:
+
+- Diagnostics show `adapter.deprecated_path_used`.
+- A legacy CLI command or old mixed HTTP route was used.
+
+Actions:
+
+1. Confirm the adapter emitted an audit event with `projection_effect=AUDIT_ONLY`.
+2. Confirm the adapter did not bypass authority or fencing.
+3. Prefer the canonical command next time:
+
+```powershell
+python -m agent_bus worker task complete <task_id> --actor <worker> --session-id <session_id> --session-epoch <epoch> --context-packet-id <packet_id> --json
+python -m agent_bus controller gate approve <gate_id> --json
+python -m agent_bus user interrupt create --text '...' --json
+```
+
+## Projection Or Frontend Drift
+
+Symptoms:
+
+- `ui.metro` no longer preserves old run/task/gate/artifact branch semantics.
+- `ui.task_workflow` contains cross-task edges.
+- Home, Communication, or Diagnostics shows demo/mock/fake data.
+- Communication filters do not change the real message list.
+- Diagnostics is missing protocol effects, fencing rejects, protocol violations, or deprecated adapter events.
+
+Actions:
+
+1. Query `/api/projections/operations` and compare `ui.task_workflow`, `ui.metro`, and `ui.diagnostics`.
+2. Check whether taskless/global events are leaking into task workflow.
+3. Keep raw event replay as diagnostic evidence only; normal UI state should come from projections.
+4. Run focused projection/server tests and frontend build before reporting READY.
+
+Useful checks:
+
+```powershell
+python -m pytest tests/test_protocol_projection.py tests/test_communication_projection.py tests/test_artifact_manifests.py tests/test_server.py -q
+
+Set-Location 'C:\Users\laptopofzy\Documents\Agent bus\frontend'
+npm run build
+```
+
+## Replacement Contract Break
+
+Symptoms:
+
+- Replacement loses the original `task_id`.
+- Rehydration packet is missing or not bound to the replacement session.
+- Old context bindings for unrelated tasks or sessions are invalidated.
+- Old session fence still lets stale claims through.
+
+Actions:
+
+1. Check the replacement event chain:
+
+```text
+replacement.recommended
+replacement.approval_requested
+replacement.approved
+replacement.reassignment_committed
+```
+
+2. Confirm the old task + old agent + old session binding only was invalidated.
+3. Confirm the replacement packet has kind `REHYDRATION`.
+4. Confirm old-session claims fail closed after replacement.
+5. Preserve `task.reassigned` only as compatibility projection; use `replacement.reassignment_committed` as the root commit event.
+
+## Post-Acceptance GitHub Push
+
+The user instructed that accepted work should be pushed to GitHub after acceptance, then agents should keep listening on Agent Bus. Recovery rule:
+
+1. Do not push before the explicit gate acceptance and publication assignment.
+2. Confirm changed files and ownership boundaries.
+3. Commit/push only under the assigned publishing owner.
+4. Keep broker/fallback monitoring active after the push.
+5. Let external review decide further modifications and the next construction plan.

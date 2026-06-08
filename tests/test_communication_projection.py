@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from agent_bus.fencing import FencingService
 from agent_bus.inbox import InboxStore
 from agent_bus.server import create_app
 
@@ -49,10 +50,22 @@ def test_operator_message_delivery_state_tracks_inbox_delivery(tmp_path):
         },
     )
     before_delivery = client.get("/api/projections/messages").json()["messages"][0]
+    fence = FencingService(db_path).register_session(
+        "session-worker-one",
+        agent_id="worker.one",
+        token="worker-token",
+    )
 
     delivered = client.post(
-        "/api/inbox/wait",
-        json={"agent_id": "worker.one", "timeout": 0.01, "poll_interval": 0.005},
+        "/api/worker/inbox/wait",
+        json={
+            "agent_id": "worker.one",
+            "session_id": fence.session_id,
+            "session_epoch": fence.session_epoch,
+            "fencing_token": fence.raw_token,
+            "timeout": 0.01,
+            "poll_interval": 0.005,
+        },
     ).json()
     after_delivery = client.get("/api/projections/messages").json()["messages"][0]
 

@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, Clock3, Database, Radio } from "lucide-react";
 
 import { EventTable } from "../components/EventTable";
 import { StatusBadge } from "../components/StatusBadge";
-import type { EventRow, OperationsProjection } from "../operationsApi";
+import type { EventRow, OperationsProjection, UiDiagnosticRecord } from "../operationsApi";
 import { statusFromState } from "../statusModel";
 
 type DiagnosticsFilter = "all" | "warnings" | "gate" | "interrupt" | "task" | "bus";
@@ -24,13 +24,20 @@ const filterLabels: Record<DiagnosticsFilter, string> = {
 export function DiagnosticsPage({ projection }: DiagnosticsPageProps) {
   const [filter, setFilter] = useState<DiagnosticsFilter>("all");
   const events = projection.events;
+  const diagnostics = projection.ui.diagnostics;
   const generatedAt = projection.generatedAt || "";
 
-  const protocolWarnings = useMemo(() => collectProtocolWarnings(events), [events]);
+  const protocolWarnings = useMemo(
+    () => collectProtocolWarnings(events, diagnostics.protocolViolations),
+    [events, diagnostics.protocolViolations],
+  );
   const staleEvents = useMemo(() => collectStaleEvents(events, generatedAt), [events, generatedAt]);
   const filteredEvents = useMemo(() => filterDiagnosticsEvents(events, filter), [events, filter]);
   const eventTypes = useMemo(() => Array.from(new Set(events.map((event) => event.type))).sort(), [events]);
-  const errorCount = events.filter((event) => event.tone === "bad").length;
+  const errorCount =
+    events.filter((event) => event.tone === "bad").length +
+    diagnostics.protocolViolations.length +
+    diagnostics.fencingRejects.length;
 
   return (
     <section className="diagnosticsPage pageShell referencePage">
@@ -54,6 +61,8 @@ export function DiagnosticsPage({ projection }: DiagnosticsPageProps) {
         <Metric icon={Activity} label="事件类型" value={eventTypes.length} />
         <Metric icon={AlertTriangle} label="异常事件" value={errorCount} tone={errorCount ? "bad" : "good"} />
         <Metric icon={Radio} label="陈旧事件" value={staleEvents.length} tone={staleEvents.length ? "warn" : "good"} />
+        <Metric icon={Database} label="投影效果" value={diagnostics.projectionEffects.length} tone={diagnostics.projectionEffects.length ? "info" : "good"} />
+        <Metric icon={AlertTriangle} label="协议拒绝" value={diagnostics.protocolViolations.length} tone={diagnostics.protocolViolations.length ? "bad" : "good"} />
       </div>
 
       <div className="diagnosticsWorkspace">
@@ -79,27 +88,39 @@ export function DiagnosticsPage({ projection }: DiagnosticsPageProps) {
           <header className="referenceCardHeader">
             <div>
               <h3>会话围栏</h3>
-              <p>{projection.source}</p>
+              <p>{diagnostics.fencingRejects.length} 条拒绝</p>
             </div>
           </header>
-          <dl className="diagnosticsFacts">
+          <DiagnosticRecordList
+            emptyText="当前没有 fencing reject。"
+            records={diagnostics.fencingRejects}
+          />
+        </section>
+
+        <section className="referenceCard">
+          <header className="referenceCardHeader">
             <div>
-              <dt>投影时间</dt>
-              <dd>{generatedAt || "无数据"}</dd>
+              <h3>投影效果</h3>
+              <p>{diagnostics.projectionEffects.length} 条</p>
             </div>
+          </header>
+          <DiagnosticRecordList
+            emptyText="当前没有投影效果记录。"
+            records={diagnostics.projectionEffects}
+          />
+        </section>
+
+        <section className="referenceCard">
+          <header className="referenceCardHeader">
             <div>
-              <dt>涉及 Agent</dt>
-              <dd>{projection.agents.length}</dd>
+              <h3>旧适配器</h3>
+              <p>{diagnostics.deprecatedAdapterEvents.length} 条</p>
             </div>
-            <div>
-              <dt>待处理 inbox</dt>
-              <dd>{projection.metrics.pendingInbox}</dd>
-            </div>
-            <div>
-              <dt>开放门禁</dt>
-              <dd>{projection.metrics.openGateCount}</dd>
-            </div>
-          </dl>
+          </header>
+          <DiagnosticRecordList
+            emptyText="当前没有 deprecated adapter usage。"
+            records={diagnostics.deprecatedAdapterEvents}
+          />
         </section>
 
         <section className="referenceCard">
@@ -165,8 +186,42 @@ function Metric({
   );
 }
 
-function collectProtocolWarnings(events: EventRow[]): string[] {
+function DiagnosticRecordList({
+  emptyText,
+  records,
+}: {
+  emptyText: string;
+  records: UiDiagnosticRecord[];
+}) {
+  if (!records.length) {
+    return <p className="emptyNote">{emptyText}</p>;
+  }
+  return (
+    <ul className="diagnosticsList">
+      {records.slice(0, 8).map((record, index) => (
+        <li key={`${record.kind}:${record.eventId || record.attemptedEventId || index}`}>
+          <strong>{record.title}</strong>
+          <span>{record.detail || record.effect || record.fencingResult || "无详情"}</span>
+          <small>
+            {[record.taskId, record.eventId || record.attemptedEventId, record.fencingResult]
+              .filter(Boolean)
+              .join(" · ")}
+          </small>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function collectProtocolWarnings(
+  events: EventRow[],
+  protocolViolations: UiDiagnosticRecord[],
+): string[] {
   const warnings: string[] = [];
+
+  protocolViolations.forEach((violation) => {
+    warnings.push(`${violation.title}: ${violation.detail || violation.effect}`);
+  });
 
   for (const event of events) {
     if (!event.id) {
@@ -204,9 +259,17 @@ function filterDiagnosticsEvents(events: EventRow[], filter: DiagnosticsFilter):
   }
 
   return events.filter((event) => {
-    const haystack = `${event.type} ${event.text} ${event.source}`.toLowerCase();
+    const haystack = `${event.type} ${event.text} ${event.source} ${event.projectionEffect} ${event.fencingResult}`.toLowerCase();
     if (filter === "warnings") {
-      return event.tone === "bad" || haystack.includes("error") || haystack.includes("blocked");
+      return (
+        event.tone === "bad" ||
+        haystack.includes("error") ||
+        haystack.includes("blocked") ||
+        haystack.includes("reject") ||
+        haystack.includes("wrong_session") ||
+        haystack.includes("stale_epoch") ||
+        haystack.includes("missing")
+      );
     }
     return haystack.includes(filter);
   });

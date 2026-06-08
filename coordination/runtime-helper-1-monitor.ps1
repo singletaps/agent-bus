@@ -10,6 +10,7 @@ $LiveEventReader = Join-Path $Coord 'runtime-helper-live-events.py'
 $AgentBus = "$HOME\plugins\codex-agent-bus\scripts\agent-bus.ps1"
 $Broker = 'http://127.0.0.1:8765'
 $Agent = 'runtime-helper-1'
+$SuppressUserFeedbackFanout = $true
 $Recipients = @(
   'runtime-worker-1',
   'runtime-worker-2',
@@ -153,6 +154,14 @@ function Forward-Feedback {
   if ($snippet.Length -gt 1200) { $snippet = $snippet.Substring(0, 1200) + '...' }
   $message = "$prefix runtime-helper-1 forwarding ${Source} at ${stamp}: $snippet. Interpretation: synchronize with all runtime agents; helper1 has no product-code scope unless explicitly assigned."
 
+  if ($SuppressUserFeedbackFanout) {
+    if ($Interrupt) {
+      Add-Content -LiteralPath $WaveGates -Value "`n- [$stamp] USER_FEEDBACK_OBSERVED_NO_FANOUT from ${Source}: $snippet" -Encoding UTF8
+    }
+    Write-MonitorLog "observed ${Source}; fan-out suppressed per latest user/QA directive"
+    return
+  }
+
   foreach ($recipient in $Recipients) {
     Send-AgentMessage $recipient $message
     Add-Content -LiteralPath $Feedback -Value "- Helper1 forwarded ${Source} to $recipient at $((Get-Date).ToString('yyyy-MM-ddTHH:mm:sszzz'))." -Encoding UTF8
@@ -209,7 +218,7 @@ if (-not (Test-Path -LiteralPath $Feedback)) { New-Item -ItemType File -Path $Fe
 if (-not (Test-Path -LiteralPath $Bus)) { Invoke-AgentBus -CliArgs @('init', '--bus', $Bus) | Out-Null }
 
 $state = Read-State
-Send-AgentStatus 'waiting' 'runtime-helper-1 monitor active; watching bus and USER_FEEDBACK.md; visual layout wave coordination active'
+Send-AgentStatus 'waiting' 'runtime-helper-1 quiet monitor active; no user-message fan-out; watching bus and USER_FEEDBACK.md'
 Write-MonitorLog 'monitor started'
 
 while ($true) {
@@ -236,7 +245,7 @@ while ($true) {
         $to = [string]$event.to
         $text = [string]$event.text
         if ($from -eq 'user' -and -not [string]::IsNullOrWhiteSpace($text)) {
-          Append-UserFeedbackSection 'Bus Feedback From User' $text 'forwarded from Agent Bus user message to runtime-worker-1..4, runtime-helper-2, and runtime-qa. Product-code scope remains unassigned unless explicitly stated.'
+          Append-UserFeedbackSection 'Bus Feedback From User' $text 'observed from Agent Bus user message. Automatic fan-out is suppressed per latest user/QA directive; runtime-qa is canonical relay unless it explicitly asks helper1 to forward.'
           Forward-Feedback 'USER_BUS_FEEDBACK_FORWARD' $text (Test-InterruptText $text) "bus user message $($event.id)"
         } elseif (($to -eq $Agent -or $to -eq '*') -and $text -match '(?i)\b(BLOCKED|BLOCKER|NEED_USER_DECISION)\b') {
           Write-MonitorLog "observed blocker-related message from $from to ${to}: $text"
@@ -295,7 +304,7 @@ while ($true) {
     }
     if (($now - $lastHeartbeat).TotalSeconds -ge 60) {
       $health = if ($brokerHealthy) { 'broker healthy' } else { 'broker unavailable; file fallback active' }
-      Send-AgentStatus 'waiting' "monitor heartbeat; $health; watching bus and USER_FEEDBACK.md"
+      Send-AgentStatus 'waiting' "quiet monitor heartbeat; $health; no user-message fan-out"
       $state.lastHeartbeat = $now.ToString('o')
       Write-State $state
       Write-MonitorLog "heartbeat sent; $health"
