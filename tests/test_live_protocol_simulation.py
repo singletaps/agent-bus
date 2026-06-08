@@ -87,10 +87,14 @@ def _event_types(db_path) -> list[str]:
 def test_live_four_agent_protocol_simulation_covers_claims_gate_interrupt_and_replacement(tmp_path):
     db_path = tmp_path / "agent-bus.sqlite3"
     controller = controller_principal()
+    sim_controller_id = "wave10-c2-sim-controller"
+    sim_qa_id = "wave10-c2-sim-qa"
     directory = AgentDirectory(db_path=db_path)
     directory.register_identity("worker.frontend", role="worker", declared_capabilities=["react"])
     directory.register_identity("worker.backend", role="worker", declared_capabilities=["python", "react"])
     directory.register_identity("runtime-qa", role="qa", declared_capabilities=["browser-qa", "protocol-qa"])
+    directory.register_identity(sim_controller_id, role="controller")
+    directory.register_identity(sim_qa_id, role="qa")
     frontend_session = directory.start_session(
         "worker.frontend",
         run_id="run-wave6-live",
@@ -107,6 +111,18 @@ def test_live_four_agent_protocol_simulation_covers_claims_gate_interrupt_and_re
         "runtime-qa",
         run_id="run-wave6-live",
         session_id="session-qa",
+        runtime_state=AgentRuntimeState.STANDBY_READY,
+    )
+    sim_controller_session = directory.start_session(
+        sim_controller_id,
+        run_id="run-wave6-live",
+        session_id="session-wave10-c2-sim-controller",
+        runtime_state=AgentRuntimeState.STANDBY_READY,
+    )
+    sim_qa_session = directory.start_session(
+        sim_qa_id,
+        run_id="run-wave6-live",
+        session_id="session-wave10-c2-sim-qa",
         runtime_state=AgentRuntimeState.STANDBY_READY,
     )
     directory.record_capability_evidence(
@@ -362,6 +378,13 @@ def test_live_four_agent_protocol_simulation_covers_claims_gate_interrupt_and_re
     } <= set(event_types)
 
     with sqlite3.connect(db_path) as conn:
+        conn.executemany(
+            "update agent_sessions set last_seen_at = ? where session_id = ?",
+            [
+                ("2026-05-28T00:00:00Z", sim_controller_session.session_id),
+                ("2026-05-28T00:00:00Z", sim_qa_session.session_id),
+            ],
+        )
         missing_protocol_effects = conn.execute(
             """
             select type from event_log
@@ -385,8 +408,26 @@ def test_live_four_agent_protocol_simulation_covers_claims_gate_interrupt_and_re
     assert committed_claim_count == 4
 
     projection = build_operations_projection(db_path)
+    assert projection.replay_state is not None
+    assert run.run_id in projection.replay_state.runs
+    assert frontend_task.task_id in projection.replay_state.tasks
+    assert backend_task.task_id in projection.replay_state.tasks
+    assert gate.gate_id in projection.replay_state.gates
+    visible_agent_ids = {agent.agent_id for agent in projection.ui.visible_agents}
+    archived_agent_ids = {agent.agent_id for agent in projection.ui.archived_agents}
+    assert sim_controller_id not in visible_agent_ids
+    assert sim_qa_id not in visible_agent_ids
+    assert {sim_controller_id, sim_qa_id} <= archived_agent_ids
+    actionable_gate_ids = {item.gate_id for item in projection.ui.actionable_gates}
+    historical_gate_ids = {item.gate_id for item in projection.ui.historical_gates}
+    assert gate.gate_id not in actionable_gate_ids
+    assert gate.gate_id in historical_gate_ids
+    assert historical_gate_ids.isdisjoint(actionable_gate_ids)
     workflow = projection.ui.task_workflow
     workflow_kinds = {node.kind for node in workflow.nodes}
     assert {frontend_task.task_id, backend_task.task_id} <= set(workflow.task_ids)
-    assert {"task", "context", "claim", "gate", "artifact", "replacement"} <= workflow_kinds
+    assert {"task", "context", "claim", "gate", "artifact", "cluster:replacement"} <= workflow_kinds
+    replacement_cluster = next(node for node in workflow.nodes if node.kind == "cluster:replacement")
+    assert replacement_cluster.task_id == frontend_task.task_id
+    assert replacement_cluster.recommendation_id == backend_recommendation["recommendation_id"]
     assert not workflow.diagnostics

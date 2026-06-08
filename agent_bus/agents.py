@@ -15,9 +15,11 @@ from .models import (
     AgentRuntimeState,
     AgentSession,
     CapabilityEvidenceSource,
+    SessionEndReason,
     new_id,
     utc_now_iso,
 )
+from .protocol_models import SessionRole
 
 
 AGENT_SCHEMA_VERSION = 2
@@ -163,6 +165,7 @@ class AgentDirectory:
             agent_id=agent_id,
             run_id=run_id,
             active=activate,
+            session_role=SessionRole.PRIMARY if activate else SessionRole.STANDBY,
             runtime_state=runtime_state,
             started_at=now,
             last_seen_at=now,
@@ -202,7 +205,9 @@ class AgentDirectory:
 
         self._deactivate_sessions(agent_id)
         session.active = True
+        session.session_role = SessionRole.PRIMARY
         session.ended_at = None
+        session.session_end_reason = None
         session.last_seen_at = utc_now_iso()
         self._health_by_session[session.session_id] = self._health_for(session, reason="session activated")
         self._persist_session(session)
@@ -244,6 +249,24 @@ class AgentDirectory:
         self._persist_health(health)
         return health
 
+    def retire_session(
+        self,
+        session_id: str,
+        *,
+        end_reason: SessionEndReason | str,
+        reason: str | None = None,
+    ) -> AgentHealth:
+        session = self._require_session(session_id)
+        session.active = False
+        session.session_role = SessionRole.RETIRED
+        session.ended_at = utc_now_iso()
+        session.session_end_reason = SessionEndReason(end_reason)
+        self._persist_session(session)
+        health = self._health_for(session, reason=reason or f"session {session.session_end_reason.value}")
+        self._health_by_session[session_id] = health
+        self._persist_health(health)
+        return health
+
     def report_context_loss(self, session_id: str, *, reason: str | None = None) -> AgentHealth:
         return self.update_session_state(
             session_id,
@@ -264,9 +287,11 @@ class AgentDirectory:
             raise AgentDirectoryError("replacement session must belong to the same identity")
 
         old_session.active = False
+        old_session.session_role = SessionRole.REPLACED
         old_session.runtime_state = AgentRuntimeState.REPLACED
         old_session.replaced_by_session_id = replacement_session_id
         old_session.ended_at = utc_now_iso()
+        old_session.session_end_reason = SessionEndReason.REPLACED
         self._health_by_session[old_session_id] = self._health_for(old_session, reason=reason or "replaced")
         self._persist_session(old_session)
         self._persist_health(self._health_by_session[old_session_id])
@@ -285,17 +310,21 @@ class AgentDirectory:
         replacement_session = self._require_session(replacement_session_id)
 
         old_session.active = False
+        old_session.session_role = SessionRole.REPLACED
         old_session.runtime_state = AgentRuntimeState.REPLACED
         old_session.replaced_by_session_id = replacement_session_id
         old_session.ended_at = utc_now_iso()
+        old_session.session_end_reason = SessionEndReason.REPLACED
         self._health_by_session[old_session_id] = self._health_for(old_session, reason=reason or "replaced")
         self._persist_session(old_session)
         self._persist_health(self._health_by_session[old_session_id])
 
         self._deactivate_sessions(replacement_session.agent_id)
         replacement_session.active = True
+        replacement_session.session_role = SessionRole.PRIMARY
         replacement_session.runtime_state = replacement_state
         replacement_session.ended_at = None
+        replacement_session.session_end_reason = None
         replacement_session.last_seen_at = utc_now_iso()
         self._health_by_session[replacement_session_id] = self._health_for(
             replacement_session,
@@ -389,6 +418,8 @@ class AgentDirectory:
         for session_id in self._sessions_by_agent[agent_id]:
             session = self._sessions[session_id]
             session.active = False
+            if session.session_role is SessionRole.PRIMARY:
+                session.session_role = SessionRole.STANDBY
             self._persist_session(session)
 
     def _health_for(self, session: AgentSession, *, reason: str | None = None) -> AgentHealth:
@@ -430,6 +461,11 @@ class AgentDirectory:
                 display_name=row["display_name"],
                 role=row["role"],
                 capability_ids=json.loads(row["capability_ids_json"]),
+                canonical=bool(row["canonical"]),
+                identity_origin=row["identity_origin"],
+                visibility_policy=row["visibility_policy"],
+                identity_lifecycle=row["identity_lifecycle"],
+                archive_reason=row["archive_reason"],
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
             )
@@ -457,11 +493,18 @@ class AgentDirectory:
                 agent_id=row["agent_id"],
                 run_id=row["run_id"],
                 active=bool(row["active"]),
+                session_epoch=row["session_epoch"],
+                session_role=row["session_role"],
                 runtime_state=row["runtime_state"],
+                fencing_token_hash=row["fencing_token_hash"],
+                max_concurrent_tasks=row["max_concurrent_tasks"],
+                accepts_new_work=bool(row["accepts_new_work"]),
                 started_at=row["started_at"],
                 last_seen_at=row["last_seen_at"],
                 ended_at=row["ended_at"],
                 replaced_by_session_id=row["replaced_by_session_id"],
+                quarantined=bool(row["quarantined"]),
+                session_end_reason=row["session_end_reason"],
             )
             self._sessions[session.session_id] = session
             self._sessions_by_agent[session.agent_id].append(session.session_id)
@@ -487,12 +530,19 @@ class AgentDirectory:
         self.conn.execute(
             """
             insert into agent_identities (
-                agent_id, display_name, role, capability_ids_json, created_at, updated_at
-            ) values (?, ?, ?, ?, ?, ?)
+                agent_id, display_name, role, capability_ids_json, canonical,
+                identity_origin, visibility_policy, identity_lifecycle,
+                archive_reason, created_at, updated_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict(agent_id) do update set
                 display_name = excluded.display_name,
                 role = excluded.role,
                 capability_ids_json = excluded.capability_ids_json,
+                canonical = excluded.canonical,
+                identity_origin = excluded.identity_origin,
+                visibility_policy = excluded.visibility_policy,
+                identity_lifecycle = excluded.identity_lifecycle,
+                archive_reason = excluded.archive_reason,
                 updated_at = excluded.updated_at
             """,
             (
@@ -500,6 +550,11 @@ class AgentDirectory:
                 identity.display_name,
                 identity.role,
                 json.dumps(identity.capability_ids, sort_keys=True),
+                int(identity.canonical),
+                _enum_value(identity.identity_origin),
+                _enum_value(identity.visibility_policy),
+                _enum_value(identity.identity_lifecycle),
+                identity.archive_reason,
                 identity.created_at,
                 identity.updated_at,
             ),
@@ -512,27 +567,43 @@ class AgentDirectory:
         self.conn.execute(
             """
             insert into agent_sessions (
-                session_id, agent_id, run_id, active, runtime_state, started_at,
-                last_seen_at, ended_at, replaced_by_session_id
-            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                session_id, agent_id, run_id, active, session_epoch, session_role,
+                runtime_state, fencing_token_hash, max_concurrent_tasks,
+                accepts_new_work, started_at, last_seen_at, ended_at,
+                replaced_by_session_id, quarantined, session_end_reason
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict(session_id) do update set
                 run_id = excluded.run_id,
                 active = excluded.active,
+                session_epoch = excluded.session_epoch,
+                session_role = excluded.session_role,
                 runtime_state = excluded.runtime_state,
+                fencing_token_hash = excluded.fencing_token_hash,
+                max_concurrent_tasks = excluded.max_concurrent_tasks,
+                accepts_new_work = excluded.accepts_new_work,
                 last_seen_at = excluded.last_seen_at,
                 ended_at = excluded.ended_at,
-                replaced_by_session_id = excluded.replaced_by_session_id
+                replaced_by_session_id = excluded.replaced_by_session_id,
+                quarantined = excluded.quarantined,
+                session_end_reason = excluded.session_end_reason
             """,
             (
                 session.session_id,
                 session.agent_id,
                 session.run_id,
                 int(session.active),
+                session.session_epoch,
+                _enum_value(session.session_role),
                 session.runtime_state.value,
+                session.fencing_token_hash,
+                session.max_concurrent_tasks,
+                int(session.accepts_new_work),
                 session.started_at,
                 session.last_seen_at,
                 session.ended_at,
                 session.replaced_by_session_id,
+                int(session.quarantined),
+                _enum_value(session.session_end_reason),
             ),
         )
         self.conn.commit()
@@ -610,6 +681,11 @@ def migrate(conn: sqlite3.Connection) -> None:
             display_name text,
             role text,
             capability_ids_json text not null,
+            canonical integer not null default 0,
+            identity_origin text not null default 'runtime_discovered',
+            visibility_policy text not null default 'normal',
+            identity_lifecycle text not null default 'active',
+            archive_reason text,
             created_at text not null,
             updated_at text not null
         );
@@ -619,11 +695,18 @@ def migrate(conn: sqlite3.Connection) -> None:
             agent_id text not null,
             run_id text,
             active integer not null,
+            session_epoch integer not null default 1,
+            session_role text not null default 'primary',
             runtime_state text not null,
+            fencing_token_hash text,
+            max_concurrent_tasks integer not null default 1,
+            accepts_new_work integer not null default 1,
             started_at text not null,
             last_seen_at text,
             ended_at text,
-            replaced_by_session_id text
+            replaced_by_session_id text,
+            quarantined integer not null default 0,
+            session_end_reason text
         );
 
         create index if not exists idx_agent_sessions_agent_active
@@ -653,8 +736,37 @@ def migrate(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    for definition in (
+        "session_epoch integer not null default 1",
+        "session_role text not null default 'primary'",
+        "fencing_token_hash text",
+        "max_concurrent_tasks integer not null default 1",
+        "accepts_new_work integer not null default 1",
+        "quarantined integer not null default 0",
+    ):
+        _add_column_if_missing(conn, "agent_sessions", definition)
+    for definition in (
+        "canonical integer not null default 0",
+        "identity_origin text not null default 'runtime_discovered'",
+        "visibility_policy text not null default 'normal'",
+        "identity_lifecycle text not null default 'active'",
+        "archive_reason text",
+    ):
+        _add_column_if_missing(conn, "agent_identities", definition)
+    _add_column_if_missing(conn, "agent_sessions", "session_end_reason text")
     conn.execute(
         "insert or ignore into schema_migrations(version) values (?)",
         (AGENT_SCHEMA_VERSION,),
     )
     conn.commit()
+
+
+def _enum_value(value: object) -> object:
+    return value.value if hasattr(value, "value") else value
+
+
+def _add_column_if_missing(conn: sqlite3.Connection, table: str, column_definition: str) -> None:
+    column = column_definition.split()[0]
+    rows = conn.execute(f"pragma table_info({table})").fetchall()
+    if rows and not any(row[1] == column for row in rows):
+        conn.execute(f"alter table {table} add column {column_definition}")

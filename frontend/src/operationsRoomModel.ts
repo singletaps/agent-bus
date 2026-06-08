@@ -3,10 +3,11 @@ import type {
   EventRow,
   GateRow,
   OperationsProjection,
+  RuntimeCondition,
   TaskRow,
   Tone,
+  UiAgentSummary,
 } from "./operationsApi";
-import { statusFromState } from "./statusModel";
 import { stateLabel } from "./uiText";
 
 export type AgentPresence = "alive" | "busy" | "degraded" | "lost";
@@ -58,6 +59,12 @@ export type OperationsBrief = {
 };
 
 export type AgentCardModel = AgentRow & {
+  identityLifecycle: string;
+  presenceState: string;
+  workloadState: string;
+  uiVisibilityState: string;
+  conditions: RuntimeCondition[];
+  hiddenReason: string;
   presence: AgentPresence;
   stateText: string;
   shortSession: string;
@@ -118,27 +125,93 @@ export function displayOrEmpty(value: string): string {
   return trimmed;
 }
 
-export function agentPresence(agent: AgentRow): AgentPresence {
-  const state = agent.state.toUpperCase();
-  if (
-    state.includes("LOST") ||
-    state.includes("UNAVAILABLE") ||
-    state.includes("REPLACED") ||
-    statusFromState(agent.state, "agent").tone === "bad"
-  ) {
+export function agentPresence(agent: AgentCardModel): AgentPresence {
+  const presence = agent.presenceState.toLowerCase();
+  const workload = agent.workloadState.toLowerCase();
+  if (presence === "offline" || workload === "blocked" || hasFaultCondition(agent.conditions)) {
     return "lost";
   }
-  if (
-    state.includes("DEGRADED") ||
-    state.includes("STUCK") ||
-    state.includes("CONTEXT")
-  ) {
+  if (presence === "stale" || agent.uiVisibilityState === "needs_attention") {
     return "degraded";
   }
-  if (state.includes("WORKING")) {
+  if (["assigned", "working"].includes(workload)) {
     return "busy";
   }
   return "alive";
+}
+
+function agentCardFromSummary(
+  summary: UiAgentSummary,
+  fallback?: AgentRow,
+): AgentCardModel {
+  const role = summary.role || fallback?.role || "unassigned";
+  const base: AgentRow = {
+    id: summary.agentId || fallback?.id || "unknown-agent",
+    name: summary.displayName || fallback?.name || summary.agentId || "unknown-agent",
+    role,
+    roles: fallback?.roles?.length ? fallback.roles : role ? [role] : [],
+    sessionId: fallback?.sessionId || "no-session",
+    state: summary.runtimeState || fallback?.state || summary.presenceState || "unknown",
+    inboxCount: summary.queuedInbox,
+    capabilities: fallback?.capabilities || [],
+  };
+
+  return {
+    ...base,
+    identityLifecycle: summary.identityLifecycle,
+    presenceState: summary.presenceState,
+    workloadState: summary.workloadState,
+    uiVisibilityState: summary.uiVisibilityState,
+    conditions: summary.conditions,
+    hiddenReason: summary.hiddenReason,
+    presence: "alive",
+    stateText: "",
+    shortSession: "",
+  };
+}
+
+function runtimeStateText(agent: AgentCardModel): string {
+  if (agent.uiVisibilityState === "needs_attention") {
+    return "Needs attention";
+  }
+  const presenceLabels: Record<string, string> = {
+    online: "Online",
+    stale: "Stale",
+    offline: "Offline",
+    unknown: "Unknown",
+  };
+  const workloadLabels: Record<string, string> = {
+    assigned: "Assigned",
+    blocked: "Blocked",
+    claim_pending: "Claim pending",
+    free: "Free",
+    historical: "Historical",
+    waiting_gate: "Waiting gate",
+    waiting_input: "Waiting input",
+    waiting_review: "Waiting review",
+    working: "Working",
+  };
+  return (
+    presenceLabels[agent.presenceState] ||
+    workloadLabels[agent.workloadState] ||
+    displayOrEmpty(agent.presenceState) ||
+    displayOrEmpty(agent.workloadState) ||
+    "待更新"
+  );
+}
+
+function hasFaultCondition(conditions: RuntimeCondition[]): boolean {
+  return conditions.some((condition) => {
+    const severity = condition.severity.toLowerCase();
+    if (severity === "critical" || severity === "error") {
+      return true;
+    }
+    const type = condition.type.toLowerCase();
+    return (
+      condition.status === "true" &&
+      (type.includes("replacementrecommended") || type.includes("contextlost"))
+    );
+  });
 }
 
 export function taskLane(task: TaskRow): MissionLane {
@@ -216,12 +289,19 @@ export function decisionLane(task: TaskRow): DecisionLane {
 export function buildOperationsRoomModel(
   projection: OperationsProjection,
 ): OperationsRoomModel {
-  const agents = projection.agents.map((agent) => ({
-    ...agent,
-    presence: agentPresence(agent),
-    stateText: displayOrEmpty(stateLabel(agent.state)) || "待更新",
-    shortSession: shortSessionId(agent.sessionId),
-  }));
+  const agentRowsById = new Map(projection.agents.map((agent) => [agent.id, agent]));
+  const visibleSummaries = projection.ui.visibleAgents.filter(
+    (agent) => agent.uiVisibilityState === "main" || agent.uiVisibilityState === "needs_attention",
+  );
+  const agents = visibleSummaries.map((summary) => {
+    const agent = agentCardFromSummary(summary, agentRowsById.get(summary.agentId));
+    return {
+      ...agent,
+      presence: agentPresence(agent),
+      stateText: runtimeStateText(agent),
+      shortSession: shortSessionId(agent.sessionId),
+    };
+  });
 
   const tasks = projection.tasks.map((task) => {
     const lane = decisionLane(task);
@@ -245,9 +325,8 @@ export function buildOperationsRoomModel(
     backlog: tasks.filter((task) => task.lane === "backlog"),
   };
 
-  const urgentGates = projection.gates.filter(
-    (gate) => !isClosedState(gate.state),
-  );
+  const actionableGateIds = new Set(projection.ui.actionableGates.map((gate) => gate.gateId));
+  const urgentGates = projection.gates.filter((gate) => actionableGateIds.has(gate.id));
 
   const waitingGate = tasks.filter((task) => task.decisionLane === "waitingGate");
   const decisionLanes: Record<DecisionLane, TaskCardModel[]> = {
@@ -424,22 +503,18 @@ function workstationRole(agent: AgentRow): WorkstationRole {
   return "unknown";
 }
 
-function workstationPosture(agent: AgentRow): WorkstationPosture {
-  const state = agent.state.toUpperCase();
-  if (
-    state.includes("CONTEXT") ||
-    state.includes("LOST") ||
-    state.includes("UNAVAILABLE")
-  ) {
+function workstationPosture(agent: AgentCardModel): WorkstationPosture {
+  const workload = agent.workloadState.toLowerCase();
+  if (agent.presenceState === "offline" || workload === "blocked" || hasFaultCondition(agent.conditions)) {
     return "fault";
   }
-  if (state.includes("DEGRADED") || state.includes("STUCK")) {
+  if (agent.presenceState === "stale" || agent.uiVisibilityState === "needs_attention") {
     return "degraded";
   }
-  if (state.includes("GATE")) return "gate";
-  if (state.includes("REVIEW")) return "review";
-  if (state.includes("WORKING")) return "working";
-  if (state.includes("WAIT")) return "waiting";
+  if (workload === "waiting_gate") return "gate";
+  if (workload === "waiting_review") return "review";
+  if (workload === "working" || workload === "assigned") return "working";
+  if (["waiting_input", "claim_pending"].includes(workload)) return "waiting";
   return "standby";
 }
 

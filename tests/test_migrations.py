@@ -117,6 +117,14 @@ def test_kernel_migration_extends_existing_domain_tables(tmp_path):
                 ended_at text,
                 replaced_by_session_id text
             );
+            create table agent_identities (
+                agent_id text primary key,
+                display_name text,
+                role text,
+                capability_ids_json text not null,
+                created_at text not null,
+                updated_at text not null
+            );
             create table context_packets (
                 packet_id text primary key,
                 version integer not null,
@@ -168,6 +176,14 @@ def test_kernel_migration_extends_existing_domain_tables(tmp_path):
         assert {"session_epoch", "session_role", "fencing_token_hash", "accepts_new_work"} <= _columns(
             conn, "agent_sessions"
         )
+        assert "session_end_reason" in _columns(conn, "agent_sessions")
+        assert {
+            "canonical",
+            "identity_origin",
+            "visibility_policy",
+            "identity_lifecycle",
+            "archive_reason",
+        } <= _columns(conn, "agent_identities")
         assert {"packet_kind", "role_contract_json", "expected_outputs_json", "updated_at"} <= _columns(
             conn, "context_packets"
         )
